@@ -5,10 +5,15 @@ import { CreateVideoDto } from './dto/create-video.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
+import { VideoGenerationService } from './video-generation.service';
+
 @ApiTags('Videos')
 @Controller('videos')
 export class VideoController {
-  constructor(private readonly videoService: VideoService) {}
+  constructor(
+    private readonly videoService: VideoService,
+    private readonly videoGenerationService: VideoGenerationService,
+  ) { }
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -19,7 +24,12 @@ export class VideoController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async createVideo(@Body() dto: CreateVideoDto, @CurrentUser() user: any) {
     const video = await this.videoService.createVideo(dto, user.userId);
-    // Note: Enqueueing will be handled by a service method
+
+    // Start signal generation in background (fire-and-forget)
+    this.videoGenerationService.startGeneration(video.id).catch(err => {
+      console.error(`Failed to trigger generation for video ${video.id}`, err);
+    });
+
     return {
       video_id: video.id,
       status: video.status,

@@ -5,7 +5,7 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import helmet from 'helmet';
-import compression from 'compression';
+import * as compression from 'compression';
 import { json, urlencoded } from 'express';
 
 async function bootstrap() {

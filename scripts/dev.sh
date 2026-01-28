@@ -21,19 +21,12 @@ fi
 echo "Checking infrastructure services..."
 if ! docker ps | grep -q postgres; then
     echo "Starting PostgreSQL..."
-    cd docker && docker-compose up -d postgres redis && cd ..
+    cd docker && docker-compose up -d postgres && cd ..
     sleep 3
 fi
 
 echo ""
 echo "Available commands:"
 echo "  npm run start:dev          - Start API server"
-echo "  npm run worker:orchestrator - Start orchestrator worker"
-echo "  npm run worker:script      - Start script worker"
-echo "  npm run worker:audio       - Start audio worker"
-echo "  npm run worker:caption     - Start caption worker"
-echo "  npm run worker:asset       - Start asset worker"
-echo "  npm run worker:render      - Start render worker"
 echo ""
-echo "Or use: npm run dev:all      - Start all workers (requires pm2 or similar)"
 echo ""

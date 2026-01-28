@@ -3,9 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { BullModule } from '@nestjs/bullmq';
 import { VideoModule } from './video/video.module';
-import { QueueModule } from './queue/queue.module';
 import { DatabaseModule } from './database/database.module';
 import { ConfigModule as AppConfigModule } from './config/config.module';
 import { AIModule } from './ai/ai.module';
@@ -31,24 +29,7 @@ import { HealthModule } from './health/health.module';
     ]),
     AppConfigModule,
     DatabaseModule,
-    BullModule.forRoot({
-      connection: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379'),
-        password: process.env.REDIS_PASSWORD,
-        retryStrategy: (times) => {
-          const delay = Math.min(times * 50, 2000);
-          return delay;
-        },
-        maxRetriesPerRequest: 3,
-        enableReadyCheck: true,
-        connectTimeout: 10000,
-        lazyConnect: false,
-        keepAlive: 30000,
-      },
-    }),
     VideoModule,
-    QueueModule,
     AIModule,
     StorageModule,
     RenderModule,
@@ -63,4 +44,4 @@ import { HealthModule } from './health/health.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }

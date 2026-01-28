@@ -1,9 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Video, VideoStatus } from './entities/video.entity';
 import { CreateVideoDto } from './dto/create-video.dto';
-import { QueueService } from '../queue/queue.service';
 import { CreditsService } from '../credits/credits.service';
 
 @Injectable()
@@ -13,10 +12,8 @@ export class VideoService {
   constructor(
     @InjectRepository(Video)
     private videoRepository: Repository<Video>,
-    @Inject(forwardRef(() => QueueService))
-    private queueService: QueueService,
     private creditsService: CreditsService,
-  ) {}
+  ) { }
 
   async createVideo(dto: CreateVideoDto, userId?: string): Promise<Video> {
     // Check if user has enough credits (only for authenticated users)
@@ -38,20 +35,7 @@ export class VideoService {
       status: VideoStatus.PENDING,
       user_id: userId || null,
     });
-    const savedVideo = await this.videoRepository.save(video);
-    
-    // Enqueue video creation
-    await this.queueService.videoQueue.add(
-      'create',
-      { video_id: savedVideo.id },
-      {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 2000 },
-        removeOnComplete: true,
-      },
-    );
-    
-    return savedVideo;
+    return await this.videoRepository.save(video);
   }
 
   async getVideo(id: string): Promise<Video> {
@@ -82,6 +66,20 @@ export class VideoService {
       script_generated_at: new Date(),
       status: VideoStatus.SCRIPT_COMPLETE,
     });
+  }
+
+  async updateScriptJSON(id: string, scriptJSON: Record<string, any>): Promise<void> {
+    await this.videoRepository.update(id, {
+      script_json: scriptJSON,
+    });
+  }
+
+  async updateImageUrls(id: string, imageUrls: string[]): Promise<void> {
+    await this.videoRepository.update(id, { image_urls: imageUrls });
+  }
+
+  async updateGeneratedVideoUrl(id: string, generatedVideoUrl: string): Promise<void> {
+    await this.videoRepository.update(id, { generated_video_url: generatedVideoUrl });
   }
 
   async updateAudioUrl(id: string, audioUrl: string): Promise<void> {

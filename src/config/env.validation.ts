@@ -92,12 +92,17 @@ class AppConfig {
 }
 
 class AIConfig {
+  @IsOptional()
   @IsString()
-  OPENAI_API_KEY: string;
+  OPENAI_API_KEY?: string;
 
   @IsOptional()
   @IsString()
   REPLICATE_API_TOKEN?: string;
+
+  @IsOptional()
+  @IsString()
+  HUGGINGFACE_API_KEY?: string;
 }
 
 class StorageConfig {
@@ -168,8 +173,12 @@ export function validate(config: Record<string, unknown>) {
     enableImplicitConversion: true,
   });
 
+  // In development, allow missing OPENAI_API_KEY (will use mock providers)
+  const isDevelopment = config.NODE_ENV !== 'production';
+  const skipMissingProperties = isDevelopment;
+
   const errors = validateSync(validatedConfig, {
-    skipMissingProperties: false,
+    skipMissingProperties,
   });
 
   if (errors.length > 0) {

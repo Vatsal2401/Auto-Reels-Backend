@@ -72,8 +72,6 @@ DB_PORT=5432
 DB_USERNAME=postgres
 DB_PASSWORD=postgres
 DB_DATABASE=ai_reels
-REDIS_HOST=localhost
-REDIS_PORT=6379
 JWT_SECRET=$(openssl rand -hex 32)
 EOF
     fi
@@ -84,18 +82,18 @@ fi
 echo ""
 echo "🐳 Starting infrastructure services (PostgreSQL & Redis)..."
 
-# Start PostgreSQL and Redis using Docker Compose
+# Start PostgreSQL using Docker Compose
 if command -v docker-compose &> /dev/null; then
     DOCKER_COMPOSE_CMD="docker-compose"
 elif docker compose version &> /dev/null; then
     DOCKER_COMPOSE_CMD="docker compose"
 else
-    echo -e "${RED}❌ Docker Compose not available. Please start PostgreSQL and Redis manually${NC}"
+    echo -e "${RED}❌ Docker Compose not available. Please start PostgreSQL manually${NC}"
     exit 1
 fi
 
 cd docker
-$DOCKER_COMPOSE_CMD -f docker-compose.dev.yml up -d postgres redis
+$DOCKER_COMPOSE_CMD -f docker-compose.dev.yml up -d postgres
 cd ..
 
 echo ""
@@ -107,13 +105,6 @@ if docker ps | grep -q postgres; then
     echo -e "${GREEN}✅ PostgreSQL is running${NC}"
 else
     echo -e "${RED}❌ PostgreSQL failed to start${NC}"
-fi
-
-# Check Redis
-if docker ps | grep -q redis; then
-    echo -e "${GREEN}✅ Redis is running${NC}"
-else
-    echo -e "${RED}❌ Redis failed to start${NC}"
 fi
 
 echo ""
@@ -147,6 +138,5 @@ echo ""
 echo "📝 Next steps:"
 echo "1. Edit .env file with your API keys (OpenAI, AWS S3, Replicate)"
 echo "2. Start the API server: npm run start:dev"
-echo "3. Start workers in separate terminals: npm run worker:orchestrator, etc."
 echo ""
 echo "📚 For more information, see README.md"

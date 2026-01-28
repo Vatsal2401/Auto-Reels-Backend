@@ -18,11 +18,16 @@ export class FFmpegRendererProvider implements IVideoRenderer {
       writeFileSync(audioPath, options.audio);
       writeFileSync(captionPath, options.caption);
 
-      // Create video from assets (for now, use first asset as video)
-      // In production, you'd composite multiple assets
-      const videoPath = options.assets.length > 0 
-        ? await this.prepareVideoAsset(options.assets[0], tempDir)
-        : null;
+      // Prioritize Replicate-generated video, fallback to assets
+      let videoPath: string | null = null;
+      
+      if (options.video) {
+        // New workflow: Use Replicate-generated video
+        videoPath = await this.prepareVideoAsset(options.video, tempDir);
+      } else if (options.assets && options.assets.length > 0) {
+        // Legacy workflow: Use first asset as video
+        videoPath = await this.prepareVideoAsset(options.assets[0], tempDir);
+      }
 
       return new Promise((resolve, reject) => {
         let command = ffmpeg();

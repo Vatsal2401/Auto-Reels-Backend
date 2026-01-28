@@ -20,8 +20,9 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
+# Install runtime dependencies (FFmpeg for rendering)
+RUN apk add --no-cache ffmpeg && \
+    addgroup -g 1001 -S nodejs && \
     adduser -S nestjs -u 1001
 
 # Install only production dependencies

@@ -47,6 +47,9 @@ export class Video {
   @Column({ type: 'text', nullable: true })
   script: string | null;
 
+  @Column({ type: 'jsonb', nullable: true })
+  script_json: Record<string, any> | null;
+
   @Column({ type: 'timestamp', nullable: true })
   script_generated_at: Date | null;
 
@@ -58,6 +61,12 @@ export class Video {
 
   @Column({ type: 'jsonb', nullable: true })
   asset_urls: string[] | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  image_urls: string[] | null;
+
+  @Column({ type: 'text', nullable: true })
+  generated_video_url: string | null;
 
   @Column({ type: 'text', nullable: true })
   final_video_url: string | null;
