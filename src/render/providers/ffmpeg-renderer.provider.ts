@@ -9,96 +9,173 @@ import { tmpdir } from 'os';
 export class FFmpegRendererProvider implements IVideoRenderer {
   async compose(options: ComposeOptions): Promise<Buffer> {
     const tempDir = tmpdir();
-    const audioPath = join(tempDir, `audio-${Date.now()}.mp3`);
-    const captionPath = join(tempDir, `caption-${Date.now()}.srt`);
-    const outputPath = join(tempDir, `output-${Date.now()}.mp4`);
+    const sessionId = Date.now();
+    const audioPath = join(tempDir, `audio-${sessionId}.mp3`);
+    const captionPath = join(tempDir, `caption-${sessionId}.srt`);
+    const outputPath = join(tempDir, `output-${sessionId}.mp4`);
+    const imagePaths: string[] = [];
 
     try {
-      // Write buffers to temp files
+      // 1. Write Audio & Captions
       writeFileSync(audioPath, options.audio);
       writeFileSync(captionPath, options.caption);
 
-      // Prioritize Replicate-generated video, fallback to assets
-      let videoPath: string | null = null;
-      
-      if (options.video) {
-        // New workflow: Use Replicate-generated video
-        videoPath = await this.prepareVideoAsset(options.video, tempDir);
-      } else if (options.assets && options.assets.length > 0) {
-        // Legacy workflow: Use first asset as video
-        videoPath = await this.prepareVideoAsset(options.assets[0], tempDir);
+      // 2. Prepare Video Assets (Images)
+      if (options.assets && options.assets.length > 0) {
+        for (let i = 0; i < options.assets.length; i++) {
+          const imgPath = join(tempDir, `image-${sessionId}-${i}.png`);
+          writeFileSync(imgPath, options.assets[i]);
+          imagePaths.push(imgPath);
+        }
       }
+
+      // 3. Get Audio Duration to calculate pacing
+      const audioDuration = await this.getMediaDuration(audioPath);
+      // Default to 5s per image if detection fails or images only
+      // Calculate duration per slide (ensure min 3s)
+      const imageCount = imagePaths.length || 1;
+      const slideDuration = audioDuration > 0
+        ? Math.max(3, audioDuration / imageCount)
+        : 5;
+
+      const transitionDuration = 0.5;
 
       return new Promise((resolve, reject) => {
         let command = ffmpeg();
+        const complexFilters: string[] = [];
+        const videoStreams: string[] = [];
 
-        if (videoPath) {
-          command = command.input(videoPath);
+        // --- SLIDESHOW MODE (Images -> Video) ---
+        if (imagePaths.length > 0) {
+          // Input all images
+          imagePaths.forEach(img => command.input(img));
+
+          // Create ZoomPan + Scale filters for each image
+          imagePaths.forEach((_, i) => {
+            const effect = this.getRandomKenBurnsEffect();
+            // ZoomPan needs frames logic. `d` is duration in frames. 25fps.
+            // We extend duration by transitionDuration to overlap
+            const frames = Math.ceil((slideDuration + transitionDuration) * 25);
+
+            // [i:v] -> scale -2:1920 (height fit) -> crop 1080:1920 -> zoompan -> [v{i}]
+            // We force aspect ratio preservation then crop to vertical.
+            // "setsar=1" ensures pixel aspect ratio is square.
+            complexFilters.push(
+              `[${i}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,` +
+              `zoompan=${effect}d=${frames}:s=1080x1920:fps=25[v${i}]`
+            );
+            videoStreams.push(`v${i}`);
+          });
+
+          // Chain XFADE Transitions
+          if (videoStreams.length > 1) {
+            let prevStream = videoStreams[0];
+            let currentOffset = slideDuration - transitionDuration;
+
+            for (let i = 1; i < videoStreams.length; i++) {
+              const nextStream = videoStreams[i];
+              const outStream = i === videoStreams.length - 1 ? 'v_merged' : `x${i}`;
+
+              // offset needs to be cumulative
+              // Slide 0 ends at T = slideDuration
+              // Slide 1 starts at T = slideDuration - transitionDuration
+
+              complexFilters.push(
+                `[${prevStream}][${nextStream}]xfade=transition=fade:duration=${transitionDuration}:offset=${currentOffset}[${outStream}]`
+              );
+
+              prevStream = outStream;
+              currentOffset += (slideDuration - transitionDuration);
+            }
+          } else {
+            // Case for single image
+            complexFilters.push(`[v0]copy[v_merged]`);
+          }
+
+        } else if (options.video) {
+          // Legacy/Video Mode (if we still pass a video buffer)
+          const videoPath = join(tempDir, `video-${sessionId}.mp4`);
+          writeFileSync(videoPath, options.video);
+          command.input(videoPath).inputOptions(['-stream_loop', '-1']);
+          complexFilters.push(`[0:v]copy[v_merged]`); // Just map it
+          // Note: If reusing logic, we might need scaling here too.
+          // But let's assume Video-Mode is disabled/deprecated or handles itself.
+          // For now, simple passthrough to v_merged to support subtitles.
         } else {
-          // Create a blank video if no assets
-          command = command
-            .input('color=c=black:s=1920x1080:d=' + (options.duration || 30))
-            .inputFormat('lavfi');
+          // No Assets? Create Blank.
+          command.input('color=c=black:s=1080x1920:d=' + (audioDuration || 30)).inputFormat('lavfi');
+          complexFilters.push(`[0:v]null[v_merged]`);
         }
 
+        // --- FINAL COMPOSITION ---
+        // Audio Input is next available index (after all images)
+        const audioIndex = imagePaths.length > 0 ? imagePaths.length : (options.video ? 1 : 1);
+        command.input(audioPath);
+
+        // Burn Captions on 'v_merged'
+        // Updated Style: Small (20), Bottom (MarginV=30), Shadow/Outline
+        complexFilters.push(
+          `[v_merged]subtitles=${captionPath}:force_style='FontSize=32,PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=1,Outline=2,Shadow=1,Alignment=2,MarginV=85'[v_final]`
+        );
+
         command
-          .input(audioPath)
-          .inputOptions(['-stream_loop', '-1'])
-          .complexFilter([
-            // Add caption overlay
-            {
-              filter: 'subtitles',
-              options: {
-                filename: captionPath,
-                force_style: 'FontSize=24,PrimaryColour=&Hffffff,OutlineColour=&H000000',
-              },
-            },
-          ])
+          .complexFilter(complexFilters)
           .outputOptions([
-            '-c:v libx264',
-            '-preset medium',
-            '-crf 23',
-            '-c:a aac',
-            '-b:a 192k',
-            '-shortest',
+            '-map [v_final]',
+            `-map ${audioIndex}:a`, // Map audio correctly
+            '-c:v libx264', '-preset fast', '-crf 23',
+            '-c:a aac', '-b:a 192k',
+            '-pix_fmt yuv420p',
+            '-shortest',        // Stop when audio ends
+            '-movflags +faststart'
           ])
           .output(outputPath)
           .on('end', () => {
             try {
-              const videoBuffer = readFileSync(outputPath);
-              resolve(videoBuffer);
-            } catch (error) {
-              reject(error);
-            } finally {
-              // Cleanup
-              this.cleanup([audioPath, captionPath, outputPath, videoPath].filter(Boolean));
-            }
+              resolve(readFileSync(outputPath));
+            } catch (err) { reject(err); }
+            finally { this.cleanup([audioPath, captionPath, outputPath, ...imagePaths]); }
           })
-          .on('error', (error) => {
-            this.cleanup([audioPath, captionPath, outputPath, videoPath].filter(Boolean));
-            reject(error);
+          .on('error', (err) => {
+            this.cleanup([audioPath, captionPath, outputPath, ...imagePaths]);
+            reject(err);
           })
           .run();
+
       });
+
     } catch (error) {
-      this.cleanup([audioPath, captionPath, outputPath].filter(Boolean));
+      this.cleanup([audioPath, captionPath, outputPath, ...imagePaths]);
       throw error;
     }
   }
 
-  private async prepareVideoAsset(assetBuffer: Buffer, tempDir: string): Promise<string> {
-    const assetPath = join(tempDir, `asset-${Date.now()}.mp4`);
-    writeFileSync(assetPath, assetBuffer);
-    return assetPath;
+  // --- HELPER METHODS ---
+
+  private getMediaDuration(path: string): Promise<number> {
+    return new Promise((resolve) => {
+      ffmpeg.ffprobe(path, (err, metadata) => {
+        if (err || !metadata) resolve(0);
+        else resolve(metadata.format.duration || 0);
+      });
+    });
+  }
+
+  private getRandomKenBurnsEffect(): string {
+    const effects = [
+      // Zoom In Center
+      "z='min(zoom+0.0015,1.5)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':",
+      // Zoom Out Center
+      "z='if(eq(on,1),1.5,max(1.0,zoom-0.0015))':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':",
+      // Pan Left
+      "z=1.2:x='if(eq(on,1),0,min(x+1,iw-iw/zoom))':y='(ih-ih/zoom)/2':",
+      // Pan Right
+      "z=1.2:x='if(eq(on,1),iw-iw/zoom,max(x-1,0))':y='(ih-ih/zoom)/2':"
+    ];
+    return effects[Math.floor(Math.random() * effects.length)];
   }
 
   private cleanup(paths: string[]): void {
-    paths.forEach((path) => {
-      try {
-        if (path) unlinkSync(path);
-      } catch (error) {
-        // Ignore cleanup errors
-      }
-    });
+    paths.forEach(p => { try { if (p) unlinkSync(p); } catch (e) { } });
   }
 }

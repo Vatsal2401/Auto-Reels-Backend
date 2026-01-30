@@ -15,12 +15,16 @@ import { ReplicateImageToVideoProvider } from './providers/replicate-image-to-vi
 import { HuggingFaceImageToVideoProvider } from './providers/huggingface-image-to-video.provider';
 import { FreeImageToVideoProvider } from './providers/free-image-to-video.provider';
 import { GeminiScriptProvider } from './providers/gemini-script.provider';
+import { GeminiImageProvider } from './providers/gemini-image.provider';
+import { GeminiVideoProvider } from './providers/gemini-video.provider';
+import { ElevenLabsTTSProvider } from './providers/elevenlabs-tts.provider';
 import { AiProviderFactory } from './ai-provider.factory';
 
 // Use mock providers if OPENAI_API_KEY is not set (for testing)
 const hasOpenAIKey = process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim();
 const hasGeminiKey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim();
 const hasReplicateKey = process.env.REPLICATE_API_TOKEN && process.env.REPLICATE_API_TOKEN.trim();
+const hasElevenLabsKey = process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_API_KEY.trim();
 const hasHuggingFaceKey = process.env.HUGGINGFACE_API_KEY && process.env.HUGGINGFACE_API_KEY.trim();
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
@@ -44,6 +48,8 @@ const getImageToVideoProvider = () => {
   }
 };
 
+import { ReplicateImageProvider } from './providers/replicate-image.provider';
+
 @Module({
   providers: [
     AiProviderFactory,
@@ -51,23 +57,27 @@ const getImageToVideoProvider = () => {
     OpenAIScriptProvider,
     GeminiScriptProvider,
     OpenAITTSProvider,
+    ElevenLabsTTSProvider,
     ReplicateCaptionProvider,
     DalleImageProvider,
+    GeminiImageProvider,
     ReplicateImageToVideoProvider,
+    GeminiVideoProvider,
     HuggingFaceImageToVideoProvider,
     FreeImageToVideoProvider,
     MockScriptProvider,
     MockTTSProvider,
     MockImageProvider,
+    ReplicateImageProvider,
 
     // Default Alias Bindings (Kept for backward compat)
     {
       provide: 'IScriptGenerator',
-      useClass: hasOpenAIKey ? OpenAIScriptProvider : (hasGeminiKey ? GeminiScriptProvider : MockScriptProvider),
+      useClass: hasGeminiKey ? GeminiScriptProvider : (hasOpenAIKey ? OpenAIScriptProvider : MockScriptProvider),
     },
     {
       provide: 'ITextToSpeech',
-      useClass: hasOpenAIKey ? OpenAITTSProvider : MockTTSProvider,
+      useClass: hasElevenLabsKey ? ElevenLabsTTSProvider : (hasOpenAIKey ? OpenAITTSProvider : MockTTSProvider),
     },
     {
       provide: 'ICaptionGenerator',
@@ -75,11 +85,11 @@ const getImageToVideoProvider = () => {
     },
     {
       provide: 'IImageGenerator',
-      useClass: hasOpenAIKey ? DalleImageProvider : MockImageProvider,
+      useClass: hasGeminiKey ? GeminiImageProvider : (hasOpenAIKey ? DalleImageProvider : MockImageProvider),
     },
     {
       provide: 'IImageToVideo',
-      useClass: getImageToVideoProvider(),
+      useClass: hasGeminiKey ? GeminiVideoProvider : getImageToVideoProvider(),
     },
   ],
   exports: [
@@ -89,8 +99,8 @@ const getImageToVideoProvider = () => {
 })
 export class AIModule {
   constructor() {
-    if (!hasOpenAIKey && isDevelopment) {
-      console.warn('⚠️  Using MOCK AI providers (no OPENAI_API_KEY set). Set OPENAI_API_KEY for real AI features.');
+    if (!hasOpenAIKey && !hasGeminiKey && isDevelopment) {
+      console.warn('⚠️  Using MOCK AI providers (No valid API keys set for OpenAI or Gemini).');
     }
   }
 }

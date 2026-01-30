@@ -31,14 +31,15 @@ export class VideoGenerationService {
             // 2. Image Generation
             await this.generateImagesStep(videoId);
 
-            // 3. Image-to-Video
-            await this.generateVideoSegmentsStep(videoId);
+            // 3. Image-to-Video OR Text-to-Video
+            // SKIPPING AI Video Generation entirely. We will use FFmpeg Slideshow in Render step.
+            // await this.generateVideoSegmentsStep(videoId);
 
-            // 4. Parallel: Audio & Captions
-            await Promise.all([
-                this.generateAudioStep(videoId),
-                this.generateCaptionsStep(videoId),
-            ]);
+            // 4. Audio Generation
+            const audioBuffer = await this.generateAudioStep(videoId);
+
+            // 5. Caption Generation (Needs Audio)
+            await this.generateCaptionsStep(videoId, audioBuffer);
 
             // 5. Final Rendering
             await this.renderFinalVideoStep(videoId);
@@ -62,14 +63,17 @@ export class VideoGenerationService {
 
         // Determine Provider based on available keys
         let provider = 'mock';
-        if (process.env.OPENAI_API_KEY) provider = 'openai';
-        else if (process.env.GEMINI_API_KEY) provider = 'gemini';
+        if (process.env.GEMINI_API_KEY) provider = 'gemini';
+        else if (process.env.OPENAI_API_KEY) provider = 'openai';
 
         const scriptProvider = this.aiFactory.getScriptGenerator(provider);
 
-        // Generate JSON and Text
+        // Generate JSON first (structured data is reliable)
         const scriptJSON = await scriptProvider.generateScriptJSON(video.topic);
-        const scriptText = await scriptProvider.generateScript(video.topic);
+
+        // Construct clean script text from JSON scenes (stateless/pure)
+        // This avoids the raw output from 'generateScript' which often contains instructions/markdown.
+        const scriptText = scriptJSON.scenes.map(s => s.audio_text).join(' ');
 
         await this.videoService.updateScriptJSON(videoId, scriptJSON);
         await this.videoService.updateScript(videoId, scriptText);
@@ -90,8 +94,11 @@ export class VideoGenerationService {
         this.logger.log(`Generating ${scriptJson.scenes.length} images for ${videoId}...`);
         await this.videoService.updateStatus(videoId, VideoStatus.PROCESSING);
 
-        // Get Provider from Factory (default: dalle)
-        const imageProvider = this.aiFactory.getImageGenerator(process.env.OPENAI_API_KEY ? 'dalle' : 'mock');
+        // Get Provider from Factory (default: gemini if key exists)
+        // Get Provider from Factory
+        // PROVISIONAL: Prefer Replicate for images (Gemini Imagen 3 is 404)
+        const imageProviderName = process.env.REPLICATE_API_TOKEN ? 'replicate' : (process.env.GEMINI_API_KEY ? 'gemini' : 'mock');
+        const imageProvider = this.aiFactory.getImageGenerator(imageProviderName);
 
         const imageUrls: string[] = [];
 
@@ -113,50 +120,66 @@ export class VideoGenerationService {
             return;
         }
 
-        if (!video.image_urls || video.image_urls.length === 0) {
-            throw new Error('No images available for video generation');
+        const scriptJson = video.script_json as unknown as ScriptJSON;
+        if (!scriptJson || !scriptJson.scenes) {
+            throw new Error('Script JSON missing scenes');
         }
 
-        this.logger.log(`Converting images to video for ${videoId}...`);
+        this.logger.log(`Generating SINGLE video from full script (Text-to-Video)...`);
 
         // Get Provider from Factory
-        const videoProviderName = process.env.REPLICATE_API_TOKEN ? 'replicate' : 'free';
+        const videoProviderName = process.env.GEMINI_API_KEY ? 'gemini' : (process.env.REPLICATE_API_TOKEN ? 'replicate' : 'free');
         const videoProvider = this.aiFactory.getImageToVideo(videoProviderName);
 
-        // Generate for first image only (simple approach)
-        const firstImageUrl = video.image_urls[0];
-        const imageBuffer = await this.storageService.download(firstImageUrl);
+        // Construct a single master prompt from the script
+        // We combine the topic and key visual details to get a cohesive video
+        const masterPrompt = `Cinematic video about ${video.topic}. ` +
+            scriptJson.scenes.map(s => s.image_prompt).join('. ');
 
-        const scriptJson = video.script_json as unknown as ScriptJSON;
-        const duration = scriptJson?.scenes[0]?.duration || 5;
+        // Truncate to avoid context limits if necessary (Veo 3 has reasonable limits)
+        const safePrompt = masterPrompt.substring(0, 1000); // Safe limit
 
-        const videoBuffer = await videoProvider.generateVideo(imageBuffer, duration);
+        this.logger.log(`Video Prompt: "${safePrompt.substring(0, 100)}..."`);
+
+        // Duration: Sum of all scenes
+        // Note: Veo preview might be limited to 5-10s regardless.
+        const totalDuration = scriptJson.scenes.reduce((acc, s) => acc + (s.duration || 5), 0);
+
+        // Pass empty buffer for Text-to-Video
+        const emptyBuffer = Buffer.from([]);
+
+        const videoBuffer = await videoProvider.generateVideo(emptyBuffer, safePrompt, totalDuration);
+
         const videoUrl = await this.storageService.uploadAsset(videoId, videoBuffer, 'video/mp4');
 
         await this.videoService.updateGeneratedVideoUrl(videoId, videoUrl);
     }
 
-    private async generateAudioStep(videoId: string): Promise<void> {
+    private async generateAudioStep(videoId: string): Promise<Buffer> {
         const video = await this.videoService.getVideo(videoId);
         if (video.audio_url) {
             this.logger.log(`Audio already exists for ${videoId}, skipping.`);
-            return;
+            // Currently we don't store the buffer if it exists, so we download it
+            return this.storageService.download(video.audio_url);
         }
 
         if (!video.script) throw new Error('No script for audio generation');
 
         this.logger.log(`Generating audio for ${videoId}...`);
 
-        // Get Provider from Factory (default: openai)
-        const audioProvider = this.aiFactory.getTextToSpeech(process.env.OPENAI_API_KEY ? 'openai' : 'mock');
+        // Get Provider from Factory (default: elevenlabs)
+        const audioProviderName = process.env.ELEVENLABS_API_KEY ? 'elevenlabs' : (process.env.OPENAI_API_KEY ? 'openai' : 'mock');
+        const audioProvider = this.aiFactory.getTextToSpeech(audioProviderName);
 
         const audioBuffer = await audioProvider.textToSpeech(video.script);
+
         const audioUrl = await this.storageService.uploadAudio(videoId, audioBuffer);
 
         await this.videoService.updateAudioUrl(videoId, audioUrl);
+        return audioBuffer;
     }
 
-    private async generateCaptionsStep(videoId: string): Promise<void> {
+    private async generateCaptionsStep(videoId: string, audioBuffer: Buffer): Promise<void> {
         const video = await this.videoService.getVideo(videoId);
         if (video.caption_url) {
             this.logger.log(`Captions already exist for ${videoId}, skipping.`);
@@ -170,7 +193,8 @@ export class VideoGenerationService {
         // Get Provider from Factory (default: replicate)
         const captionProvider = this.aiFactory.getCaptionGenerator('replicate');
 
-        const captionBuffer = await captionProvider.generateCaptions(video.script);
+        // Pass actual audio buffer to provider
+        const captionBuffer = await captionProvider.generateCaptions(audioBuffer, video.script);
         const captionUrl = await this.storageService.uploadCaption(videoId, captionBuffer);
 
         await this.videoService.updateCaptionUrl(videoId, captionUrl);
@@ -186,20 +210,24 @@ export class VideoGenerationService {
         this.logger.log(`Rendering final video for ${videoId}...`);
         await this.videoService.updateStatus(videoId, VideoStatus.RENDERING);
 
-        if (!video.audio_url || !video.caption_url || !video.generated_video_url) {
-            throw new Error('Missing assets for final render');
+        if (!video.audio_url || !video.caption_url || !video.image_urls || video.image_urls.length === 0) {
+            throw new Error('Missing assets for final render (Audio, Captions, or Images)');
         }
 
-        const [audioBuffer, captionBuffer, videoBuffer] = await Promise.all([
+        // Download Audio, Captions, and ALL Images
+        const [audioBuffer, captionBuffer, ...imageBuffers] = await Promise.all([
             this.storageService.download(video.audio_url),
             this.storageService.download(video.caption_url),
-            this.storageService.download(video.generated_video_url),
+            ...video.image_urls.map(url => this.storageService.download(url))
         ]);
+
+        this.logger.log(`Downloaded Assets: Audio=${audioBuffer.length}, Caption=${captionBuffer.length}, Images=${imageBuffers.length}`);
 
         const finalBuffer = await this.videoRenderer.compose({
             audio: audioBuffer,
             caption: captionBuffer,
-            video: videoBuffer,
+            assets: imageBuffers, // Pass images as assets
+            // No 'video' buffer passed, so Renderer will trigger Slideshow mode
         });
 
         const finalUrl = await this.storageService.uploadVideo(videoId, finalBuffer);

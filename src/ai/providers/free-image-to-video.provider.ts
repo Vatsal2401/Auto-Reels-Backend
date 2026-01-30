@@ -16,7 +16,7 @@ import { tmpdir } from 'os';
  */
 @Injectable()
 export class FreeImageToVideoProvider implements IImageToVideo {
-  async generateVideo(imageBuffer: Buffer, duration: number = 5): Promise<Buffer> {
+  async generateVideo(imageBuffer: Buffer, prompt: string, duration: number = 5): Promise<Buffer> {
     const tempDir = tmpdir();
     const imagePath = join(tempDir, `image-${Date.now()}.png`);
     const outputPath = join(tempDir, `video-${Date.now()}.mp4`);

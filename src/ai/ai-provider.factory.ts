@@ -1,3 +1,4 @@
+
 import { Injectable, Inject, Type } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { IScriptGenerator } from './interfaces/script-generator.interface';
@@ -15,8 +16,12 @@ import { FreeImageToVideoProvider } from './providers/free-image-to-video.provid
 import { ReplicateCaptionProvider } from './providers/replicate-caption.provider';
 import { MockScriptProvider } from './providers/mock-script.provider';
 import { GeminiScriptProvider } from './providers/gemini-script.provider';
+import { GeminiImageProvider } from './providers/gemini-image.provider';
+import { GeminiVideoProvider } from './providers/gemini-video.provider';
+import { ElevenLabsTTSProvider } from './providers/elevenlabs-tts.provider';
 import { MockTTSProvider } from './providers/mock-tts.provider';
 import { MockImageProvider } from './providers/mock-image.provider';
+import { ReplicateImageProvider } from './providers/replicate-image.provider';
 
 @Injectable()
 export class AiProviderFactory {
@@ -39,6 +44,8 @@ export class AiProviderFactory {
         switch (providerName) {
             case 'openai':
                 return this.moduleRef.get(OpenAITTSProvider, { strict: false });
+            case 'elevenlabs':
+                return this.moduleRef.get(ElevenLabsTTSProvider, { strict: false });
             case 'mock':
                 return this.moduleRef.get(MockTTSProvider, { strict: false });
             default:
@@ -50,6 +57,10 @@ export class AiProviderFactory {
         switch (providerName) {
             case 'dalle':
                 return this.moduleRef.get(DalleImageProvider, { strict: false });
+            case 'gemini':
+                return this.moduleRef.get(GeminiImageProvider, { strict: false });
+            case 'replicate':
+                return this.moduleRef.get(ReplicateImageProvider, { strict: false });
             case 'mock':
                 return this.moduleRef.get(MockImageProvider, { strict: false });
             default:
@@ -61,6 +72,8 @@ export class AiProviderFactory {
         switch (providerName) {
             case 'replicate':
                 return this.moduleRef.get(ReplicateImageToVideoProvider, { strict: false });
+            case 'gemini':
+                return this.moduleRef.get(GeminiVideoProvider, { strict: false });
             case 'free':
                 return this.moduleRef.get(FreeImageToVideoProvider, { strict: false });
             default:

@@ -22,7 +22,7 @@ export class HuggingFaceImageToVideoProvider implements IImageToVideo {
     }
   }
 
-  async generateVideo(imageBuffer: Buffer, duration: number = 5): Promise<Buffer> {
+  async generateVideo(imageBuffer: Buffer, prompt: string, duration: number = 5): Promise<Buffer> {
     // Convert buffer to base64
     const base64Image = imageBuffer.toString('base64');
 
@@ -54,7 +54,7 @@ export class HuggingFaceImageToVideoProvider implements IImageToVideo {
 
       // Hugging Face may return video directly or a task URL
       const contentType = response.headers.get('content-type');
-      
+
       if (contentType?.includes('video')) {
         // Video returned directly
         const arrayBuffer = await response.arrayBuffer();
@@ -62,7 +62,7 @@ export class HuggingFaceImageToVideoProvider implements IImageToVideo {
       } else {
         // JSON response with video URL or base64
         const result = await response.json();
-        
+
         if (result.video_url) {
           // Download from URL
           const videoResponse = await fetch(result.video_url);

@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Video, VideoStatus } from './entities/video.entity';
 import { CreateVideoDto } from './dto/create-video.dto';
 import { CreditsService } from '../credits/credits.service';
+import { IStorageService } from '../storage/interfaces/storage.interface';
 
 @Injectable()
 export class VideoService {
@@ -13,6 +14,7 @@ export class VideoService {
     @InjectRepository(Video)
     private videoRepository: Repository<Video>,
     private creditsService: CreditsService,
+    @Inject('IStorageService') private storageService: IStorageService,
   ) { }
 
   async createVideo(dto: CreateVideoDto, userId?: string): Promise<Video> {
@@ -46,14 +48,15 @@ export class VideoService {
     if (!video) {
       throw new NotFoundException(`Video with ID ${id} not found`);
     }
-    return video;
+    return await this.transformVideoUrls(video);
   }
 
   async getUserVideos(userId: string): Promise<Video[]> {
-    return await this.videoRepository.find({
+    const videos = await this.videoRepository.find({
       where: { user_id: userId },
       order: { created_at: 'DESC' },
     });
+    return await Promise.all(videos.map(video => this.transformVideoUrls(video)));
   }
 
   async updateStatus(id: string, status: VideoStatus): Promise<void> {
@@ -133,5 +136,47 @@ export class VideoService {
       status: VideoStatus.FAILED,
       error_message: errorMessage,
     });
+  }
+
+  async getDownloadUrl(id: string): Promise<string> {
+    const video = await this.videoRepository.findOne({ where: { id } });
+    if (!video) {
+      throw new NotFoundException(`Video with ID ${id} not found`);
+    }
+    if (!video.final_video_url) {
+      throw new BadRequestException('Video processing is not complete');
+    }
+
+    const filename = `${video.id}.mp4`;
+    if (video.final_video_url.startsWith('s3://')) {
+      return await this.storageService.getSignedUrl(video.final_video_url, 3600, {
+        promptDownload: true,
+        filename,
+      });
+    }
+    return video.final_video_url;
+  }
+
+  private async transformVideoUrls(video: Video): Promise<Video> {
+    if (video.final_video_url && video.final_video_url.startsWith('s3://')) {
+      video.final_video_url = await this.storageService.getSignedUrl(video.final_video_url);
+    }
+    if (video.audio_url && video.audio_url.startsWith('s3://')) {
+      video.audio_url = await this.storageService.getSignedUrl(video.audio_url);
+    }
+    if (video.caption_url && video.caption_url.startsWith('s3://')) {
+      video.caption_url = await this.storageService.getSignedUrl(video.caption_url);
+    }
+    if (video.image_urls && video.image_urls.length > 0) {
+      video.image_urls = await Promise.all(
+        video.image_urls.map(async (url) => {
+          if (url.startsWith('s3://')) {
+            return await this.storageService.getSignedUrl(url);
+          }
+          return url;
+        }),
+      );
+    }
+    return video;
   }
 }

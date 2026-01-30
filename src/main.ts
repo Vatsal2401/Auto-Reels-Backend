@@ -1,3 +1,6 @@
+import * as dotenv from 'dotenv';
+dotenv.config();
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -11,10 +14,10 @@ import { json, urlencoded } from 'express';
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const isProduction = process.env.NODE_ENV === 'production';
-  
+
   const app = await NestFactory.create(AppModule, {
-    logger: isProduction 
-      ? ['error', 'warn', 'log'] 
+    logger: isProduction
+      ? ['error', 'warn', 'log']
       : ['error', 'warn', 'log', 'debug', 'verbose'],
     bodyParser: false, // We'll configure it manually
   });
@@ -60,7 +63,7 @@ async function bootstrap() {
   const allowedOrigins = isProduction
     ? frontendUrl.split(',').map(url => url.trim())
     : [frontendUrl, 'http://localhost:3001', 'http://localhost:3000'];
-  
+
   app.enableCors({
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.includes(origin) || !isProduction) {

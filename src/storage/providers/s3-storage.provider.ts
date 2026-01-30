@@ -10,18 +10,41 @@ export class S3StorageProvider implements IStorageService {
   private bucketName: string;
 
   constructor() {
-    this.s3Client = new S3Client({
-      region: process.env.AWS_REGION || 'us-east-1',
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-      },
-    });
-    this.bucketName = process.env.S3_BUCKET_NAME || 'ai-reels-storage';
+    const storageType = process.env.CURRENT_BLOB_STORAGE || 's3';
+
+    if (storageType === 'supabase') {
+      const endpoint = process.env.SUPABASE_STORAGE_ENDPOINT; // e.g. https://<project>.storage.supabase.co/storage/v1/s3
+      const region = process.env.SUPABASE_STORAGE_REGION || 'us-east-1';
+
+      console.log(`🔌 Initializing Supabase Storage (S3 Compatible) at ${region}`);
+
+      this.s3Client = new S3Client({
+        region: region,
+        endpoint: endpoint,
+        credentials: {
+          accessKeyId: process.env.SUPABASE_STORAGE_ACCESS_KEY_ID || '',
+          secretAccessKey: process.env.SUPABASE_STORAGE_SECRET_ACCESS_KEY || '',
+        },
+        forcePathStyle: true, // Often required for S3-compatible endpoints
+      });
+
+      this.bucketName = process.env.SUPABASE_STORAGE_BUCKET_NAME || 'ai-reels-storage';
+    } else {
+      // Default to AWS S3
+      console.log(`🔌 Initializing AWS S3 Storage`);
+      this.s3Client = new S3Client({
+        region: process.env.AWS_REGION || 'us-east-1',
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+        },
+      });
+      this.bucketName = process.env.S3_BUCKET_NAME || 'ai-reels-storage';
+    }
   }
 
   async uploadAudio(videoId: string, buffer: Buffer): Promise<string> {
-    const key = `audio/${videoId}/${uuidv4()}.mp3`;
+    const key = `videos/${videoId}/audio/${uuidv4()}.mp3`;
     await this.s3Client.send(
       new PutObjectCommand({
         Bucket: this.bucketName,
@@ -34,7 +57,7 @@ export class S3StorageProvider implements IStorageService {
   }
 
   async uploadCaption(videoId: string, buffer: Buffer): Promise<string> {
-    const key = `captions/${videoId}/${uuidv4()}.srt`;
+    const key = `videos/${videoId}/captions/${uuidv4()}.srt`;
     await this.s3Client.send(
       new PutObjectCommand({
         Bucket: this.bucketName,
@@ -48,7 +71,8 @@ export class S3StorageProvider implements IStorageService {
 
   async uploadAsset(videoId: string, buffer: Buffer, contentType: string): Promise<string> {
     const extension = contentType.includes('video') ? 'mp4' : 'jpg';
-    const key = `assets/${videoId}/${uuidv4()}.${extension}`;
+    // 'assets' usually implies raw inputs (images/videos generated for the scenes)
+    const key = `videos/${videoId}/assets/${uuidv4()}.${extension}`;
     await this.s3Client.send(
       new PutObjectCommand({
         Bucket: this.bucketName,
@@ -61,7 +85,8 @@ export class S3StorageProvider implements IStorageService {
   }
 
   async uploadVideo(videoId: string, buffer: Buffer): Promise<string> {
-    const key = `videos/${videoId}/${uuidv4()}.mp4`;
+    // This is the final rendered video
+    const key = `videos/${videoId}/final/${uuidv4()}.mp4`;
     await this.s3Client.send(
       new PutObjectCommand({
         Bucket: this.bucketName,
@@ -91,12 +116,19 @@ export class S3StorageProvider implements IStorageService {
     return Promise.all(s3Urls.map((url) => this.download(url)));
   }
 
-  async getSignedUrl(s3Url: string, expiresIn: number = 3600): Promise<string> {
+  async getSignedUrl(s3Url: string, expiresIn: number = 3600, options?: { promptDownload?: boolean; filename?: string }): Promise<string> {
     const key = s3Url.replace(`s3://${this.bucketName}/`, '');
-    const command = new GetObjectCommand({
+    const commandInput: any = {
       Bucket: this.bucketName,
       Key: key,
-    });
+    };
+
+    if (options?.promptDownload) {
+      const filename = options.filename ? ` filename="${options.filename}"` : '';
+      commandInput.ResponseContentDisposition = `attachment;${filename}`;
+    }
+
+    const command = new GetObjectCommand(commandInput);
     return await getSignedUrl(this.s3Client, command, { expiresIn });
   }
 }

@@ -1,58 +1,24 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: ai_reels
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 2G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
-
-  api:
+  backend:
     build:
       context: ..
-      dockerfile: docker/Dockerfile.api
+      dockerfile: Dockerfile
+    container_name: ai_reels_backend
+    restart: always
     ports:
       - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USERNAME=postgres
-      - DB_PASSWORD=postgres
-      - DB_DATABASE=ai_reels
-    depends_on:
-      postgres:
-        condition: service_healthy
     env_file:
       - ../.env
+    environment:
+      - NODE_ENV=production
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-    restart: unless-stopped
     deploy:
       resources:
         limits:
@@ -61,6 +27,3 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
-
-volumes:
-  postgres_data:

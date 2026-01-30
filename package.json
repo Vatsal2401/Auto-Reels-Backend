@@ -38,6 +38,8 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.490.0",
     "@aws-sdk/s3-request-presigner": "^3.490.0",
+    "@elevenlabs/elevenlabs-js": "^2.33.0",
+    "@google/genai": "^1.38.0",
     "@google/generative-ai": "^0.24.1",
     "@nestjs/common": "^10.3.0",
     "@nestjs/config": "^3.1.1",
@@ -54,6 +56,7 @@
     "class-validator-jsonschema": "^5.1.0",
     "compression": "^1.8.1",
     "fluent-ffmpeg": "^2.1.2",
+    "glob": "^13.0.0",
     "helmet": "^8.1.0",
     "openai": "^4.20.1",
     "passport": "^0.7.0",
@@ -69,7 +72,7 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
-    "@nestjs/cli": "^10.2.1",
+    "@nestjs/cli": "^11.0.16",
     "@nestjs/schematics": "^10.0.3",
     "@nestjs/testing": "^10.3.0",
     "@types/bcrypt": "^5.0.2",
@@ -85,7 +88,7 @@
     "@types/uuid": "^9.0.7",
     "@typescript-eslint/eslint-plugin": "^6.17.0",
     "@typescript-eslint/parser": "^6.17.0",
-    "axios": "^1.13.3",
+    "axios": "^1.13.4",
     "dotenv": "^17.2.3",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",

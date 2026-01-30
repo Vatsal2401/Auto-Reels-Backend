@@ -29,7 +29,7 @@ export class ReplicateImageToVideoProvider implements IImageToVideo {
     }
   }
 
-  async generateVideo(imageBuffer: Buffer, duration: number = 5): Promise<Buffer> {
+  async generateVideo(imageBuffer: Buffer, prompt: string, duration: number = 5): Promise<Buffer> {
     if (!Replicate) {
       throw new Error('Replicate package not installed. Install with: npm install replicate');
     }

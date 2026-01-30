@@ -74,4 +74,15 @@ export class VideoController {
       completed_at: video.completed_at,
     };
   }
+
+  @Get(':id/download-url')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get download URL for video' })
+  @ApiResponse({ status: 200, description: 'Download URL' })
+  @ApiResponse({ status: 404, description: 'Video not found' })
+  async getDownloadUrl(@Param('id') id: string) {
+    const url = await this.videoService.getDownloadUrl(id);
+    return { url };
+  }
 }

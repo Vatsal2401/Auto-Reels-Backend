@@ -1,3 +1,3 @@
 export interface IImageToVideo {
-  generateVideo(imageBuffer: Buffer, duration?: number): Promise<Buffer>;
+  generateVideo(imageBuffer: Buffer, prompt: string, duration?: number): Promise<Buffer>;
 }

@@ -4,21 +4,9 @@ version: '3.8'
 # Use this for local development (API runs on host machine)
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: ai-reels-postgres
-    network_mode: host
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: ai_reels
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+services:
+  # Postgres is now external (Supabase)
+
 
   # Optional: pgAdmin for database management
   pgadmin:
@@ -28,10 +16,8 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: admin
-    depends_on:
-      - postgres
+
     profiles:
       - tools
 
-volumes:
-  postgres_data:
+

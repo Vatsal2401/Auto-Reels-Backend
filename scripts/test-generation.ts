@@ -3,7 +3,8 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 
 // Load .env
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+// Load .env (assumes script is run from project root)
+dotenv.config();
 
 const API_URL = `http://localhost:${process.env.PORT || 3000}`;
 
