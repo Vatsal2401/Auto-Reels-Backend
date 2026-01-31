@@ -10,21 +10,22 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { MicrosoftStrategy } from './strategies/microsoft.strategy';
 import { CreditsModule } from '../credits/credits.module';
+import { MailService } from './mail.service';
 
 // Factory functions to conditionally provide OAuth strategies
 const createOAuthProviders = () => {
   const providers: any[] = [JwtStrategy];
-  
+
   // Only include GoogleStrategy if credentials are provided
   if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     providers.push(GoogleStrategy);
   }
-  
+
   // Only include MicrosoftStrategy if credentials are provided
   if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET) {
     providers.push(MicrosoftStrategy);
   }
-  
+
   return providers;
 };
 
@@ -44,7 +45,7 @@ const createOAuthProviders = () => {
     CreditsModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, ...createOAuthProviders()],
+  providers: [AuthService, MailService, ...createOAuthProviders()],
   exports: [AuthService],
 })
-export class AuthModule {}
+export class AuthModule { }

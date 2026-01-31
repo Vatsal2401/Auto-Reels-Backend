@@ -5,6 +5,7 @@ import { VideoService } from './video.service';
 import { Video } from './entities/video.entity';
 import { Job } from './entities/job.entity';
 import { Asset } from './entities/asset.entity';
+import { User } from '../auth/entities/user.entity';
 import { CreditsModule } from '../credits/credits.module';
 
 import { AIModule } from '../ai/ai.module';
@@ -14,7 +15,7 @@ import { VideoGenerationService } from './video-generation.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Video, Job, Asset]),
+    TypeOrmModule.forFeature([Video, Job, Asset, User]),
     CreditsModule,
     AIModule,
     StorageModule,

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ITextToSpeech } from '../interfaces/text-to-speech.interface';
+import { ITextToSpeech, AudioOptions } from '../interfaces/text-to-speech.interface';
 import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
 
 @Injectable()
@@ -17,16 +17,28 @@ export class ElevenLabsTTSProvider implements ITextToSpeech {
         this.client = new ElevenLabsClient({ apiKey });
     }
 
-    async textToSpeech(text: string): Promise<Buffer> {
+    async textToSpeech(optionsOrText: AudioOptions | string): Promise<Buffer> {
         if (!process.env.ELEVENLABS_API_KEY) {
             throw new Error('ElevenLabs API Key is missing');
         }
 
-        this.logger.log(`Generating audio with ElevenLabs SDK... Text length: ${text.length}`);
+        let text: string;
+        let voiceId = this.defaultVoiceId;
+
+        if (typeof optionsOrText === 'string') {
+            text = optionsOrText;
+        } else {
+            text = optionsOrText.text;
+            if (optionsOrText.voiceId) {
+                voiceId = optionsOrText.voiceId;
+            }
+        }
+
+        this.logger.log(`Generating audio with ElevenLabs SDK... Text length: ${text.length}, Voice: ${voiceId}`);
 
         try {
             const audioStream = await this.client.textToSpeech.convert(
-                this.defaultVoiceId,
+                voiceId,
                 {
                     text: text,
                     modelId: "eleven_multilingual_v2",

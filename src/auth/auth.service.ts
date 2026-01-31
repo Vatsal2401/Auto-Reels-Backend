@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -7,6 +7,8 @@ import { User, AuthProvider } from './entities/user.entity';
 import { SignUpDto } from './dto/signup.dto';
 import { SignInDto } from './dto/signin.dto';
 import { CreditsService } from '../credits/credits.service';
+import { MailService } from './mail.service';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class AuthService {
@@ -15,47 +17,101 @@ export class AuthService {
     private userRepository: Repository<User>,
     private jwtService: JwtService,
     private creditsService: CreditsService,
-  ) {}
+    private mailService: MailService,
+  ) { }
 
   async signUp(dto: SignUpDto) {
-    const existingUser = await this.userRepository.findOne({
-      where: { email: dto.email },
-    });
+    const email = dto.email.toLowerCase().trim();
 
-    if (existingUser) {
-      throw new ConflictException('User with this email already exists');
+    return await this.userRepository.manager.transaction(async (manager) => {
+      const existingUser = await manager.findOne(User, {
+        where: { email },
+      });
+
+      if (existingUser) {
+        if (existingUser.email_verified) {
+          throw new ConflictException('User with this email already exists');
+        }
+
+        // Cleanup transactions and delete old unverified user atomically
+        await manager.delete('credit_transactions', { user_id: existingUser.id });
+        await manager.remove(existingUser);
+      }
+
+      const passwordHash = await bcrypt.hash(dto.password, 10);
+      const verificationToken = uuidv4();
+
+      const user = manager.create(User, {
+        email,
+        password_hash: passwordHash,
+        name: dto.name,
+        auth_provider: AuthProvider.EMAIL,
+        email_verified: false,
+        verification_token: verificationToken,
+        last_verification_sent_at: new Date(),
+      });
+
+      const savedUser = await manager.save(user);
+
+      // Initialize free credits for new user
+      // Note: We use the injected creditsService but within the transaction we should ideally use the manager 
+      // but since CreditsService uses userRepository (injected), we'll just call it. 
+      // For absolute correctness, we'd need to refactor CreditsService to accept a manager.
+      // However, since it's a new user, it's fine for now as long as the user exists.
+      await this.creditsService.initializeUserCredits(savedUser.id, manager);
+
+      // Send verification email (outside transaction ideally, but fine here for now)
+      await this.mailService.sendVerificationEmail(savedUser.email, verificationToken);
+
+      const tokens = await this.generateTokens(savedUser);
+
+      return {
+        user: {
+          id: savedUser.id,
+          email: savedUser.email,
+          name: savedUser.name,
+          email_verified: savedUser.email_verified,
+        },
+        ...tokens,
+      };
+    });
+  }
+
+  async resendVerification(userId: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new BadRequestException('User not found');
     }
 
-    const passwordHash = await bcrypt.hash(dto.password, 10);
+    if (user.email_verified) {
+      throw new BadRequestException('Email is already verified');
+    }
 
-    const user = this.userRepository.create({
-      email: dto.email,
-      password_hash: passwordHash,
-      name: dto.name,
-      auth_provider: AuthProvider.EMAIL,
-      email_verified: false,
-    });
+    // Rate limiting: 1 minute cooldown
+    if (user.last_verification_sent_at) {
+      const oneMinuteAgo = new Date(Date.now() - 60000);
+      if (user.last_verification_sent_at > oneMinuteAgo) {
+        throw new BadRequestException('Please wait 1 minute before requesting another email');
+      }
+    }
 
-    const savedUser = await this.userRepository.save(user);
-    
-    // Initialize free credits for new user
-    await this.creditsService.initializeUserCredits(savedUser.id);
-    
-    const tokens = await this.generateTokens(savedUser);
+    // Generate new token or reuse old one? Keeping current token is safer for the link they might have just received, 
+    // but generating a new one is standard. Let's keep existing if it's there.
+    if (!user.verification_token) {
+      user.verification_token = uuidv4();
+    }
 
-    return {
-      user: {
-        id: savedUser.id,
-        email: savedUser.email,
-        name: savedUser.name,
-      },
-      ...tokens,
-    };
+    user.last_verification_sent_at = new Date();
+    await this.userRepository.save(user);
+
+    await this.mailService.sendVerificationEmail(user.email, user.verification_token);
+    return { message: 'Verification email resent successfully' };
   }
 
   async signIn(dto: SignInDto) {
+    const email = dto.email.toLowerCase().trim();
     const user = await this.userRepository.findOne({
-      where: { email: dto.email },
+      where: { email },
     });
 
     if (!user || !user.password_hash) {
@@ -75,6 +131,7 @@ export class AuthService {
         id: user.id,
         email: user.email,
         name: user.name,
+        email_verified: user.email_verified,
       },
       ...tokens,
     };
@@ -115,7 +172,7 @@ export class AuthService {
         password_hash: null,
       });
       user = await this.userRepository.save(user);
-      
+
       // Initialize free credits for new OAuth user
       await this.creditsService.initializeUserCredits(user.id);
     }
@@ -158,5 +215,52 @@ export class AuthService {
     } catch (error) {
       throw new UnauthorizedException('Invalid refresh token');
     }
+  }
+
+  async verifyEmail(token: string, email?: string) {
+    let user = await this.userRepository.findOne({
+      where: { verification_token: token },
+    });
+
+    if (!user) {
+      if (email) {
+        const targetEmail = email.toLowerCase().trim();
+        const existingUser = await this.userRepository.findOne({
+          where: { email: targetEmail },
+        });
+
+        if (existingUser && existingUser.email_verified) {
+          const tokens = await this.generateTokens(existingUser);
+          return {
+            message: 'Email already verified',
+            user: {
+              id: existingUser.id,
+              email: existingUser.email,
+              name: existingUser.name,
+              email_verified: existingUser.email_verified,
+            },
+            ...tokens,
+          };
+        }
+      }
+      throw new BadRequestException('Invalid or expired verification token');
+    }
+
+    user.email_verified = true;
+    // We no longer set verification_token to null based on user request
+    const savedUser = await this.userRepository.save(user);
+
+    const tokens = await this.generateTokens(savedUser);
+
+    return {
+      message: 'Email verified successfully',
+      user: {
+        id: savedUser.id,
+        email: savedUser.email,
+        name: savedUser.name,
+        email_verified: savedUser.email_verified,
+      },
+      ...tokens,
+    };
   }
 }

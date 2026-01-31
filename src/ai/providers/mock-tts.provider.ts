@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { ITextToSpeech } from '../interfaces/text-to-speech.interface';
+import { ITextToSpeech, AudioOptions } from '../interfaces/text-to-speech.interface';
 
 @Injectable()
 export class MockTTSProvider implements ITextToSpeech {
-  async textToSpeech(text: string): Promise<Buffer> {
+  async textToSpeech(optionsOrText: AudioOptions | string): Promise<Buffer> {
     // Return a mock audio buffer (silent audio for testing)
     // In a real scenario, you might want to use a local TTS library
     // For now, return an empty buffer with a warning
     console.warn('⚠️  Mock TTS Provider: Returning empty audio buffer. Set OPENAI_API_KEY for real TTS.');
-    
+
     // Return a minimal WAV file header (silent audio)
     // This is a 1-second silent WAV file
     const silentWav = Buffer.from([
@@ -27,7 +27,7 @@ export class MockTTSProvider implements ITextToSpeech {
       0x00, 0x08, 0x00, 0x00, // Subchunk2Size
       // ... silent audio data (zeros)
     ]);
-    
+
     // Fill with zeros for silent audio
     const audioData = Buffer.alloc(8000, 0);
     return Buffer.concat([silentWav, audioData]);

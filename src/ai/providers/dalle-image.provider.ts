@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { IImageGenerator } from '../interfaces/image-generator.interface';
+import { IImageGenerator, ImageGenerationOptions } from '../interfaces/image-generator.interface';
 import OpenAI from 'openai';
 
 @Injectable()
@@ -15,16 +15,41 @@ export class DalleImageProvider implements IImageGenerator {
     }
   }
 
-  async generateImage(prompt: string): Promise<Buffer> {
+  async generateImage(optionsOrPrompt: ImageGenerationOptions | string): Promise<Buffer> {
     if (!this.openai) {
       throw new Error('OPENAI_API_KEY is not configured. Please set it in your .env file.');
+    }
+
+    let prompt: string;
+    let size: '1024x1024' | '1024x1792' | '1792x1024' = '1024x1024';
+    let style = "";
+
+    if (typeof optionsOrPrompt === 'string') {
+      prompt = optionsOrPrompt;
+    } else {
+      prompt = optionsOrPrompt.prompt;
+      // Map aspect ratio to DALL-E sizes
+      if (optionsOrPrompt.aspectRatio === '16:9') {
+        size = '1792x1024';
+      } else if (optionsOrPrompt.aspectRatio === '9:16') {
+        size = '1024x1792';
+      } else {
+        size = '1024x1024';
+      }
+      if (optionsOrPrompt.style) {
+        style = optionsOrPrompt.style;
+      }
+    }
+
+    if (style && style !== 'auto') {
+      prompt = `${style} style. ${prompt}`;
     }
 
     const response = await this.openai.images.generate({
       model: 'dall-e-3',
       prompt: prompt,
       n: 1,
-      size: '1024x1024',
+      size: size,
       quality: 'standard',
       response_format: 'url',
     });
@@ -34,7 +59,6 @@ export class DalleImageProvider implements IImageGenerator {
       throw new Error('Failed to generate image: No URL returned from DALL-E');
     }
 
-    // Download the image from the URL
     const imageResponse = await fetch(imageUrl);
     if (!imageResponse.ok) {
       throw new Error(`Failed to download image: ${imageResponse.statusText}`);
@@ -42,5 +66,10 @@ export class DalleImageProvider implements IImageGenerator {
 
     const arrayBuffer = await imageResponse.arrayBuffer();
     return Buffer.from(arrayBuffer);
+  }
+
+  async generateImages(options: ImageGenerationOptions & { count: number }): Promise<Buffer[]> {
+    const promises = Array(options.count).fill(null).map(() => this.generateImage(options));
+    return Promise.all(promises);
   }
 }

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { IScriptGenerator, ScriptJSON } from '../interfaces/script-generator.interface';
+import { IScriptGenerator, ScriptJSON, ScriptGenerationOptions } from '../interfaces/script-generator.interface';
 import OpenAI from 'openai';
 
 @Injectable()
@@ -39,18 +39,33 @@ export class OpenAIScriptProvider implements IScriptGenerator {
     return response.choices[0].message.content || '';
   }
 
-  async generateScriptJSON(topic: string): Promise<ScriptJSON> {
+  async generateScriptJSON(optionsOrTopic: ScriptGenerationOptions | string): Promise<ScriptJSON> {
     if (!this.openai) {
       throw new Error('OPENAI_API_KEY is not configured. Please set it in your .env file.');
     }
 
-    const systemPrompt = `You are a script writer for short-form video content (30-60 seconds). 
+    let topic: string;
+    let language = 'English (US)';
+    let duration = '30-60';
+
+    if (typeof optionsOrTopic === 'string') {
+      topic = optionsOrTopic;
+    } else {
+      topic = optionsOrTopic.topic;
+      language = optionsOrTopic.language || 'English (US)';
+      if (optionsOrTopic.targetDurationSeconds) {
+        duration = `${optionsOrTopic.targetDurationSeconds}`;
+      }
+    }
+
+    const systemPrompt = `You are a script writer for short-form video content (${duration} seconds). 
 Create engaging, structured scripts for faceless reels with multiple scenes. 
+Language: ${language}.
 Each scene should have:
 - A clear visual description
 - An image generation prompt (detailed, suitable for DALL-E)
 - Duration in seconds
-- Audio narration text
+- Audio narration text (in ${language})
 
 Return ONLY valid JSON in this exact format:
 {
@@ -63,11 +78,11 @@ Return ONLY valid JSON in this exact format:
       "audio_text": "Text to be spoken during this scene"
     }
   ],
-  "total_duration": 30,
+  "total_duration": ${Number(duration) || 30},
   "topic": "Topic name"
 }
 
-Create 3-6 scenes that total 30-60 seconds. Make it engaging and suitable for social media.`;
+Create 3-6 scenes that total ${duration} seconds. Make it engaging and suitable for social media.`;
 
     const response = await this.openai.chat.completions.create({
       model: 'gpt-4o',

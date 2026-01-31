@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { IScriptGenerator, ScriptJSON } from '../interfaces/script-generator.interface';
+import { IScriptGenerator, ScriptJSON, ScriptGenerationOptions } from '../interfaces/script-generator.interface';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 @Injectable()
@@ -29,23 +29,38 @@ export class GeminiScriptProvider implements IScriptGenerator {
         return response.text();
     }
 
-    async generateScriptJSON(topic: string): Promise<ScriptJSON> {
+    async generateScriptJSON(optionsOrTopic: ScriptGenerationOptions | string): Promise<ScriptJSON> {
         if (!this.model) throw new Error('Gemini API key missing');
 
+        let topic: string;
+        let language = 'English (US)';
+        let duration = 30;
+
+        if (typeof optionsOrTopic === 'string') {
+            topic = optionsOrTopic;
+        } else {
+            topic = optionsOrTopic.topic;
+            language = optionsOrTopic.language || 'English (US)';
+            if (optionsOrTopic.targetDurationSeconds) {
+                duration = optionsOrTopic.targetDurationSeconds;
+            }
+        }
+
         const prompt = `You are a professional video script writer.
-Create a 30-second video script about: "${topic}".
+Create a ${duration}-second video script about: "${topic}".
+Language: ${language}.
 Output ONLY valid JSON. Do not include any markdown formatting, backticks, or code blocks. Just the raw JSON object.
 Structure:
 {
   "topic": "${topic}",
-  "total_duration": 30,
+  "total_duration": ${duration},
   "scenes": [
     {
       "scene_number": 1,
       "description": "Visual description of the scene",
       "image_prompt": "Detailed AI image generation prompt for this scene",
       "duration": 5,
-      "audio_text": "Narration text for this scene (approx 15-20 words)"
+      "audio_text": "Narration text for this scene (approx 15-20 words) in ${language}"
     }
   ]
 }`;

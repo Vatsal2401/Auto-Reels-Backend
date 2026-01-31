@@ -1,57 +1,65 @@
-# Stage 1: Build the application
-FROM node:22 AS builder
+# ---------- Stage 1: deps ----------
+FROM node:22-slim AS deps
 
 WORKDIR /app
 
-# Install build dependencies (python3/make/g++ usually present in full node image, or we try without invalid apt)
-# If we really need them and apt fails, we might be stuck, but let's try assuming node:22 has basics.
-# Actually, let's keep it simple. node:22 usually has what we need for basic content.
-# COPY package*.json ./
-# RUN npm ci ...
+# Make npm network stable (fixes EAI_AGAIN permanently)
+RUN npm config set fetch-retries 5 \
+ && npm config set fetch-retry-factor 2 \
+ && npm config set fetch-retry-mintimeout 20000 \
+ && npm config set fetch-retry-maxtimeout 120000 \
+ && npm config set registry https://registry.npmjs.org/ \
+ && npm config set prefer-online true
 
-COPY package*.json ./
-# Increase timeout for slow networks
-RUN npm config set fetch-retry-maxtimeout 600000 && \
-    npm config set fetch-retry-mintimeout 10000 && \
-    npm config set fetch-retries 5 && \
-    npm ci --no-audit --prefer-offline
+# Copy only dependency manifests for caching
+COPY package.json package-lock.json ./
 
+# Deterministic, faster installs
+RUN npm ci --no-audit
+
+# ---------- Stage 2: build ----------
+FROM node:22-slim AS builder
+
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
 
-# Stage 2: Get static ffmpeg
+# Build and remove dev dependencies
+RUN npm run build \
+ && npm prune --omit=dev
+
+
+# ---------- Stage 3: ffmpeg ----------
 FROM mwader/static-ffmpeg:6.1 AS ffmpeg
 
-# Stage 3: Production image
-FROM node:22-slim
+
+# ---------- Stage 4: production ----------
+FROM node:22-slim AS production
 
 WORKDIR /app
 
-# Copy ffmpeg from the ffmpeg stage
+# Copy ffmpeg binaries
 COPY --from=ffmpeg /ffmpeg /usr/local/bin/
 COPY --from=ffmpeg /ffprobe /usr/local/bin/
 
-# Create user
-RUN groupadd -g 1001 nodejs && \
-    useradd -u 1001 -g nodejs -s /bin/sh nestjs
+# Create non-root user (Debian Syntax)
+RUN groupadd -g 1001 nodejs \
+ && useradd -u 1001 -g nodejs -m -s /bin/bash nestjs
 
-# Install only production dependencies
-COPY package*.json ./
-RUN npm ci --only=production --no-audit --prefer-offline && \
-    npm cache clean --force
-
-# Copy built application
-COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
+# Copy production artifacts only
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+COPY package.json package-lock.json ./
 
 # Switch to non-root user
 USER nestjs
 
-# Expose port
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:3000/health || exit 1
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -qO- http://localhost:3000/health || exit 1
 
-# Start application
+# Start app
 CMD ["node", "dist/main.js"]

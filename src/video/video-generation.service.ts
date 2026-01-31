@@ -52,7 +52,7 @@ export class VideoGenerationService {
     }
 
     private async generateScriptStep(videoId: string): Promise<void> {
-        const video = await this.videoService.getVideo(videoId);
+        const video = await this.videoService.getVideoRaw(videoId);
         if (video.script && video.script_json) {
             this.logger.log(`Script already exists for ${videoId}, skipping.`);
             return;
@@ -69,7 +69,19 @@ export class VideoGenerationService {
         const scriptProvider = this.aiFactory.getScriptGenerator(provider);
 
         // Generate JSON first (structured data is reliable)
-        const scriptJSON = await scriptProvider.generateScriptJSON(video.topic);
+        const durationMap: Record<string, number> = {
+            '30-60': 45,
+            '60-90': 75,
+            '90-120': 105,
+        };
+        const targetDuration = durationMap[video.metadata?.duration] || 45;
+        const language = video.metadata?.language || 'English (US)';
+
+        const scriptJSON = await scriptProvider.generateScriptJSON({
+            topic: video.topic,
+            language,
+            targetDurationSeconds: targetDuration,
+        });
 
         // Construct clean script text from JSON scenes (stateless/pure)
         // This avoids the raw output from 'generateScript' which often contains instructions/markdown.
@@ -80,7 +92,7 @@ export class VideoGenerationService {
     }
 
     private async generateImagesStep(videoId: string): Promise<void> {
-        const video = await this.videoService.getVideo(videoId);
+        const video = await this.videoService.getVideoRaw(videoId);
         if (video.image_urls && video.image_urls.length > 0) {
             this.logger.log(`Images already exist for ${videoId}, skipping.`);
             return;
@@ -91,30 +103,56 @@ export class VideoGenerationService {
             throw new Error('Script JSON missing scenes');
         }
 
-        this.logger.log(`Generating ${scriptJson.scenes.length} images for ${videoId}...`);
+        const sceneCount = scriptJson.scenes.length;
+        this.logger.log(`Generating images for ${sceneCount} scenes...`);
         await this.videoService.updateStatus(videoId, VideoStatus.PROCESSING);
 
-        // Get Provider from Factory (default: gemini if key exists)
         // Get Provider from Factory
-        // PROVISIONAL: Prefer Replicate for images (Gemini Imagen 3 is 404)
-        const imageProviderName = process.env.REPLICATE_API_TOKEN ? 'replicate' : (process.env.GEMINI_API_KEY ? 'gemini' : 'mock');
-        const imageProvider = this.aiFactory.getImageGenerator(imageProviderName);
+        const imageProviderName = video.metadata?.imageProvider || 'gemini';
+        const imageProvider = this.aiFactory.getImageGenerator(imageProviderName as any);
 
+        // CREATE ONE MASTER PROMPT FOR ALL IMAGES
+        // We combine the topic and all scene descriptions to give the AI context for consistency
+        const masterPrompt = `Cinematic video about ${video.topic}. ` +
+            scriptJson.scenes.map(s => s.image_prompt).join('. ');
+
+        this.logger.log(`Using single-prompt batch generation for ${imageProviderName}`);
+
+        // Generate images in batches (Gemini/Replicate usually max 4 per call)
+        const batchSize = 4;
+        const totalImagesNeeded = sceneCount;
         const imageUrls: string[] = [];
 
-        // Generate sequentially
-        for (const scene of scriptJson.scenes) {
-            this.logger.debug(`Generating image for scene ${scene.scene_number}...`);
-            const imageBuffer = await imageProvider.generateImage(scene.image_prompt);
-            const url = await this.storageService.uploadAsset(videoId, imageBuffer, 'image/png');
-            imageUrls.push(url);
+        for (let i = 0; i < totalImagesNeeded; i += batchSize) {
+            const currentBatchCount = Math.min(batchSize, totalImagesNeeded - i);
+            this.logger.log(`Requesting batch of ${currentBatchCount} images (Offset: ${i})...`);
+
+            const buffers = await imageProvider.generateImages({
+                prompt: masterPrompt,
+                style: video.metadata?.imageStyle,
+                aspectRatio: video.metadata?.imageAspectRatio as any,
+                count: currentBatchCount
+            });
+
+            // Upload this batch
+            const uploadPromises = buffers.map(buffer =>
+                this.storageService.uploadAsset(videoId, buffer, 'image/png')
+            );
+            const urls = await Promise.all(uploadPromises);
+            imageUrls.push(...urls);
+        }
+
+        // If we got fewer images than scenes (shouldn't happen with the loop above, but safety first), 
+        // we might need to pad or log warning.
+        if (imageUrls.length < sceneCount) {
+            this.logger.warn(`Only generated ${imageUrls.length} images for ${sceneCount} scenes.`);
         }
 
         await this.videoService.updateImageUrls(videoId, imageUrls);
     }
 
     private async generateVideoSegmentsStep(videoId: string): Promise<void> {
-        const video = await this.videoService.getVideo(videoId);
+        const video = await this.videoService.getVideoRaw(videoId);
         if (video.generated_video_url) {
             this.logger.log(`Generated video already exists for ${videoId}, skipping.`);
             return;
@@ -156,7 +194,7 @@ export class VideoGenerationService {
     }
 
     private async generateAudioStep(videoId: string): Promise<Buffer> {
-        const video = await this.videoService.getVideo(videoId);
+        const video = await this.videoService.getVideoRaw(videoId);
         if (video.audio_url) {
             this.logger.log(`Audio already exists for ${videoId}, skipping.`);
             // Currently we don't store the buffer if it exists, so we download it
@@ -171,7 +209,11 @@ export class VideoGenerationService {
         const audioProviderName = process.env.ELEVENLABS_API_KEY ? 'elevenlabs' : (process.env.OPENAI_API_KEY ? 'openai' : 'mock');
         const audioProvider = this.aiFactory.getTextToSpeech(audioProviderName);
 
-        const audioBuffer = await audioProvider.textToSpeech(video.script);
+        const audioBuffer = await audioProvider.textToSpeech({
+            text: video.script,
+            voiceId: video.metadata?.voiceId,
+            language: video.metadata?.language,
+        });
 
         const audioUrl = await this.storageService.uploadAudio(videoId, audioBuffer);
 
@@ -180,7 +222,7 @@ export class VideoGenerationService {
     }
 
     private async generateCaptionsStep(videoId: string, audioBuffer: Buffer): Promise<void> {
-        const video = await this.videoService.getVideo(videoId);
+        const video = await this.videoService.getVideoRaw(videoId);
         if (video.caption_url) {
             this.logger.log(`Captions already exist for ${videoId}, skipping.`);
             return;
@@ -201,7 +243,7 @@ export class VideoGenerationService {
     }
 
     private async renderFinalVideoStep(videoId: string): Promise<void> {
-        const video = await this.videoService.getVideo(videoId);
+        const video = await this.videoService.getVideoRaw(videoId);
         if (video.final_video_url) {
             this.logger.log(`Final video already exists for ${videoId}, skipping.`);
             return;

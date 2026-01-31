@@ -5,6 +5,7 @@ import { Video, VideoStatus } from './entities/video.entity';
 import { CreateVideoDto } from './dto/create-video.dto';
 import { CreditsService } from '../credits/credits.service';
 import { IStorageService } from '../storage/interfaces/storage.interface';
+import { User } from '../auth/entities/user.entity';
 
 @Injectable()
 export class VideoService {
@@ -13,6 +14,8 @@ export class VideoService {
   constructor(
     @InjectRepository(Video)
     private videoRepository: Repository<Video>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
     private creditsService: CreditsService,
     @Inject('IStorageService') private storageService: IStorageService,
   ) { }
@@ -30,17 +33,35 @@ export class VideoService {
           'Insufficient credits. You need at least 1 credit to create a video.',
         );
       }
+
+      const user = await this.userRepository.findOne({ where: { id: userId } });
+      if (user && !user.email_verified) {
+        throw new BadRequestException('Please verify your email address to create videos.');
+      }
     }
 
     const video = this.videoRepository.create({
       topic: dto.topic,
       status: VideoStatus.PENDING,
       user_id: userId || null,
+      metadata: {
+        language: dto.language,
+        duration: dto.duration,
+        imageStyle: dto.imageStyle,
+        imageAspectRatio: dto.imageAspectRatio,
+        voiceId: dto.voiceId,
+        imageProvider: dto.imageProvider || 'gemini',
+      },
     });
     return await this.videoRepository.save(video);
   }
 
   async getVideo(id: string): Promise<Video> {
+    const video = await this.getVideoRaw(id);
+    return await this.transformVideoUrls(video);
+  }
+
+  async getVideoRaw(id: string): Promise<Video> {
     const video = await this.videoRepository.findOne({
       where: { id },
       relations: ['jobs', 'assets'],
@@ -48,7 +69,7 @@ export class VideoService {
     if (!video) {
       throw new NotFoundException(`Video with ID ${id} not found`);
     }
-    return await this.transformVideoUrls(video);
+    return video;
   }
 
   async getUserVideos(userId: string): Promise<Video[]> {

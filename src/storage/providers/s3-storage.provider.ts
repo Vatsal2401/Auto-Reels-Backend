@@ -99,7 +99,26 @@ export class S3StorageProvider implements IStorageService {
   }
 
   async download(s3Url: string): Promise<Buffer> {
-    const key = s3Url.replace(`s3://${this.bucketName}/`, '');
+    let key = s3Url;
+
+    if (s3Url.startsWith('s3://')) {
+      key = s3Url.replace(`s3://${this.bucketName}/`, '');
+    } else if (s3Url.startsWith('http')) {
+      try {
+        const url = new URL(s3Url);
+        const pathParts = url.pathname.split('/');
+        const bucketIndex = pathParts.indexOf(this.bucketName);
+
+        if (bucketIndex !== -1) {
+          key = pathParts.slice(bucketIndex + 1).join('/');
+        } else {
+          key = url.pathname.startsWith('/') ? url.pathname.substring(1) : url.pathname;
+        }
+      } catch (e) {
+        // Fallback to original string if not a valid URL
+      }
+    }
+
     const command = new GetObjectCommand({
       Bucket: this.bucketName,
       Key: key,

@@ -1,3 +1,9 @@
+export interface AudioOptions {
+  text: string;
+  voiceId?: string;
+  language?: string;
+}
+
 export interface ITextToSpeech {
-  textToSpeech(text: string): Promise<Buffer>;
+  textToSpeech(optionsOrText: AudioOptions | string): Promise<Buffer>;
 }

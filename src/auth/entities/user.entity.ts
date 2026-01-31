@@ -47,6 +47,12 @@ export class User {
   @Column({ type: 'varchar', length: 255, nullable: true })
   refresh_token: string | null;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  verification_token: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  last_verification_sent_at: Date | null;
+
   @Column({ type: 'integer', default: 0 })
   credits_balance: number;
 

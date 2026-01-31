@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, EntityManager } from 'typeorm';
 import { User } from '../auth/entities/user.entity';
 import {
   CreditTransaction,
@@ -14,7 +14,7 @@ export class CreditsService {
     private userRepository: Repository<User>,
     @InjectRepository(CreditTransaction)
     private transactionRepository: Repository<CreditTransaction>,
-  ) {}
+  ) { }
 
   async getBalance(userId: string): Promise<number> {
     const user = await this.userRepository.findOne({
@@ -40,12 +40,16 @@ export class CreditsService {
     description?: string,
     referenceId?: string,
     metadata?: Record<string, any>,
+    manager?: EntityManager,
   ): Promise<CreditTransaction> {
     if (amount <= 0) {
       throw new BadRequestException('Amount must be positive');
     }
 
-    const user = await this.userRepository.findOne({
+    const repo = manager ? manager.getRepository(User) : this.userRepository;
+    const txRepo = manager ? manager.getRepository(CreditTransaction) : this.transactionRepository;
+
+    const user = await repo.findOne({
       where: { id: userId },
     });
 
@@ -55,7 +59,7 @@ export class CreditsService {
 
     // Update user balance
     const newBalance = user.credits_balance + amount;
-    await this.userRepository.update(userId, {
+    await repo.update(userId, {
       credits_balance: newBalance,
       credits_purchased_total:
         type === TransactionType.PURCHASE
@@ -64,7 +68,7 @@ export class CreditsService {
     });
 
     // Create transaction record
-    const transaction = this.transactionRepository.create({
+    const transaction = txRepo.create({
       user_id: userId,
       transaction_type: type,
       amount,
@@ -74,7 +78,7 @@ export class CreditsService {
       metadata: metadata || null,
     });
 
-    return await this.transactionRepository.save(transaction);
+    return await txRepo.save(transaction);
   }
 
   async deductCredits(
@@ -133,7 +137,7 @@ export class CreditsService {
     });
   }
 
-  async initializeUserCredits(userId: string): Promise<void> {
+  async initializeUserCredits(userId: string, manager?: EntityManager): Promise<void> {
     const FREE_CREDITS = 3;
     await this.addCredits(
       userId,
@@ -142,6 +146,11 @@ export class CreditsService {
       'Welcome bonus - 3 free credits',
       null,
       { source: 'signup_bonus' },
+      manager,
     );
+  }
+
+  async cleanupUserTransactions(userId: string): Promise<void> {
+    await this.transactionRepository.delete({ user_id: userId });
   }
 }

@@ -76,3 +76,5 @@ docker-compose.override.yml
 # Misc
 *.pem
 .vercel
+
+.test-assets/

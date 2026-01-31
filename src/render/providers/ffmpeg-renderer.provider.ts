@@ -113,9 +113,9 @@ export class FFmpegRendererProvider implements IVideoRenderer {
         command.input(audioPath);
 
         // Burn Captions on 'v_merged'
-        // Updated Style: Small (20), Bottom (MarginV=30), Shadow/Outline
+        // Style locked: White (&Hffffff), Bold, Fixed margin (MarginV=50), Font Size 16
         complexFilters.push(
-          `[v_merged]subtitles=${captionPath}:force_style='FontSize=32,PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=1,Outline=2,Shadow=1,Alignment=2,MarginV=85'[v_final]`
+          `[v_merged]subtitles=${captionPath}:force_style='FontSize=16,PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=1,Outline=1,Shadow=0,Bold=1,Alignment=2,MarginV=50'[v_final]`
         );
 
         command

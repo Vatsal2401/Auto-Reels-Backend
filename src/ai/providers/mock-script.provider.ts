@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { IScriptGenerator, ScriptJSON } from '../interfaces/script-generator.interface';
+import { IScriptGenerator, ScriptJSON, ScriptGenerationOptions } from '../interfaces/script-generator.interface';
 
 @Injectable()
 export class MockScriptProvider implements IScriptGenerator {
@@ -21,7 +21,8 @@ If you found this helpful, make sure to like and follow for more content like th
 #${topic.replace(/\s+/g, '')} #Shorts #Tips`;
   }
 
-  async generateScriptJSON(topic: string): Promise<ScriptJSON> {
+  async generateScriptJSON(optionsOrTopic: ScriptGenerationOptions | string): Promise<ScriptJSON> {
+    const topic = typeof optionsOrTopic === 'string' ? optionsOrTopic : optionsOrTopic.topic;
     // Return a mock JSON script for testing
     return {
       scenes: [

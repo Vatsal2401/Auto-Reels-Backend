@@ -12,7 +12,13 @@ export interface ScriptJSON {
   topic: string;
 }
 
+export interface ScriptGenerationOptions {
+  topic: string;
+  language?: string; // Default 'en-US'
+  targetDurationSeconds?: number; // derived from '60-90'
+}
+
 export interface IScriptGenerator {
   generateScript(topic: string): Promise<string>;
-  generateScriptJSON(topic: string): Promise<ScriptJSON>;
+  generateScriptJSON(optionsOrTopic: ScriptGenerationOptions | string): Promise<ScriptJSON>;
 }

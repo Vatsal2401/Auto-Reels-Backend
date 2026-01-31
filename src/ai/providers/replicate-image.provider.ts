@@ -1,14 +1,12 @@
-
 import { Injectable, Logger } from '@nestjs/common';
-import { IImageGenerator } from '../interfaces/image-generator.interface';
+import { IImageGenerator, ImageGenerationOptions } from '../interfaces/image-generator.interface';
 
-// Use require to bypass TS strict import checks for this CJS module in a Mixed environment
 const Replicate = require('replicate');
 
 @Injectable()
 export class ReplicateImageProvider implements IImageGenerator {
     private readonly logger = new Logger(ReplicateImageProvider.name);
-    private replicate: any; // Type as any or loosely typed to avoid "Namespace as type" error
+    private replicate: any;
 
     constructor() {
         const auth = process.env.REPLICATE_API_TOKEN;
@@ -19,12 +17,27 @@ export class ReplicateImageProvider implements IImageGenerator {
         }
     }
 
-    async generateImage(prompt: string): Promise<Buffer> {
+    async generateImage(optionsOrPrompt: ImageGenerationOptions | string): Promise<Buffer> {
+        const options = typeof optionsOrPrompt === 'string' ? { prompt: optionsOrPrompt } : optionsOrPrompt;
+        const results = await this.generateImages({ ...options, count: 1 });
+        return results[0];
+    }
+
+    async generateImages(options: ImageGenerationOptions & { count: number }): Promise<Buffer[]> {
         if (!this.replicate) {
             throw new Error('Replicate client not initialized');
         }
 
-        this.logger.log(`Generating image with Replicate (Flux Schnell)... Prompt: ${prompt.substring(0, 50)}...`);
+        let prompt = options.prompt;
+        const aspectRatio = options.aspectRatio || "16:9";
+        const style = options.style || "";
+
+        if (style && style !== 'auto') {
+            prompt = `${style} style. ${prompt}`;
+        }
+
+        const numOutputs = Math.min(options.count, 4);
+        this.logger.log(`Generating ${numOutputs} images with Replicate (Flux Schnell)...`);
 
         try {
             const output = await this.replicate.run(
@@ -33,53 +46,34 @@ export class ReplicateImageProvider implements IImageGenerator {
                     input: {
                         prompt: prompt,
                         go_fast: true,
-                        megapixels: "1",
-                        num_outputs: 1,
-                        aspect_ratio: "16:9",
+                        num_outputs: numOutputs,
+                        aspect_ratio: aspectRatio,
                         output_format: "png",
                         output_quality: 80
                     }
                 }
             );
 
-            let imageUrl: string;
+            const buffers: Buffer[] = [];
+            const results = Array.isArray(output) ? output : [output];
 
-            if (Array.isArray(output) && output.length > 0) {
-                const item = output[0];
+            for (const item of results) {
                 if (typeof item === 'string') {
-                    imageUrl = item;
-                } else if (item instanceof ReadableStream || (item && typeof item.getReader === 'function')) {
-                    const streamToBuffer = async (stream: any) => {
-                        const chunks = [];
-                        for await (const chunk of stream) {
-                            chunks.push(Buffer.from(chunk));
-                        }
-                        return Buffer.concat(chunks);
-                    };
-
-                    return await streamToBuffer(item);
-                } else {
-                    // Handle case where stream iterable but not instance of ReadableStream class (Node vs Web)
-                    if (item[Symbol.asyncIterator]) {
-                        const chunks = [];
-                        for await (const chunk of item) {
-                            chunks.push(Buffer.from(chunk));
-                        }
-                        return Buffer.concat(chunks);
+                    const response = await fetch(item);
+                    buffers.push(Buffer.from(await response.arrayBuffer()));
+                } else if (item && item[Symbol.asyncIterator]) {
+                    const chunks = [];
+                    for await (const chunk of item) {
+                        chunks.push(Buffer.from(chunk));
                     }
+                    buffers.push(Buffer.concat(chunks));
                 }
             }
 
-            if (imageUrl) {
-                const response = await fetch(imageUrl);
-                const arrayBuffer = await response.arrayBuffer();
-                return Buffer.from(arrayBuffer);
-            }
-
-            throw new Error(`Unexpected Replicate output format: ${JSON.stringify(output)}`);
+            return buffers;
 
         } catch (error) {
-            this.logger.error('Replicate Image Generation Failed', error);
+            this.logger.error('Replicate Batch Image Generation Failed', error);
             throw error;
         }
     }

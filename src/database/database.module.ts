@@ -20,7 +20,7 @@ import { CreditTransaction } from '../credits/entities/credit-transaction.entity
         password: configService.get<string>('DB_PASSWORD') || 'postgres',
         database: configService.get<string>('DB_DATABASE') || 'ai_reels',
         entities: [Video, Job, Asset, User, CreditTransaction],
-        synchronize: configService.get<string>('NODE_ENV') !== 'production',
+        synchronize: false,
         logging: configService.get<string>('NODE_ENV') === 'development' ? ['error', 'warn', 'schema'] : false,
         retryAttempts: 10,
         retryDelay: 3000,

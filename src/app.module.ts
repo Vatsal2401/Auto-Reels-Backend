@@ -12,6 +12,7 @@ import { RenderModule } from './render/render.module';
 import { AuthModule } from './auth/auth.module';
 import { CreditsModule } from './credits/credits.module';
 import { HealthModule } from './health/health.module';
+import { PaymentModule } from './payment/payment.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { HealthModule } from './health/health.module';
     AuthModule,
     CreditsModule,
     HealthModule,
+    PaymentModule,
   ],
   providers: [
     {
