@@ -50,7 +50,7 @@ export class VideoService {
         imageStyle: dto.imageStyle,
         imageAspectRatio: dto.imageAspectRatio,
         voiceId: dto.voiceId,
-        imageProvider: dto.imageProvider || 'gemini',
+        imageProvider: dto.imageProvider || 'replicate',
       },
     });
     return await this.videoRepository.save(video);

@@ -39,19 +39,39 @@ export class GeminiImageProvider implements IImageGenerator {
 
         try {
             const modelId = 'imagen-4.0-generate-001';
-
-            const response = await this.client.models.generateImages({
+            let response = await this.client.models.generateImages({
                 model: modelId,
                 prompt: prompt,
                 config: {
-                    numberOfImages: Math.min(options.count, 4), // Gemini limit is usually 4
+                    numberOfImages: Math.min(options.count, 4),
                     aspectRatio: aspectRatio,
                     outputMimeType: "image/jpeg"
                 }
             });
 
+            this.logger.debug(`Gemini Imagen 4 Response: ${JSON.stringify(response, null, 2)}`);
+
+            // FALLBACK to Imagen 3 if Imagen 4 returns no images
             if (!response || !response.generatedImages || response.generatedImages.length === 0) {
-                throw new Error('No images returned from Gemini API');
+                this.logger.warn(`Imagen 4.0 returned no images. Falling back to Imagen 3.0... Prompt: ${prompt.substring(0, 50)}`);
+
+                const fallbackModelId = 'imagen-3.0-generate-001';
+                response = await this.client.models.generateImages({
+                    model: fallbackModelId,
+                    prompt: prompt,
+                    config: {
+                        numberOfImages: Math.min(options.count, 4),
+                        aspectRatio: aspectRatio,
+                        outputMimeType: "image/jpeg"
+                    }
+                });
+
+                this.logger.debug(`Gemini Imagen 3 Response: ${JSON.stringify(response, null, 2)}`);
+            }
+
+            if (!response || !response.generatedImages || response.generatedImages.length === 0) {
+                this.logger.error('Both Imagen 4 and 3 returned no images.', { response });
+                throw new Error('No images returned from Gemini API (both models failed)');
             }
 
             return response.generatedImages.map((img: any) => {

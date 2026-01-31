@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ICaptionGenerator } from '../interfaces/caption-generator.interface';
-import * as ffmpeg from 'fluent-ffmpeg';
+import ffmpeg from 'fluent-ffmpeg';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { writeFileSync, unlinkSync } from 'fs';

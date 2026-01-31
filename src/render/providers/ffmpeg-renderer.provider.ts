@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { IVideoRenderer, ComposeOptions } from '../interfaces/video-renderer.interface';
-import * as ffmpeg from 'fluent-ffmpeg';
+import ffmpeg from 'fluent-ffmpeg';
 import { writeFileSync, unlinkSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -31,14 +31,26 @@ export class FFmpegRendererProvider implements IVideoRenderer {
 
       // 3. Get Audio Duration to calculate pacing
       const audioDuration = await this.getMediaDuration(audioPath);
-      // Default to 5s per image if detection fails or images only
-      // Calculate duration per slide (ensure min 3s)
+      
+      // Calculate duration per slide accounting for overlapping transitions
+      // With xfade: total_duration = slideDuration + (imageCount - 1) * (slideDuration - transitionDuration)
+      // Solving for slideDuration: slideDuration = (audioDuration + (imageCount - 1) * transitionDuration) / imageCount
       const imageCount = imagePaths.length || 1;
-      const slideDuration = audioDuration > 0
-        ? Math.max(3, audioDuration / imageCount)
-        : 5;
-
       const transitionDuration = 0.5;
+      
+      // Add a small buffer (0.5s) to ensure video is slightly longer than audio to prevent cutting off
+      const audioDurationWithBuffer = audioDuration + 0.5;
+      
+      let slideDuration: number;
+      if (imageCount > 1) {
+        // Account for overlapping transitions
+        slideDuration = (audioDurationWithBuffer + (imageCount - 1) * transitionDuration) / imageCount;
+      } else {
+        // Single image, just match audio duration
+        slideDuration = audioDurationWithBuffer;
+      }
+      
+      slideDuration = Math.max(3, slideDuration); // Ensure minimum 3s per slide
 
       return new Promise((resolve, reject) => {
         let command = ffmpeg();

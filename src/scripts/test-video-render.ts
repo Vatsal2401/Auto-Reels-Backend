@@ -1,5 +1,4 @@
-
-import * as ffmpeg from 'fluent-ffmpeg';
+import ffmpeg from 'fluent-ffmpeg';
 import { writeFileSync, readFileSync, existsSync, readdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -58,25 +57,46 @@ class VideoComposer {
             const audioDuration = await this.getMediaDuration(audioPath);
             console.log(`[Composer] Audio Duration: ${audioDuration}s`);
 
-            // Calculate duration per slide (ensure min 3s)
+            // Calculate duration per slide accounting for overlapping transitions
+            // With xfade: total_duration = slideDuration + (imageCount - 1) * (slideDuration - transitionDuration)
+            // Solving for slideDuration: slideDuration = (audioDuration + (imageCount - 1) * transitionDuration) / imageCount
             const imageCount = imagePaths.length || 1;
-            const slideDuration = audioDuration > 0
-                ? Math.max(3, audioDuration / imageCount)
-                : 5;
-
-            console.log(`[Composer] Slide Duration calculated: ${slideDuration}s (for ${imageCount} slides)`);
-
             const transitionDuration = 0.5;
+            
+            // Add a small buffer (0.5s) to ensure video is slightly longer than audio to prevent cutting off
+            const audioDurationWithBuffer = audioDuration + 0.5;
+            
+            let slideDuration: number;
+            if (imageCount > 1) {
+                // Account for overlapping transitions
+                slideDuration = (audioDurationWithBuffer + (imageCount - 1) * transitionDuration) / imageCount;
+            } else {
+                // Single image, just match audio duration
+                slideDuration = audioDurationWithBuffer;
+            }
+            
+            slideDuration = Math.max(3, slideDuration); // Ensure minimum 3s per slide
+
+            const expectedVideoDuration = imageCount === 1 
+                ? slideDuration 
+                : slideDuration + (imageCount - 1) * (slideDuration - transitionDuration);
+
+            console.log(
+                `[Composer] Slide Duration calculated: ${slideDuration.toFixed(2)}s (for ${imageCount} slides, transition: ${transitionDuration}s)`,
+            );
+            console.log(
+                `[Composer] Expected total video duration: ${expectedVideoDuration.toFixed(2)}s (audio: ${audioDuration.toFixed(2)}s)`,
+            );
 
             return new Promise((resolve, reject) => {
-                let command = ffmpeg();
+                const command = ffmpeg();
                 const complexFilters: string[] = [];
                 const videoStreams: string[] = [];
 
                 // --- SLIDESHOW MODE (Images -> Video) ---
                 if (imagePaths.length > 0) {
                     // Input all images
-                    imagePaths.forEach(img => command.input(img));
+                    imagePaths.forEach((img) => command.input(img));
 
                     // Create ZoomPan + Scale filters for each image
                     imagePaths.forEach((_, i) => {
@@ -90,7 +110,7 @@ class VideoComposer {
                         // "setsar=1" ensures pixel aspect ratio is square.
                         complexFilters.push(
                             `[${i}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,` +
-                            `zoompan=${effect}d=${frames}:s=1080x1920:fps=25[v${i}]`
+                            `zoompan=${effect}d=${frames}:s=1080x1920:fps=25[v${i}]`,
                         );
                         videoStreams.push(`v${i}`);
                     });
@@ -109,26 +129,27 @@ class VideoComposer {
                             // We start fading at slideDuration - transitionDuration
 
                             complexFilters.push(
-                                `[${prevStream}][${nextStream}]xfade=transition=fade:duration=${transitionDuration}:offset=${currentOffset}[${outStream}]`
+                                `[${prevStream}][${nextStream}]xfade=transition=fade:duration=${transitionDuration}:offset=${currentOffset}[${outStream}]`,
                             );
 
                             prevStream = outStream;
-                            currentOffset += (slideDuration - transitionDuration);
+                            currentOffset += slideDuration - transitionDuration;
                         }
                     } else {
                         // Case for single image
                         complexFilters.push(`[v0]copy[v_merged]`);
                     }
-
                 } else {
                     // No Assets? Create Blank.
-                    command.input('color=c=black:s=1080x1920:d=' + (audioDuration || 30)).inputFormat('lavfi');
+                    command
+                        .input('color=c=black:s=1080x1920:d=' + (audioDuration || 30))
+                        .inputFormat('lavfi');
                     complexFilters.push(`[0:v]null[v_merged]`);
                 }
 
                 // --- FINAL COMPOSITION ---
                 // Audio Input is next available index (after all images)
-                const audioIndex = imagePaths.length > 0 ? imagePaths.length : (options.video ? 1 : 1);
+                const audioIndex = imagePaths.length > 0 ? imagePaths.length : options.video ? 1 : 1;
                 command.input(audioPath);
 
                 // Burn Captions on 'v_merged'
@@ -136,7 +157,7 @@ class VideoComposer {
                 console.log(`[Composer] Burning captions from: ${captionPath}`);
 
                 complexFilters.push(
-                    `[v_merged]subtitles='${captionPath}':force_style='FontSize=16,PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=1,Outline=1,Shadow=0,Bold=1,Alignment=2,MarginV=50'[v_final]`
+                    `[v_merged]subtitles='${captionPath}':force_style='FontSize=16,PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=1,Outline=1,Shadow=0,Bold=1,Alignment=2,MarginV=50'[v_final]`,
                 );
 
                 console.log('[Composer] Constructed Loop Filter graph:', complexFilters.join(';'));
@@ -146,11 +167,14 @@ class VideoComposer {
                     .outputOptions([
                         '-map [v_final]',
                         `-map ${audioIndex}:a`, // Map audio correctly
-                        '-c:v libx264', '-preset fast', '-crf 23',
-                        '-c:a aac', '-b:a 192k',
+                        '-c:v libx264',
+                        '-preset fast',
+                        '-crf 23',
+                        '-c:a aac',
+                        '-b:a 192k',
                         '-pix_fmt yuv420p',
-                        '-shortest',        // Stop when audio ends
-                        '-movflags +faststart'
+                        '-shortest', // Stop when shortest stream ends (video is slightly longer, so audio determines length)
+                        '-movflags +faststart',
                     ])
                     .output(outputPath)
                     .on('start', (cmdLine) => {
@@ -161,7 +185,9 @@ class VideoComposer {
                             const buffer = readFileSync(outputPath);
                             this.cleanup([audioPath, captionPath, outputPath, ...imagePaths]);
                             resolve(buffer);
-                        } catch (err) { reject(err); }
+                        } catch (err) {
+                            reject(err);
+                        }
                     })
                     .on('error', (err, stdout, stderr) => {
                         console.error('[Composer] FFmpeg Error:', err.message);
@@ -171,9 +197,7 @@ class VideoComposer {
                         reject(err);
                     })
                     .run();
-
             });
-
         } catch (error) {
             // this.cleanup([audioPath, captionPath, outputPath, ...imagePaths]);
             throw error;
@@ -198,16 +222,19 @@ class VideoComposer {
             // Pan Left
             "z=1.2:x='if(eq(on,1),0,min(x+1,iw-iw/zoom))':y='(ih-ih/zoom)/2':",
             // Pan Right
-            "z=1.2:x='if(eq(on,1),iw-iw/zoom,max(x-1,0))':y='(ih-ih/zoom)/2':"
+            "z=1.2:x='if(eq(on,1),iw-iw/zoom,max(x-1,0))':y='(ih-ih/zoom)/2':",
         ];
         return effects[Math.floor(Math.random() * effects.length)];
     }
 
     private cleanup(paths: string[]): void {
-        paths.forEach(p => { try { if (p && existsSync(p)) unlinkSync(p); } catch (e) { } });
+        paths.forEach((p) => {
+            try {
+                if (p && existsSync(p)) unlinkSync(p);
+            } catch (e) { }
+        });
     }
 }
-
 
 // --- MAIN EXECUTION ---
 async function main() {
@@ -225,7 +252,7 @@ async function main() {
     if (!existsSync(audioPath)) {
         // Try any mp3
         const files = readdirSync(ASSETS_DIR);
-        const mp3 = files.find(f => f.endsWith('.mp3'));
+        const mp3 = files.find((f) => f.endsWith('.mp3'));
         if (mp3) audioPath = join(ASSETS_DIR, mp3);
         else {
             console.error(`ERROR: No audio.mp3 found in ${ASSETS_DIR}`);
@@ -239,7 +266,7 @@ async function main() {
     if (!existsSync(captionPath)) {
         // Try any srt
         const files = readdirSync(ASSETS_DIR);
-        const srt = files.find(f => f.endsWith('.srt'));
+        const srt = files.find((f) => f.endsWith('.srt'));
         if (srt) captionPath = join(ASSETS_DIR, srt);
         else {
             console.error(`ERROR: No caption.srt found in ${ASSETS_DIR}`);
@@ -249,9 +276,7 @@ async function main() {
 
     // Find Images (*.png, *.jpg) sorted by name
     const allFiles = readdirSync(ASSETS_DIR);
-    const imageFiles = allFiles
-        .filter(f => f.match(/\.(png|jpg|jpeg)$/i))
-        .sort(); // Sort makes sure 1.png comes before 2.png (usually)
+    const imageFiles = allFiles.filter((f) => f.match(/\.(png|jpg|jpeg)$/i)).sort(); // Sort makes sure 1.png comes before 2.png (usually)
 
     if (imageFiles.length === 0) {
         console.error(`ERROR: No images found in ${ASSETS_DIR}`);
@@ -266,7 +291,7 @@ async function main() {
     // Read Buffers
     const audioBuffer = readFileSync(audioPath);
     const captionBuffer = readFileSync(captionPath);
-    const imageBuffers = imageFiles.map(f => readFileSync(join(ASSETS_DIR, f)));
+    const imageBuffers = imageFiles.map((f) => readFileSync(join(ASSETS_DIR, f)));
 
     // Run Composer
     const composer = new VideoComposer();
@@ -274,17 +299,19 @@ async function main() {
     const resultBuffer = await composer.compose({
         audio: audioBuffer,
         caption: captionBuffer,
-        assets: imageBuffers
+        assets: imageBuffers,
     });
 
-    console.log(`\nComposition Success! Output size: ${(resultBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+    console.log(
+        `\nComposition Success! Output size: ${(resultBuffer.length / 1024 / 1024).toFixed(2)} MB`,
+    );
 
     // Write Output
     writeFileSync(OUTPUT_FILE, resultBuffer);
     console.log(`Saved result to: ${OUTPUT_FILE}`);
 }
 
-main().catch(err => {
+main().catch((err) => {
     console.error('FATAL ERROR:', err);
     process.exit(1);
 });
