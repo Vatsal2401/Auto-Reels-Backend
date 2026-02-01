@@ -14,30 +14,34 @@ export class MailService {
         const smtpPass = this.configService.get('SMTP_PASS');
         const smtpSecure = this.configService.get('SMTP_SECURE') === 'true';
 
-        this.logger.log(`Initializing SMTP with host: ${smtpHost}:${smtpPort}, secure: ${smtpSecure}`);
+        this.logger.log(`Initializing SMTP for ${smtpUser}...`);
 
         const config: any = {
             auth: {
                 user: smtpUser,
                 pass: smtpPass,
             },
-            // Add connection timeout and retry settings
-            connectionTimeout: 15000, // 15 seconds
-            greetingTimeout: 15000,
-            socketTimeout: 30000, // 30 seconds for sending
-            // For Gmail specifically
-            pool: true,
-            maxConnections: 3,
-            maxMessages: 100,
-            // TLS settings for Gmail
+            // High stability timeouts for cloud environments
+            connectionTimeout: 20000, // 20 seconds
+            greetingTimeout: 20000,
+            socketTimeout: 60000,    // 60 seconds for sending
+
+            // Gmail stability settings
+            pool: false,             // Disable pooling for cloud stability
             tls: {
                 rejectUnauthorized: false,
                 minVersion: 'TLSv1.2'
             },
+            // Enable detailed SMTP logs in the console
+            debug: true,
+            logger: true,
         };
 
+        // FORCE Port 465 + SSL for Gmail in production (most reliable bypass)
         if (smtpHost?.toLowerCase().includes('gmail.com')) {
-            config.service = 'gmail';
+            config.host = 'smtp.gmail.com';
+            config.port = 465;
+            config.secure = true;
         } else {
             config.host = smtpHost;
             config.port = smtpPort;
@@ -46,14 +50,7 @@ export class MailService {
 
         this.transporter = nodemailer.createTransport(config);
 
-        // Verify connection on startup
-        this.transporter.verify((error, success) => {
-            if (error) {
-                this.logger.error('SMTP Connection Error:', error);
-            } else {
-                this.logger.log('SMTP Server is ready to take our messages');
-            }
-        });
+        // Removed verify() on startup to avoid blocking or hanging initialization
     }
 
     async sendVerificationEmail(email: string, token: string, retries = 3) {
