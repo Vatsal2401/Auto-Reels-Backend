@@ -3,6 +3,10 @@ import { IStorageService, StorageUploadParams } from '../interfaces/storage.inte
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
+import { createWriteStream, mkdirSync, existsSync } from 'fs';
+import { dirname, join } from 'path';
+import { pipeline } from 'stream/promises';
+import { Readable } from 'stream';
 
 @Injectable()
 export class S3StorageProvider implements IStorageService {
@@ -44,7 +48,7 @@ export class S3StorageProvider implements IStorageService {
   }
 
   async upload(params: StorageUploadParams): Promise<string> {
-    const { userId, mediaId, type, buffer, fileName, step } = params;
+    const { userId, mediaId, type, buffer, stream, fileName, step } = params;
 
     // Construct user-isolated path: users/{userId}/media/{mediaId}/{type}/{fileName or random}
     const safeUserId = (userId && userId !== 'null') ? userId : 'anonymous';
@@ -57,13 +61,37 @@ export class S3StorageProvider implements IStorageService {
       new PutObjectCommand({
         Bucket: this.bucketName,
         Key: key,
-        Body: buffer,
+        Body: buffer || stream,
         ContentType: this.getContentTypeForType(type),
       }),
     );
 
     // Return the Object ID (Key)
     return key;
+  }
+
+  async downloadToFile(objectId: string, targetPath: string): Promise<void> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: objectId,
+    });
+    const response = await this.s3Client.send(command);
+
+    const targetDir = dirname(targetPath);
+    if (!existsSync(targetDir)) {
+      mkdirSync(targetDir, { recursive: true });
+    }
+
+    await pipeline(response.Body as Readable, createWriteStream(targetPath));
+  }
+
+  getLocalPath(objectId: string): string {
+    // For S3, we check our local mirror if we implement one, 
+    // but for now, we'll return the objectId to signal it's cloud-only 
+    // or return a path in a known /tmp/storage-cache dir if we decide to mirror everything.
+    // Given the request, we should probably check if it exists in the mirror.
+    const storageBasePath = process.env.LOCAL_STORAGE_PATH || join(process.cwd(), 'storage');
+    return join(storageBasePath, objectId);
   }
 
   async download(objectId: string): Promise<Buffer> {

@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { IStorageService, StorageUploadParams } from '../interfaces/storage.interface';
-import { writeFileSync, readFileSync, mkdirSync, existsSync } from 'fs';
-import { join } from 'path';
+import { writeFileSync, readFileSync, mkdirSync, existsSync, createReadStream, createWriteStream } from 'fs';
+import { join, dirname } from 'path';
+import { pipeline } from 'stream/promises';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -28,28 +29,43 @@ export class LocalStorageProvider implements IStorageService {
   }
 
   async upload(params: StorageUploadParams): Promise<string> {
-    const { userId, mediaId, type, buffer, fileName, step } = params;
+    const { userId, mediaId, type, buffer, stream, fileName, step } = params;
 
-    // Construct user-isolated path: users/{userId}/media/{mediaId}/{type}/{fileName or random}
-    const safeUserId = (userId && userId !== 'null') ? userId : 'anonymous';
-    const extension = this.getExtensionForType(type);
-    const actualFileName = fileName || `${uuidv4()}${extension}`;
-    const stepPart = step ? `${step}/` : '';
-
-    const relativeDir = join('users', safeUserId, 'media', mediaId, type, stepPart);
-    const absoluteDir = join(this.storageBasePath, relativeDir);
+    const absolutePath = this.getStoragePath(userId, mediaId, type, fileName, step);
+    const absoluteDir = dirname(absolutePath);
 
     if (!existsSync(absoluteDir)) {
       mkdirSync(absoluteDir, { recursive: true });
     }
 
-    const relativePath = join(relativeDir, actualFileName);
-    const absolutePath = join(this.storageBasePath, relativePath);
-
-    writeFileSync(absolutePath, buffer);
+    if (buffer) {
+      writeFileSync(absolutePath, buffer);
+    } else if (stream) {
+      await pipeline(stream, createWriteStream(absolutePath));
+    } else {
+      throw new Error('Neither buffer nor stream provided for upload');
+    }
 
     // Return the relative Object ID (path from storage base)
-    return relativePath;
+    return absolutePath.replace(this.storageBasePath + '/', '').replace(this.storageBasePath, '');
+  }
+
+  async downloadToFile(objectId: string, targetPath: string): Promise<void> {
+    const sourcePath = this.getAbsolutePath(objectId);
+    if (!existsSync(sourcePath)) {
+      throw new Error(`Source file not found: ${sourcePath}`);
+    }
+
+    const targetDir = dirname(targetPath);
+    if (!existsSync(targetDir)) {
+      mkdirSync(targetDir, { recursive: true });
+    }
+
+    await pipeline(createReadStream(sourcePath), createWriteStream(targetPath));
+  }
+
+  getLocalPath(objectId: string): string {
+    return this.getAbsolutePath(objectId);
   }
 
   async download(objectId: string): Promise<Buffer> {
@@ -68,6 +84,15 @@ export class LocalStorageProvider implements IStorageService {
     // For local storage, return a file:// URL
     const absolutePath = this.getAbsolutePath(objectId);
     return `file://${absolutePath}`;
+  }
+
+  private getStoragePath(userId: string, mediaId: string, type: string, fileName?: string, step?: string): string {
+    const safeUserId = (userId && userId !== 'null') ? userId : 'anonymous';
+    const extension = this.getExtensionForType(type);
+    const actualFileName = fileName || `${uuidv4()}${extension}`;
+    const stepPart = step ? step : '';
+
+    return join(this.storageBasePath, 'users', safeUserId, 'media', mediaId, type, stepPart, actualFileName);
   }
 
   private getAbsolutePath(objectId: string): string {

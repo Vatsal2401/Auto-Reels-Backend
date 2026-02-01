@@ -12,10 +12,15 @@ import { AiProviderFactory } from '../ai/ai-provider.factory';
 import { ScriptJSON } from '../ai/interfaces/script-generator.interface';
 import { GeminiTTSProvider } from '../ai/providers/gemini-tts.provider';
 import { OpenAITTSProvider } from '../ai/providers/openai-tts.provider';
+import { join } from 'path';
+import { existsSync, mkdirSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { Readable } from 'stream';
 
 @Injectable()
 export class MediaOrchestratorService {
     private readonly logger = new Logger(MediaOrchestratorService.name);
+    private static isJobActive = false; // Production lock for memory stability
 
     constructor(
         @InjectRepository(Media)
@@ -33,6 +38,11 @@ export class MediaOrchestratorService {
     ) { }
 
     async processMedia(mediaId: string): Promise<void> {
+        if (MediaOrchestratorService.isJobActive) {
+            this.logger.warn(`Another media job is active. Skipping for now to preserve 512MB RAM: ${mediaId}`);
+            return;
+        }
+
         const media = await this.mediaRepository.findOne({
             where: { id: mediaId },
             relations: ['steps', 'assets'],
@@ -48,6 +58,7 @@ export class MediaOrchestratorService {
             return;
         }
 
+        MediaOrchestratorService.isJobActive = true;
         try {
             await this.mediaRepository.update(mediaId, { status: MediaStatus.PROCESSING });
             await this.runFlow(mediaId);
@@ -100,6 +111,8 @@ export class MediaOrchestratorService {
                 status: MediaStatus.FAILED,
                 error_message: error.message || 'Unknown orchestration error'
             });
+        } finally {
+            MediaOrchestratorService.isJobActive = false;
         }
     }
 
@@ -385,32 +398,48 @@ export class MediaOrchestratorService {
             throw new Error('Assets missing for rendering');
         }
 
-        const [audioBuffer, captionBuffer, ...imageBuffers] = await Promise.all([
-            this.storageService.download(audioAsset.blob_storage_id),
-            this.storageService.download(captionAsset.blob_storage_id),
-            ...imageAssets.map(a => this.storageService.download(a.blob_storage_id))
-        ]);
+        const sessionDir = join(tmpdir(), `media-render-${media.id}`);
+        if (!existsSync(sessionDir)) mkdirSync(sessionDir, { recursive: true });
 
-        const intentAsset = await this.assetRepository.findOne({ where: { media_id: media.id, type: MediaAssetType.INTENT } });
-        const intentData = intentAsset ? (intentAsset.metadata as any) : null;
+        try {
+            const audioPath = join(sessionDir, 'audio.mp3');
+            const captionPath = join(sessionDir, 'captions.srt');
+            const assetPaths = imageAssets.map((_, i) => join(sessionDir, `image-${i}.jpg`));
 
-        const finalBuffer = await this.videoRenderer.compose({
-            audio: audioBuffer,
-            caption: captionBuffer,
-            assets: imageBuffers,
-            rendering_hints: intentData?.rendering_hints
-        });
+            // Download assets to local session
+            await this.storageService.downloadToFile(audioAsset.blob_storage_id, audioPath);
+            await this.storageService.downloadToFile(captionAsset.blob_storage_id, captionPath);
+            await Promise.all(imageAssets.map((a, i) => this.storageService.downloadToFile(a.blob_storage_id, assetPaths[i])));
 
-        const blobId = await this.storageService.upload({
-            userId: media.user_id,
-            mediaId: media.id,
-            type: 'video',
-            step: 'render',
-            buffer: finalBuffer
-        });
+            const intentAsset = await this.assetRepository.findOne({ where: { media_id: media.id, type: MediaAssetType.INTENT } });
+            const intentData = intentAsset ? (intentAsset.metadata as any) : null;
 
-        await this.addAsset(media.id, MediaAssetType.VIDEO, blobId);
-        return blobId;
+            const videoStream = await this.videoRenderer.compose({
+                audioPath,
+                captionPath,
+                assetPaths,
+                rendering_hints: intentData?.rendering_hints
+            });
+
+            const blobId = await this.storageService.upload({
+                userId: media.user_id,
+                mediaId: media.id,
+                type: 'video',
+                step: 'render',
+                stream: videoStream as unknown as Readable,
+                fileName: 'final_render.mp4'
+            });
+
+            await this.addAsset(media.id, MediaAssetType.VIDEO, blobId);
+            return blobId;
+        } finally {
+            // Cleanup session dir
+            try {
+                if (existsSync(sessionDir)) rmSync(sessionDir, { recursive: true, force: true });
+            } catch (e) {
+                this.logger.error(`Failed to cleanup session ${sessionDir}:`, e);
+            }
+        }
     }
 
     private async addAsset(mediaId: string, type: MediaAssetType, blobId: string, metadata?: any): Promise<void> {

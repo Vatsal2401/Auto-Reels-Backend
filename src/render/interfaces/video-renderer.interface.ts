@@ -1,12 +1,13 @@
+import { Readable } from 'stream';
+
 export interface ComposeOptions {
-  audio: Buffer;
-  caption: Buffer;
-  assets?: Buffer[]; // Legacy: for backward compatibility
-  video?: Buffer; // New: video from Replicate image-to-video
+  audioPath: string;
+  captionPath: string;
+  assetPaths: string[];
   duration?: number;
   rendering_hints?: any;
 }
 
 export interface IVideoRenderer {
-  compose(options: ComposeOptions): Promise<Buffer>;
+  compose(options: ComposeOptions): Promise<Readable>;
 }

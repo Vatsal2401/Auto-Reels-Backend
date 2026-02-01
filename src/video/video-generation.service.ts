@@ -1,14 +1,19 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { VideoService } from './video.service';
 import { VideoStatus } from './entities/video.entity';
-import { ScriptJSON } from '../ai/interfaces/script-generator.interface';
+import { ScriptJSON, ScriptScene } from '../ai/interfaces/script-generator.interface';
 import { IStorageService } from '../storage/interfaces/storage.interface';
 import { IVideoRenderer } from '../render/interfaces/video-renderer.interface';
 import { AiProviderFactory } from '../ai/ai-provider.factory';
+import { join } from 'path';
+import { existsSync, mkdirSync, writeFileSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { Readable } from 'stream';
 
 @Injectable()
 export class VideoGenerationService {
     private readonly logger = new Logger(VideoGenerationService.name);
+    private static isJobActive = false; // Simple lock for single-job concurrency
 
     constructor(
         private readonly videoService: VideoService,
@@ -22,32 +27,56 @@ export class VideoGenerationService {
      * This method is async but "fire-and-forget" - it runs in the background.
      */
     async startGeneration(videoId: string): Promise<void> {
+        if (VideoGenerationService.isJobActive) {
+            this.logger.warn(`Another job is already active. Skipping or queuing for ${videoId}.`);
+            // In a real prod env, we'd use a queue (BullMQ), but for 512MB RAM stability, we enforce 1 at a time.
+            return;
+        }
+
+        VideoGenerationService.isJobActive = true;
         this.logger.log(`Starting generation for video ${videoId}`);
+
+        const sessionDir = this.getSessionDir(videoId);
+        if (!existsSync(sessionDir)) mkdirSync(sessionDir, { recursive: true });
 
         try {
             // 1. Script Generation
             await this.generateScriptStep(videoId);
 
             // 2. Image Generation
-            await this.generateImagesStep(videoId);
+            await this.generateImagesStep(videoId, sessionDir);
 
-            // 3. Image-to-Video OR Text-to-Video
-            // SKIPPING AI Video Generation entirely. We will use FFmpeg Slideshow in Render step.
-            // await this.generateVideoSegmentsStep(videoId);
+            // 3. Audio Generation
+            const audioBuffer = await this.generateAudioStep(videoId, sessionDir);
 
-            // 4. Audio Generation
-            const audioBuffer = await this.generateAudioStep(videoId);
-
-            // 5. Caption Generation (Needs Audio)
-            await this.generateCaptionsStep(videoId, audioBuffer);
+            // 4. Caption Generation (Needs Audio)
+            await this.generateCaptionsStep(videoId, audioBuffer, sessionDir);
 
             // 5. Final Rendering
-            await this.renderFinalVideoStep(videoId);
+            await this.renderFinalVideoStep(videoId, sessionDir);
 
             this.logger.log(`Video generation COMPLETED for ${videoId}`);
         } catch (error) {
             this.logger.error(`Video generation FAILED for ${videoId}:`, error);
             await this.videoService.failVideo(videoId, error instanceof Error ? error.message : 'Unknown error');
+        } finally {
+            VideoGenerationService.isJobActive = false;
+            this.cleanupSession(sessionDir);
+        }
+    }
+
+    private getSessionDir(videoId: string): string {
+        return join(tmpdir(), `reels-session-${videoId}`);
+    }
+
+    private cleanupSession(dir: string): void {
+        try {
+            if (existsSync(dir)) {
+                rmSync(dir, { recursive: true, force: true });
+                this.logger.log(`Cleaned up session directory: ${dir}`);
+            }
+        } catch (e) {
+            this.logger.error(`Failed to cleanup session ${dir}:`, e);
         }
     }
 
@@ -91,7 +120,7 @@ export class VideoGenerationService {
         await this.videoService.updateScript(videoId, scriptText);
     }
 
-    private async generateImagesStep(videoId: string): Promise<void> {
+    private async generateImagesStep(videoId: string, sessionDir: string): Promise<void> {
         const video = await this.videoService.getVideoRaw(videoId);
         if (video.image_urls && video.image_urls.length > 0) {
             this.logger.log(`Images already exist for ${videoId}, skipping.`);
@@ -134,15 +163,22 @@ export class VideoGenerationService {
                 count: currentBatchCount
             });
 
-            // Upload this batch
-            const uploadPromises = buffers.map(buffer =>
-                this.storageService.upload({
+            // Upload this batch AND Cache Locally
+            const uploadPromises = buffers.map(async (buffer, idx) => {
+                const globalIdx = i + idx;
+                const fileName = `image-${globalIdx}.jpg`;
+
+                // Cache locally for renderer
+                writeFileSync(join(sessionDir, fileName), buffer);
+
+                return this.storageService.upload({
                     userId: video.user_id || 'system',
                     mediaId: videoId,
                     type: 'image',
                     buffer,
-                })
-            );
+                    fileName
+                });
+            });
             const urls = await Promise.all(uploadPromises);
             imageUrls.push(...urls);
         }
@@ -203,12 +239,15 @@ export class VideoGenerationService {
         await this.videoService.updateGeneratedVideoUrl(videoId, videoUrl);
     }
 
-    private async generateAudioStep(videoId: string): Promise<Buffer> {
+    private async generateAudioStep(videoId: string, sessionDir: string): Promise<Buffer> {
         const video = await this.videoService.getVideoRaw(videoId);
+        const audioFile = join(sessionDir, 'audio.mp3');
+
         if (video.audio_url) {
-            this.logger.log(`Audio already exists for ${videoId}, skipping.`);
-            // Currently we don't store the buffer if it exists, so we download it
-            return this.storageService.download(video.audio_url);
+            this.logger.log(`Audio already exists for ${videoId}, downloading to cache.`);
+            const buffer = await this.storageService.download(video.audio_url);
+            writeFileSync(audioFile, buffer);
+            return buffer;
         }
 
         if (!video.script) throw new Error('No script for audio generation');
@@ -225,21 +264,29 @@ export class VideoGenerationService {
             language: video.metadata?.language,
         });
 
+        // Cache Locally
+        writeFileSync(audioFile, audioBuffer);
+
         const audioUrl = await this.storageService.upload({
             userId: video.user_id || 'system',
             mediaId: videoId,
             type: 'audio',
             buffer: audioBuffer,
+            fileName: 'audio.mp3'
         });
 
         await this.videoService.updateAudioUrl(videoId, audioUrl);
         return audioBuffer;
     }
 
-    private async generateCaptionsStep(videoId: string, audioBuffer: Buffer): Promise<void> {
+    private async generateCaptionsStep(videoId: string, audioBuffer: Buffer, sessionDir: string): Promise<void> {
         const video = await this.videoService.getVideoRaw(videoId);
+        const captionFile = join(sessionDir, 'captions.srt');
+
         if (video.caption_url) {
-            this.logger.log(`Captions already exist for ${videoId}, skipping.`);
+            this.logger.log(`Captions already exist for ${videoId}, downloading to cache.`);
+            const buffer = await this.storageService.download(video.caption_url);
+            writeFileSync(captionFile, buffer);
             return;
         }
 
@@ -252,51 +299,62 @@ export class VideoGenerationService {
 
         // Pass actual audio buffer to provider
         const captionBuffer = await captionProvider.generateCaptions(audioBuffer, video.script);
+
+        // Cache Locally
+        writeFileSync(captionFile, captionBuffer);
+
         const captionUrl = await this.storageService.upload({
             userId: video.user_id || 'system',
             mediaId: videoId,
             type: 'caption',
             buffer: captionBuffer,
+            fileName: 'captions.srt'
         });
 
         await this.videoService.updateCaptionUrl(videoId, captionUrl);
     }
 
-    private async renderFinalVideoStep(videoId: string): Promise<void> {
+    private async renderFinalVideoStep(videoId: string, sessionDir: string): Promise<void> {
         const video = await this.videoService.getVideoRaw(videoId);
         if (video.final_video_url) {
             this.logger.log(`Final video already exists for ${videoId}, skipping.`);
             return;
         }
 
-        this.logger.log(`Rendering final video for ${videoId}...`);
+        this.logger.log(`Rendering final video (720p Optimized) for ${videoId}...`);
         await this.videoService.updateStatus(videoId, VideoStatus.RENDERING);
 
-        if (!video.audio_url || !video.caption_url || !video.image_urls || video.image_urls.length === 0) {
-            throw new Error('Missing assets for final render (Audio, Captions, or Images)');
+        // Prepare File Paths
+        const audioPath = join(sessionDir, 'audio.mp3');
+        const captionPath = join(sessionDir, 'captions.srt');
+        const scriptJson = video.script_json as unknown as ScriptJSON;
+        const imageCount = scriptJson.scenes.length;
+        const assetPaths = Array.from({ length: imageCount }, (_, i) => join(sessionDir, `image-${i}.jpg`));
+
+        // Verify assets exist in session, if not download them (consistency fallback)
+        if (!existsSync(audioPath)) await this.storageService.downloadToFile(video.audio_url, audioPath);
+        if (!existsSync(captionPath)) await this.storageService.downloadToFile(video.caption_url, captionPath);
+        for (let i = 0; i < imageCount; i++) {
+            if (!existsSync(assetPaths[i])) {
+                await this.storageService.downloadToFile(video.image_urls[i], assetPaths[i]);
+            }
         }
 
-        // Download Audio, Captions, and ALL Images
-        const [audioBuffer, captionBuffer, ...imageBuffers] = await Promise.all([
-            this.storageService.download(video.audio_url),
-            this.storageService.download(video.caption_url),
-            ...video.image_urls.map(url => this.storageService.download(url))
-        ]);
+        this.logger.log(`Rendering with Local Paths: Audio=${audioPath}, Assets=${assetPaths.length}`);
 
-        this.logger.log(`Downloaded Assets: Audio=${audioBuffer.length}, Caption=${captionBuffer.length}, Images=${imageBuffers.length}`);
-
-        const finalBuffer = await this.videoRenderer.compose({
-            audio: audioBuffer,
-            caption: captionBuffer,
-            assets: imageBuffers, // Pass images as assets
-            // No 'video' buffer passed, so Renderer will trigger Slideshow mode
+        const videoStream = await this.videoRenderer.compose({
+            audioPath,
+            captionPath,
+            assetPaths,
         });
 
+        // Upload using Stream to save memory
         const finalUrl = await this.storageService.upload({
             userId: video.user_id || 'system',
             mediaId: videoId,
             type: 'video',
-            buffer: finalBuffer,
+            stream: videoStream as unknown as Readable,
+            fileName: 'final_reel.mp4'
         });
 
         await this.videoService.completeVideo(videoId, finalUrl);
