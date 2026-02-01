@@ -73,7 +73,8 @@
     "rxjs": "^7.8.1",
     "swagger-ui-express": "^5.0.0",
     "typeorm": "^0.3.17",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "dotenv": "^17.2.3"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.16",
@@ -93,7 +94,6 @@
     "@types/uuid": "^9.0.7",
     "@typescript-eslint/eslint-plugin": "^6.17.0",
     "@typescript-eslint/parser": "^6.17.0",
-    "dotenv": "^17.2.3",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.2",
