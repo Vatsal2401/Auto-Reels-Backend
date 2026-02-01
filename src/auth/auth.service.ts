@@ -61,7 +61,7 @@ export class AuthService {
       await this.creditsService.initializeUserCredits(savedUser.id, manager);
 
       // Send verification email (outside transaction ideally, but fine here for now)
-      await this.mailService.sendVerificationEmail(savedUser.email, verificationToken);
+      this.mailService.sendVerificationEmail(savedUser.email, verificationToken);
 
       const tokens = await this.generateTokens(savedUser);
 
