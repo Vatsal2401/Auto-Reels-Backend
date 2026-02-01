@@ -57,9 +57,5 @@ USER nestjs
 
 EXPOSE 3000
 
-# Healthcheck
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD wget -qO- http://localhost:3000/health || exit 1
-
 # Start app
 CMD ["node", "dist/main.js"]
