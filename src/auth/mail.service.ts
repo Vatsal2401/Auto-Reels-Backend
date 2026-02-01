@@ -8,15 +8,43 @@ export class MailService {
     private readonly logger = new Logger(MailService.name);
 
     constructor(private configService: ConfigService) {
-        this.transporter = nodemailer.createTransport({
-            host: this.configService.get('SMTP_HOST'),
-            port: Number(this.configService.get('SMTP_PORT')),
-            secure: this.configService.get('SMTP_SECURE') === 'true',
+        const smtpHost = this.configService.get('SMTP_HOST');
+        const smtpPort = Number(this.configService.get('SMTP_PORT'));
+        const smtpUser = this.configService.get('SMTP_USER');
+        const smtpPass = this.configService.get('SMTP_PASS');
+        const smtpSecure = this.configService.get('SMTP_SECURE') === 'true';
+
+        this.logger.log(`Initializing SMTP with host: ${smtpHost}:${smtpPort}, secure: ${smtpSecure}`);
+
+        const config: any = {
             auth: {
-                user: this.configService.get('SMTP_USER'),
-                pass: this.configService.get('SMTP_PASS'),
+                user: smtpUser,
+                pass: smtpPass,
             },
-        });
+            // Add connection timeout and retry settings
+            connectionTimeout: 15000, // 15 seconds
+            greetingTimeout: 15000,
+            socketTimeout: 30000, // 30 seconds for sending
+            // For Gmail specifically
+            pool: true,
+            maxConnections: 3,
+            maxMessages: 100,
+            // TLS settings for Gmail
+            tls: {
+                rejectUnauthorized: false,
+                minVersion: 'TLSv1.2'
+            },
+        };
+
+        if (smtpHost?.toLowerCase().includes('gmail.com')) {
+            config.service = 'gmail';
+        } else {
+            config.host = smtpHost;
+            config.port = smtpPort;
+            config.secure = smtpSecure;
+        }
+
+        this.transporter = nodemailer.createTransport(config);
 
         // Verify connection on startup
         this.transporter.verify((error, success) => {
@@ -28,7 +56,7 @@ export class MailService {
         });
     }
 
-    async sendVerificationEmail(email: string, token: string) {
+    async sendVerificationEmail(email: string, token: string, retries = 3) {
         this.logger.log(`Attempting to send verification email to: ${email}`);
         const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3001';
         const verificationUrl = `${frontendUrl}/verify-email?token=${token}&email=${encodeURIComponent(email)}`;
@@ -52,16 +80,23 @@ export class MailService {
       `,
         };
 
-        try {
-            this.logger.debug(`Mail options: ${JSON.stringify({ ...mailOptions, html: '...' })}`);
-            const info = await this.transporter.sendMail(mailOptions);
-            this.logger.log(`Verification email sent successfully to ${email}.`);
-            this.logger.log(`MessageId: ${info.messageId}`);
-            this.logger.log(`Response: ${info.response}`);
-        } catch (error) {
-            this.logger.error(`Failed to send verification email to ${email}`, error);
-            // We log but don't throw to avoid crashing the signup process
-            // In a real app, we might want to throw or queue this.
+        for (let attempt = 1; attempt <= retries; attempt++) {
+            try {
+                this.logger.debug(`Mail options (attempt ${attempt}/${retries}): ${JSON.stringify({ from: mailOptions.from, to: mailOptions.to, subject: mailOptions.subject })}`);
+                const info = await this.transporter.sendMail(mailOptions);
+                this.logger.log(`Verification email sent successfully to ${email} (attempt ${attempt}).`);
+                this.logger.log(`MessageId: ${info.messageId}`);
+                return; // Success, exit the loop
+            } catch (error) {
+                this.logger.error(`Attempt ${attempt}/${retries} failed to send verification email to ${email}`, error);
+                if (attempt === retries) {
+                    this.logger.error(`Final attempt failed. Verification email not sent.`);
+                } else {
+                    const delay = attempt * 2000;
+                    this.logger.log(`Retrying in ${delay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
         }
     }
 }
