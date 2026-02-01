@@ -20,8 +20,8 @@ export class PaymentService {
         private userRepository: Repository<User>,
     ) {
         this.razorpay = new Razorpay({
-            key_id: this.configService.get<string>('RAZORPAY_KEY_ID') || 'rzp_test_placeholder',
-            key_secret: this.configService.get<string>('RAZORPAY_KEY_SECRET') || 'secret_placeholder',
+            key_id: this.configService.get<string>('RAZORPAY_KEY_ID'),
+            key_secret: this.configService.get<string>('RAZORPAY_KEY_SECRET'),
         });
     }
 
@@ -53,7 +53,7 @@ export class PaymentService {
     async verifyPayment(orderId: string, paymentId: string, signature: string, userId: string): Promise<boolean> {
         const body = orderId + "|" + paymentId;
         const expectedSignature = crypto
-            .createHmac("sha256", this.configService.get<string>('RAZORPAY_KEY_SECRET') || 'secret_placeholder')
+            .createHmac("sha256", this.configService.get<string>('RAZORPAY_KEY_SECRET'))
             .update(body.toString())
             .digest("hex");
 
