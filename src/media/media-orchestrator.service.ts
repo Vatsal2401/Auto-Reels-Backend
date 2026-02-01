@@ -267,6 +267,13 @@ export class MediaOrchestratorService {
         const intentData = intentAsset ? (intentAsset.metadata as any) : null;
 
         const scriptData = JSON.parse((await this.storageService.download(scriptAsset.blob_storage_id)).toString());
+        const scriptText = (scriptData.text || '').trim();
+
+        if (!scriptText) {
+            this.logger.error(`Media ${media.id}: Script text is empty or missing. Cannot generate audio.`);
+            throw new Error('Audio Fail: Script text is empty. Please check the "script" step output.');
+        }
+
         const audioProvider = this.aiFactory.getTextToSpeech(process.env.ELEVENLABS_API_KEY ? 'elevenlabs' : 'openai');
 
         // Primary: ElevenLabs

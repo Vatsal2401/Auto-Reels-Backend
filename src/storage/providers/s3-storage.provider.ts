@@ -7,6 +7,7 @@ import { createWriteStream, mkdirSync, existsSync } from 'fs';
 import { dirname, join } from 'path';
 import { pipeline } from 'stream/promises';
 import { Readable } from 'stream';
+import { Upload } from '@aws-sdk/lib-storage';
 
 @Injectable()
 export class S3StorageProvider implements IStorageService {
@@ -57,14 +58,27 @@ export class S3StorageProvider implements IStorageService {
     const stepPart = step ? `${step}/` : '';
     const key = `users/${safeUserId}/media/${mediaId}/${type}/${stepPart}${actualFileName}`;
 
-    await this.s3Client.send(
-      new PutObjectCommand({
-        Bucket: this.bucketName,
-        Key: key,
-        Body: buffer || stream,
-        ContentType: this.getContentTypeForType(type),
-      }),
-    );
+    if (stream) {
+      const upload = new Upload({
+        client: this.s3Client,
+        params: {
+          Bucket: this.bucketName,
+          Key: key,
+          Body: stream,
+          ContentType: this.getContentTypeForType(type),
+        },
+      });
+      await upload.done();
+    } else {
+      await this.s3Client.send(
+        new PutObjectCommand({
+          Bucket: this.bucketName,
+          Key: key,
+          Body: buffer,
+          ContentType: this.getContentTypeForType(type),
+        }),
+      );
+    }
 
     // Return the Object ID (Key)
     return key;

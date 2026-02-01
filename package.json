@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.490.0",
+    "@aws-sdk/lib-storage": "^3.980.0",
     "@aws-sdk/s3-request-presigner": "^3.490.0",
     "@elevenlabs/elevenlabs-js": "^2.33.0",
     "@google-cloud/text-to-speech": "^6.4.0",
@@ -57,6 +58,7 @@
     "class-validator": "^0.14.0",
     "class-validator-jsonschema": "^5.1.0",
     "compression": "^1.8.1",
+    "dotenv": "^17.2.3",
     "fluent-ffmpeg": "^2.1.2",
     "glob": "^13.0.0",
     "helmet": "^8.1.0",
@@ -73,8 +75,7 @@
     "rxjs": "^7.8.1",
     "swagger-ui-express": "^5.0.0",
     "typeorm": "^0.3.17",
-    "uuid": "^9.0.1",
-    "dotenv": "^17.2.3"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.16",

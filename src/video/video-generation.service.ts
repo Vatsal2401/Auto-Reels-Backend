@@ -250,7 +250,12 @@ export class VideoGenerationService {
             return buffer;
         }
 
-        if (!video.script) throw new Error('No script for audio generation');
+        if (!video.script || !video.script.trim()) {
+            this.logger.error(`Video ${videoId}: Script text is empty or missing. Cannot generate audio.`);
+            throw new Error('Audio Fail: Script text is empty.');
+        }
+
+        const scriptText = video.script.trim();
 
         this.logger.log(`Generating audio for ${videoId}...`);
 
@@ -259,7 +264,7 @@ export class VideoGenerationService {
         const audioProvider = this.aiFactory.getTextToSpeech(audioProviderName);
 
         const audioBuffer = await audioProvider.textToSpeech({
-            text: video.script,
+            text: scriptText,
             voiceId: video.metadata?.voiceId,
             language: video.metadata?.language,
         });
