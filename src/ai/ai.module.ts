@@ -18,6 +18,9 @@ import { GeminiScriptProvider } from './providers/gemini-script.provider';
 import { GeminiImageProvider } from './providers/gemini-image.provider';
 import { GeminiVideoProvider } from './providers/gemini-video.provider';
 import { ElevenLabsTTSProvider } from './providers/elevenlabs-tts.provider';
+import { ElevenLabsService } from './elevenlabs.service';
+import { VoicesController } from './controllers/voices.controller';
+import { TTSController } from './controllers/tts.controller';
 import { AiProviderFactory } from './ai-provider.factory';
 
 // Use mock providers if OPENAI_API_KEY is not set (for testing)
@@ -51,8 +54,10 @@ const getImageToVideoProvider = () => {
 import { ReplicateImageProvider } from './providers/replicate-image.provider';
 
 @Module({
+  controllers: [VoicesController, TTSController],
   providers: [
     AiProviderFactory,
+    ElevenLabsService,
     // Concrete Providers
     OpenAIScriptProvider,
     GeminiScriptProvider,

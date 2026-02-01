@@ -13,6 +13,7 @@ import { AuthModule } from './auth/auth.module';
 import { CreditsModule } from './credits/credits.module';
 import { HealthModule } from './health/health.module';
 import { PaymentModule } from './payment/payment.module';
+import { MediaModule } from './media/media.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { PaymentModule } from './payment/payment.module';
     AppConfigModule,
     DatabaseModule,
     VideoModule,
+    MediaModule,
     AIModule,
     StorageModule,
     RenderModule,

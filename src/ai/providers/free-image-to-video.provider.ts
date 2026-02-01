@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { IImageToVideo } from '../interfaces/image-to-video.interface';
-import * as ffmpeg from 'fluent-ffmpeg';
+import ffmpeg from 'fluent-ffmpeg';
 import { writeFileSync, unlinkSync, readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';

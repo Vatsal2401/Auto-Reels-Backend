@@ -6,7 +6,8 @@ import {
   UpdateDateColumn,
   OneToMany,
 } from 'typeorm';
-import { Video } from '../../video/entities/video.entity';
+import { Media } from '../../media/entities/media.entity';
+import { Relation } from 'typeorm';
 
 export enum AuthProvider {
   EMAIL = 'email',
@@ -68,6 +69,6 @@ export class User {
   @UpdateDateColumn()
   updated_at: Date;
 
-  @OneToMany(() => Video, (video) => video.user)
-  videos: Video[];
+  @OneToMany(() => Media, (media) => media.user)
+  media: Relation<Media[]>;
 }

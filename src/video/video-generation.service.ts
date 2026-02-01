@@ -136,7 +136,12 @@ export class VideoGenerationService {
 
             // Upload this batch
             const uploadPromises = buffers.map(buffer =>
-                this.storageService.uploadAsset(videoId, buffer, 'image/png')
+                this.storageService.upload({
+                    userId: video.user_id || 'system',
+                    mediaId: videoId,
+                    type: 'image',
+                    buffer,
+                })
             );
             const urls = await Promise.all(uploadPromises);
             imageUrls.push(...urls);
@@ -188,7 +193,12 @@ export class VideoGenerationService {
 
         const videoBuffer = await videoProvider.generateVideo(emptyBuffer, safePrompt, totalDuration);
 
-        const videoUrl = await this.storageService.uploadAsset(videoId, videoBuffer, 'video/mp4');
+        const videoUrl = await this.storageService.upload({
+            userId: video.user_id || 'system',
+            mediaId: videoId,
+            type: 'video',
+            buffer: videoBuffer,
+        });
 
         await this.videoService.updateGeneratedVideoUrl(videoId, videoUrl);
     }
@@ -215,7 +225,12 @@ export class VideoGenerationService {
             language: video.metadata?.language,
         });
 
-        const audioUrl = await this.storageService.uploadAudio(videoId, audioBuffer);
+        const audioUrl = await this.storageService.upload({
+            userId: video.user_id || 'system',
+            mediaId: videoId,
+            type: 'audio',
+            buffer: audioBuffer,
+        });
 
         await this.videoService.updateAudioUrl(videoId, audioUrl);
         return audioBuffer;
@@ -237,7 +252,12 @@ export class VideoGenerationService {
 
         // Pass actual audio buffer to provider
         const captionBuffer = await captionProvider.generateCaptions(audioBuffer, video.script);
-        const captionUrl = await this.storageService.uploadCaption(videoId, captionBuffer);
+        const captionUrl = await this.storageService.upload({
+            userId: video.user_id || 'system',
+            mediaId: videoId,
+            type: 'caption',
+            buffer: captionBuffer,
+        });
 
         await this.videoService.updateCaptionUrl(videoId, captionUrl);
     }
@@ -272,7 +292,12 @@ export class VideoGenerationService {
             // No 'video' buffer passed, so Renderer will trigger Slideshow mode
         });
 
-        const finalUrl = await this.storageService.uploadVideo(videoId, finalBuffer);
+        const finalUrl = await this.storageService.upload({
+            userId: video.user_id || 'system',
+            mediaId: videoId,
+            type: 'video',
+            buffer: finalBuffer,
+        });
 
         await this.videoService.completeVideo(videoId, finalUrl);
     }

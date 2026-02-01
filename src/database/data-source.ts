@@ -3,9 +3,9 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
-import { Video } from '../video/entities/video.entity';
-import { Job } from '../video/entities/job.entity';
-import { Asset } from '../video/entities/asset.entity';
+import { Media } from '../media/entities/media.entity';
+import { MediaStep } from '../media/entities/media-step.entity';
+import { MediaAsset } from '../media/entities/media-asset.entity';
 import { User } from '../auth/entities/user.entity';
 
 export const AppDataSource = new DataSource({
@@ -16,7 +16,7 @@ export const AppDataSource = new DataSource({
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_DATABASE || 'ai_reels',
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-  entities: [Video, Job, Asset, User],
+  entities: [Media, MediaStep, MediaAsset, User],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,
 });

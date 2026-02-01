@@ -1,0 +1,9 @@
+src/ai/providers/free-image-to-video.provider.ts(29,9): error TS2349: This expression is not callable.
+  Type 'typeof Ffmpeg' has no call signatures.
+src/main.ts(33,11): error TS2349: This expression is not callable.
+  Type 'typeof compression' has no call signatures.
+src/video/video-generation.service.ts(139,37): error TS2339: Property 'uploadAsset' does not exist on type 'IStorageService'.
+src/video/video-generation.service.ts(191,52): error TS2339: Property 'uploadAsset' does not exist on type 'IStorageService'.
+src/video/video-generation.service.ts(218,52): error TS2339: Property 'uploadAudio' does not exist on type 'IStorageService'.
+src/video/video-generation.service.ts(240,54): error TS2339: Property 'uploadCaption' does not exist on type 'IStorageService'.
+src/video/video-generation.service.ts(275,52): error TS2339: Property 'uploadVideo' does not exist on type 'IStorageService'.

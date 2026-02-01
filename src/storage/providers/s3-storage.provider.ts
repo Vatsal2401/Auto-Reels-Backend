@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { IStorageService } from '../interfaces/storage.interface';
+import { IStorageService, StorageUploadParams } from '../interfaces/storage.interface';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
@@ -43,85 +43,33 @@ export class S3StorageProvider implements IStorageService {
     }
   }
 
-  async uploadAudio(videoId: string, buffer: Buffer): Promise<string> {
-    const key = `videos/${videoId}/audio/${uuidv4()}.mp3`;
+  async upload(params: StorageUploadParams): Promise<string> {
+    const { userId, mediaId, type, buffer, fileName, step } = params;
+
+    // Construct user-isolated path: users/{userId}/media/{mediaId}/{type}/{fileName or random}
+    const safeUserId = (userId && userId !== 'null') ? userId : 'anonymous';
+    const extension = this.getExtensionForType(type);
+    const actualFileName = fileName || `${uuidv4()}${extension}`;
+    const stepPart = step ? `${step}/` : '';
+    const key = `users/${safeUserId}/media/${mediaId}/${type}/${stepPart}${actualFileName}`;
+
     await this.s3Client.send(
       new PutObjectCommand({
         Bucket: this.bucketName,
         Key: key,
         Body: buffer,
-        ContentType: 'audio/mpeg',
+        ContentType: this.getContentTypeForType(type),
       }),
     );
-    return `s3://${this.bucketName}/${key}`;
+
+    // Return the Object ID (Key)
+    return key;
   }
 
-  async uploadCaption(videoId: string, buffer: Buffer): Promise<string> {
-    const key = `videos/${videoId}/captions/${uuidv4()}.srt`;
-    await this.s3Client.send(
-      new PutObjectCommand({
-        Bucket: this.bucketName,
-        Key: key,
-        Body: buffer,
-        ContentType: 'text/plain',
-      }),
-    );
-    return `s3://${this.bucketName}/${key}`;
-  }
-
-  async uploadAsset(videoId: string, buffer: Buffer, contentType: string): Promise<string> {
-    const extension = contentType.includes('video') ? 'mp4' : 'jpg';
-    // 'assets' usually implies raw inputs (images/videos generated for the scenes)
-    const key = `videos/${videoId}/assets/${uuidv4()}.${extension}`;
-    await this.s3Client.send(
-      new PutObjectCommand({
-        Bucket: this.bucketName,
-        Key: key,
-        Body: buffer,
-        ContentType: contentType,
-      }),
-    );
-    return `s3://${this.bucketName}/${key}`;
-  }
-
-  async uploadVideo(videoId: string, buffer: Buffer): Promise<string> {
-    // This is the final rendered video
-    const key = `videos/${videoId}/final/${uuidv4()}.mp4`;
-    await this.s3Client.send(
-      new PutObjectCommand({
-        Bucket: this.bucketName,
-        Key: key,
-        Body: buffer,
-        ContentType: 'video/mp4',
-      }),
-    );
-    return `s3://${this.bucketName}/${key}`;
-  }
-
-  async download(s3Url: string): Promise<Buffer> {
-    let key = s3Url;
-
-    if (s3Url.startsWith('s3://')) {
-      key = s3Url.replace(`s3://${this.bucketName}/`, '');
-    } else if (s3Url.startsWith('http')) {
-      try {
-        const url = new URL(s3Url);
-        const pathParts = url.pathname.split('/');
-        const bucketIndex = pathParts.indexOf(this.bucketName);
-
-        if (bucketIndex !== -1) {
-          key = pathParts.slice(bucketIndex + 1).join('/');
-        } else {
-          key = url.pathname.startsWith('/') ? url.pathname.substring(1) : url.pathname;
-        }
-      } catch (e) {
-        // Fallback to original string if not a valid URL
-      }
-    }
-
+  async download(objectId: string): Promise<Buffer> {
     const command = new GetObjectCommand({
       Bucket: this.bucketName,
-      Key: key,
+      Key: objectId,
     });
     const response = await this.s3Client.send(command);
     const chunks: Uint8Array[] = [];
@@ -131,15 +79,14 @@ export class S3StorageProvider implements IStorageService {
     return Buffer.concat(chunks);
   }
 
-  async downloadMultiple(s3Urls: string[]): Promise<Buffer[]> {
-    return Promise.all(s3Urls.map((url) => this.download(url)));
+  async downloadMultiple(objectIds: string[]): Promise<Buffer[]> {
+    return Promise.all(objectIds.map((id) => this.download(id)));
   }
 
-  async getSignedUrl(s3Url: string, expiresIn: number = 3600, options?: { promptDownload?: boolean; filename?: string }): Promise<string> {
-    const key = s3Url.replace(`s3://${this.bucketName}/`, '');
+  async getSignedUrl(objectId: string, expiresIn: number = 3600, options?: { promptDownload?: boolean; filename?: string }): Promise<string> {
     const commandInput: any = {
       Bucket: this.bucketName,
-      Key: key,
+      Key: objectId,
     };
 
     if (options?.promptDownload) {
@@ -149,5 +96,27 @@ export class S3StorageProvider implements IStorageService {
 
     const command = new GetObjectCommand(commandInput);
     return await getSignedUrl(this.s3Client, command, { expiresIn });
+  }
+
+  private getExtensionForType(type: string): string {
+    switch (type) {
+      case 'audio': return '.mp3';
+      case 'caption': return '.srt';
+      case 'image': return '.jpg';
+      case 'video': return '.mp4';
+      case 'script': return '.json';
+      default: return '';
+    }
+  }
+
+  private getContentTypeForType(type: string): string {
+    switch (type) {
+      case 'audio': return 'audio/mpeg';
+      case 'caption': return 'text/plain';
+      case 'image': return 'image/jpeg';
+      case 'video': return 'video/mp4';
+      case 'script': return 'application/json';
+      default: return 'application/octet-stream';
+    }
   }
 }

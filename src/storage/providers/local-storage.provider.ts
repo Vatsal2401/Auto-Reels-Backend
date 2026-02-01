@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { IStorageService } from '../interfaces/storage.interface';
+import { IStorageService, StorageUploadParams } from '../interfaces/storage.interface';
 import { writeFileSync, readFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -21,110 +21,74 @@ export class LocalStorageProvider implements IStorageService {
   private storageBasePath: string;
 
   constructor() {
-    // Use storage directory in project root, or fallback to temp
     this.storageBasePath = process.env.LOCAL_STORAGE_PATH || join(process.cwd(), 'storage');
-    
-    // Create storage directories if they don't exist
-    this.ensureDirectories();
-  }
-
-  private ensureDirectories(): void {
-    const directories = [
-      join(this.storageBasePath, 'audio'),
-      join(this.storageBasePath, 'captions'),
-      join(this.storageBasePath, 'assets'),
-      join(this.storageBasePath, 'videos'),
-    ];
-
-    directories.forEach((dir) => {
-      if (!existsSync(dir)) {
-        mkdirSync(dir, { recursive: true });
-      }
-    });
-  }
-
-  private getFilePath(type: 'audio' | 'captions' | 'assets' | 'videos', videoId: string, filename: string): string {
-    const dir = join(this.storageBasePath, type, videoId);
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true });
+    if (!existsSync(this.storageBasePath)) {
+      mkdirSync(this.storageBasePath, { recursive: true });
     }
-    return join(dir, filename);
   }
 
-  private parseFileUrl(fileUrl: string): string {
-    // Handle both file:// and local:// URLs
-    if (fileUrl.startsWith('file://')) {
-      // Remove file:// protocol
-      const path = fileUrl.replace('file://', '');
-      return path;
-    }
-    if (fileUrl.startsWith('local://')) {
-      // local://audio/videoId/filename -> storage/audio/videoId/filename
-      const relativePath = fileUrl.replace('local://', '');
-      return join(this.storageBasePath, relativePath);
-    }
-    // Handle s3:// URLs (for backward compatibility)
-    if (fileUrl.startsWith('s3://')) {
-      throw new Error('S3 URLs not supported in local storage. Use local:// URLs instead.');
-    }
-    // If it's already an absolute path, return as-is
-    if (fileUrl.startsWith('/') || fileUrl.startsWith(this.storageBasePath)) {
-      return fileUrl;
-    }
-    // Default: assume it's a relative path from storage base
-    return join(this.storageBasePath, fileUrl);
-  }
+  async upload(params: StorageUploadParams): Promise<string> {
+    const { userId, mediaId, type, buffer, fileName, step } = params;
 
-  async uploadAudio(videoId: string, buffer: Buffer): Promise<string> {
-    const filename = `${uuidv4()}.mp3`;
-    const filePath = this.getFilePath('audio', videoId, filename);
-    writeFileSync(filePath, buffer);
-    return `local://audio/${videoId}/${filename}`;
-  }
+    // Construct user-isolated path: users/{userId}/media/{mediaId}/{type}/{fileName or random}
+    const safeUserId = (userId && userId !== 'null') ? userId : 'anonymous';
+    const extension = this.getExtensionForType(type);
+    const actualFileName = fileName || `${uuidv4()}${extension}`;
+    const stepPart = step ? `${step}/` : '';
 
-  async uploadCaption(videoId: string, buffer: Buffer): Promise<string> {
-    const filename = `${uuidv4()}.srt`;
-    const filePath = this.getFilePath('captions', videoId, filename);
-    writeFileSync(filePath, buffer);
-    return `local://captions/${videoId}/${filename}`;
-  }
+    const relativeDir = join('users', safeUserId, 'media', mediaId, type, stepPart);
+    const absoluteDir = join(this.storageBasePath, relativeDir);
 
-  async uploadAsset(videoId: string, buffer: Buffer, contentType: string): Promise<string> {
-    const extension = contentType.includes('video') ? 'mp4' : contentType.includes('png') ? 'png' : 'jpg';
-    const filename = `${uuidv4()}.${extension}`;
-    const filePath = this.getFilePath('assets', videoId, filename);
-    writeFileSync(filePath, buffer);
-    return `local://assets/${videoId}/${filename}`;
-  }
-
-  async uploadVideo(videoId: string, buffer: Buffer): Promise<string> {
-    const filename = `${uuidv4()}.mp4`;
-    const filePath = this.getFilePath('videos', videoId, filename);
-    writeFileSync(filePath, buffer);
-    return `local://videos/${videoId}/${filename}`;
-  }
-
-  async download(fileUrl: string): Promise<Buffer> {
-    const filePath = this.parseFileUrl(fileUrl);
-    
-    if (!existsSync(filePath)) {
-      throw new Error(`File not found: ${filePath}`);
+    if (!existsSync(absoluteDir)) {
+      mkdirSync(absoluteDir, { recursive: true });
     }
 
-    return readFileSync(filePath);
+    const relativePath = join(relativeDir, actualFileName);
+    const absolutePath = join(this.storageBasePath, relativePath);
+
+    writeFileSync(absolutePath, buffer);
+
+    // Return the relative Object ID (path from storage base)
+    return relativePath;
   }
 
-  async downloadMultiple(fileUrls: string[]): Promise<Buffer[]> {
-    return Promise.all(fileUrls.map((url) => this.download(url)));
+  async download(objectId: string): Promise<Buffer> {
+    const absolutePath = this.getAbsolutePath(objectId);
+    if (!existsSync(absolutePath)) {
+      throw new Error(`File not found: ${absolutePath}`);
+    }
+    return readFileSync(absolutePath);
   }
 
-  async getSignedUrl(fileUrl: string, expiresIn: number = 3600): Promise<string> {
+  async downloadMultiple(objectIds: string[]): Promise<Buffer[]> {
+    return Promise.all(objectIds.map((id) => this.download(id)));
+  }
+
+  async getSignedUrl(objectId: string, expiresIn: number = 3600): Promise<string> {
     // For local storage, return a file:// URL
-    // In production, you might want to serve files via HTTP endpoint
-    const filePath = this.parseFileUrl(fileUrl);
-    
-    // Return file:// URL for local access
-    // Note: In a real app, you'd want to serve these via HTTP
-    return `file://${filePath}`;
+    const absolutePath = this.getAbsolutePath(objectId);
+    return `file://${absolutePath}`;
+  }
+
+  private getAbsolutePath(objectId: string): string {
+    // Handle legacy URLs or absolute paths
+    if (objectId.startsWith('local://')) {
+      return join(this.storageBasePath, objectId.replace('local://', ''));
+    }
+    if (objectId.startsWith('/') || objectId.startsWith(this.storageBasePath)) {
+      return objectId;
+    }
+    return join(this.storageBasePath, objectId);
+  }
+
+  private getExtensionForType(type: string): string {
+    switch (type) {
+      case 'audio': return '.mp3';
+      case 'caption': return '.srt';
+      case 'image': return '.jpg';
+      case 'video': return '.mp4';
+      case 'script': return '.json';
+      default: return '';
+    }
   }
 }
