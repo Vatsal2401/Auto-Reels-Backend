@@ -15,7 +15,8 @@ export interface ScriptJSON {
 export interface ScriptGenerationOptions {
   topic: string;
   language?: string; // Default 'en-US'
-  targetDurationSeconds?: number; // derived from '60-90'
+  targetDurationSeconds?: number; // derived from '30-60'
+  audioPrompt?: string; // Information about voice persona and pacing
 }
 
 export interface IScriptGenerator {

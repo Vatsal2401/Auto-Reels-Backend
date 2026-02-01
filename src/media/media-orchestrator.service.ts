@@ -4,11 +4,14 @@ import { Repository } from 'typeorm';
 import { Media } from './entities/media.entity';
 import { MediaStep, StepStatus } from './entities/media-step.entity';
 import { MediaAsset } from './entities/media-asset.entity';
-import { MediaStatus, MediaAssetType } from './media.constants';
+import { MediaStatus, MediaAssetType, CREDIT_COSTS } from './media.constants';
+import { CreditsService } from '../credits/credits.service';
 import { IStorageService, StorageUploadParams } from '../storage/interfaces/storage.interface';
 import { IVideoRenderer } from '../render/interfaces/video-renderer.interface';
 import { AiProviderFactory } from '../ai/ai-provider.factory';
 import { ScriptJSON } from '../ai/interfaces/script-generator.interface';
+import { GeminiTTSProvider } from '../ai/providers/gemini-tts.provider';
+import { OpenAITTSProvider } from '../ai/providers/openai-tts.provider';
 
 @Injectable()
 export class MediaOrchestratorService {
@@ -22,6 +25,9 @@ export class MediaOrchestratorService {
         @InjectRepository(MediaAsset)
         private assetRepository: Repository<MediaAsset>,
         private aiFactory: AiProviderFactory,
+        private readonly creditsService: CreditsService,
+        private readonly geminiTTS: GeminiTTSProvider,
+        private readonly openAITTS: OpenAITTSProvider,
         @Inject('IStorageService') private storageService: IStorageService,
         @Inject('IVideoRenderer') private videoRenderer: IVideoRenderer,
     ) { }
@@ -67,6 +73,26 @@ export class MediaOrchestratorService {
                     blob_storage_id: videoAsset?.blob_storage_id || media.blob_storage_id,
                     completed_at: new Date()
                 });
+
+                // Deduct credits after successful completion
+                if (media.user_id) {
+                    try {
+                        const topic = media.input_config?.topic || 'Media';
+                        const duration = media.input_config?.duration || '30-60';
+                        const creditCost = CREDIT_COSTS[duration] || CREDIT_COSTS['default'];
+
+                        await this.creditsService.deductCredits(
+                            media.user_id,
+                            creditCost,
+                            `Media generation: ${topic}`,
+                            media.id,
+                            { media_id: media.id, topic, duration, creditCost }
+                        );
+                        this.logger.log(`Deducted ${creditCost} credits for completed media ${mediaId} (duration: ${duration})`);
+                    } catch (creditError) {
+                        this.logger.error(`Failed to deduct credits for media ${mediaId}:`, creditError);
+                    }
+                }
             }
         } catch (error) {
             this.logger.error(`Flow execution failed for ${mediaId}:`, error);
@@ -121,6 +147,9 @@ export class MediaOrchestratorService {
             let resultBlobIds: string | string[] = null;
 
             switch (step.step) {
+                case 'intent':
+                    resultBlobIds = await this.handleIntentStep(media);
+                    break;
                 case 'script':
                     resultBlobIds = await this.handleScriptStep(media);
                     break;
@@ -157,17 +186,43 @@ export class MediaOrchestratorService {
 
     // --- Step Handlers ---
 
+    private async handleIntentStep(media: Media): Promise<string> {
+        const interpreter = this.aiFactory.getIntentInterpreter('gemini');
+        const userPrompt = media.input_config?.topic || 'Inspiration';
+
+        const interpreted = await interpreter.interpretIntent(userPrompt);
+
+        const blobId = await this.storageService.upload({
+            userId: media.user_id,
+            mediaId: media.id,
+            type: 'intent',
+            step: 'intent',
+            buffer: Buffer.from(JSON.stringify(interpreted)),
+            fileName: 'intent.json'
+        });
+
+        await this.addAsset(media.id, MediaAssetType.INTENT, blobId, interpreted);
+        return blobId;
+    }
+
     private async handleScriptStep(media: Media): Promise<string> {
+        const intentAsset = await this.assetRepository.findOne({ where: { media_id: media.id, type: MediaAssetType.INTENT } });
+        const intentData = intentAsset ? (intentAsset.metadata as any) : null;
+
         const provider = process.env.GEMINI_API_KEY ? 'gemini' : 'mock';
         const scriptProvider = this.aiFactory.getScriptGenerator(provider);
 
         const config = media.input_config || {};
         const durationMap: Record<string, number> = { '30-60': 45, '60-90': 75, '90-120': 105 };
 
+        // Use interpreted script prompt if available
+        const topic = intentData?.script_prompt || config.topic || 'Inspiration';
+
         const scriptJSON = await scriptProvider.generateScriptJSON({
-            topic: config.topic || 'Inspiration',
+            topic,
             language: config.language || 'English (US)',
             targetDurationSeconds: durationMap[config.duration] || 45,
+            audioPrompt: intentData?.audio_prompt,
         });
 
         const scriptText = scriptJSON.scenes.map(s => s.audio_text).join(' ');
@@ -195,14 +250,44 @@ export class MediaOrchestratorService {
         const scriptAsset = await this.assetRepository.findOne({ where: { media_id: media.id, type: MediaAssetType.SCRIPT } });
         if (!scriptAsset) throw new Error('Script asset missing');
 
+        const intentAsset = await this.assetRepository.findOne({ where: { media_id: media.id, type: MediaAssetType.INTENT } });
+        const intentData = intentAsset ? (intentAsset.metadata as any) : null;
+
         const scriptData = JSON.parse((await this.storageService.download(scriptAsset.blob_storage_id)).toString());
         const audioProvider = this.aiFactory.getTextToSpeech(process.env.ELEVENLABS_API_KEY ? 'elevenlabs' : 'openai');
 
-        const audioBuffer = await audioProvider.textToSpeech({
-            text: scriptData.text,
-            voiceId: media.input_config?.voiceId,
-            language: media.input_config?.language,
-        });
+        // Primary: ElevenLabs
+        this.logger.log(`Generating audio for media ${media.id} using ElevenLabs...`);
+        let audioBuffer: Buffer;
+
+        try {
+            audioBuffer = await audioProvider.textToSpeech({
+                text: scriptData.text,
+                voiceId: media.input_config?.voiceId,
+                language: media.input_config?.language,
+                prompt: intentData?.audio_prompt,
+            });
+        } catch (error) {
+            this.logger.warn(`Secondary Provider Fallback Enabled for Media ${media.id}`);
+            this.logger.error(`ElevenLabs Failed: ${error.message}`);
+
+            // Fallback 1: Gemini TTS (Google Journey Voices)
+            try {
+                this.logger.log(`Attempting Fallback 1: Gemini TTS (Google Journey Voices)...`);
+                audioBuffer = await this.geminiTTS.textToSpeech({
+                    text: scriptData.text,
+                    prompt: intentData?.audio_prompt, // Helps select gender
+                });
+            } catch (geminiError) {
+                this.logger.error(`Gemini TTS Failed: ${geminiError.message}`);
+
+                // Fallback 2: OpenAI TTS (Last Resort)
+                this.logger.log(`Attempting Fallback 2: OpenAI TTS...`);
+                audioBuffer = await this.openAITTS.textToSpeech({
+                    text: scriptData.text,
+                });
+            }
+        }
 
         const blobId = await this.storageService.upload({
             userId: media.user_id,
@@ -224,8 +309,15 @@ export class MediaOrchestratorService {
         const audioBuffer = await this.storageService.download(audioAsset.blob_storage_id);
         const scriptData = JSON.parse((await this.storageService.download(scriptAsset.blob_storage_id)).toString());
 
+        const intentAsset = await this.assetRepository.findOne({ where: { media_id: media.id, type: MediaAssetType.INTENT } });
+        const intentData = intentAsset ? (intentAsset.metadata as any) : null;
+
         const captionProvider = this.aiFactory.getCaptionGenerator('replicate');
-        const captionBuffer = await captionProvider.generateCaptions(audioBuffer, scriptData.text);
+        const captionBuffer = await captionProvider.generateCaptions(
+            audioBuffer,
+            scriptData.text,
+            intentData?.caption_prompt
+        );
 
         const blobId = await this.storageService.upload({
             userId: media.user_id,
@@ -246,8 +338,15 @@ export class MediaOrchestratorService {
         const scriptData = JSON.parse((await this.storageService.download(scriptAsset.blob_storage_id)).toString());
         const scriptJson: ScriptJSON = scriptData.json;
 
+        const intentAsset = await this.assetRepository.findOne({ where: { media_id: media.id, type: MediaAssetType.INTENT } });
+        const intentData = intentAsset ? (intentAsset.metadata as any) : null;
+
         const imageProvider = this.aiFactory.getImageGenerator(media.input_config?.imageProvider || 'gemini');
-        const masterPrompt = `Cinematic video about ${media.input_config?.topic}. ` + scriptJson.scenes.map(s => s.image_prompt).join('. ');
+
+        // Use interpreted image prompt if available
+        const masterPrompt = intentData?.image_prompt
+            ? `${intentData.image_prompt}. ` + scriptJson.scenes.map(s => s.image_prompt).join('. ')
+            : `Cinematic video about ${media.input_config?.topic}. ` + scriptJson.scenes.map(s => s.image_prompt).join('. ');
 
         const sceneCount = scriptJson.scenes.length;
         const blobIds: string[] = [];
@@ -292,10 +391,14 @@ export class MediaOrchestratorService {
             ...imageAssets.map(a => this.storageService.download(a.blob_storage_id))
         ]);
 
+        const intentAsset = await this.assetRepository.findOne({ where: { media_id: media.id, type: MediaAssetType.INTENT } });
+        const intentData = intentAsset ? (intentAsset.metadata as any) : null;
+
         const finalBuffer = await this.videoRenderer.compose({
             audio: audioBuffer,
             caption: captionBuffer,
             assets: imageBuffers,
+            rendering_hints: intentData?.rendering_hints
         });
 
         const blobId = await this.storageService.upload({

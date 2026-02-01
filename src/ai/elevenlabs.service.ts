@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
+import { IStorageService } from '../storage/interfaces/storage.interface';
 
 export interface NormalizedVoice {
     value: string;
@@ -13,7 +14,9 @@ export class ElevenLabsService {
     private readonly logger = new Logger(ElevenLabsService.name);
     private readonly client: ElevenLabsClient;
 
-    constructor() {
+    constructor(
+        @Inject('IStorageService') private readonly storageService: IStorageService,
+    ) {
         this.client = new ElevenLabsClient({
             apiKey: process.env.ELEVENLABS_API_KEY,
         });
@@ -43,6 +46,20 @@ export class ElevenLabsService {
             ? 'Hola, esta es una vista previa de mi voz.'
             : 'Hello, this is a preview of my voice.';
 
+        // Construct Cache Key (VoiceID + Language)
+        // Cache path: users/system/media/tts-previews/audio/voiceId-lang-model.mp3
+        const cacheFileName = `${voiceId}-${language}-${modelId}.mp3`;
+        const cacheKey = `users/system/media/tts-previews/audio/${cacheFileName}`;
+
+        // 1. Check Cache (Object Storage)
+        try {
+            const cachedBuffer = await this.storageService.download(cacheKey);
+            this.logger.log(`Cache HIT for voice ${voiceId} (key: ${cacheKey})`);
+            return cachedBuffer;
+        } catch (e) {
+            this.logger.log(`Cache MISS for voice ${voiceId}. Calling API...`);
+        }
+
         try {
             // Use stream method but convert to buffer for preview
             const audioStream = await this.client.textToSpeech.convert(voiceId, {
@@ -60,7 +77,23 @@ export class ElevenLabsService {
             for await (const chunk of audioStream as any) {
                 chunks.push(chunk);
             }
-            return Buffer.concat(chunks);
+            const buffer = Buffer.concat(chunks);
+
+            // 2. Save to Cache (Object Storage)
+            try {
+                await this.storageService.upload({
+                    userId: 'system',
+                    mediaId: 'tts-previews',
+                    type: 'audio',
+                    buffer: buffer,
+                    fileName: cacheFileName
+                });
+                this.logger.log(`Saved preview to cache: ${cacheKey}`);
+            } catch (cacheErr) {
+                this.logger.warn('Failed to write to cache', cacheErr);
+            }
+
+            return buffer;
         } catch (error: any) {
             // Fallback for model if 400 occurred
             if (error.statusCode === 400 || error.message?.includes('model')) {
@@ -75,7 +108,8 @@ export class ElevenLabsService {
                     for await (const chunk of fallbackStream as any) {
                         chunks.push(chunk);
                     }
-                    return Buffer.concat(chunks);
+                    const buffer = Buffer.concat(chunks);
+                    return buffer;
                 } catch (fallbackError) {
                     this.logger.error('Fallback generation also failed', fallbackError);
                 }

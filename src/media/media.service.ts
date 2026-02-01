@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { Media } from './entities/media.entity';
 import { MediaStep, StepStatus } from './entities/media-step.entity';
 import { MediaAsset } from './entities/media-asset.entity';
-import { MEDIA_FLOWS, MediaStatus, MediaType, MediaAssetType } from './media.constants';
+import { MEDIA_FLOWS, MediaStatus, MediaType, MediaAssetType, CREDIT_COSTS } from './media.constants';
 import { CreditsService } from '../credits/credits.service';
 import { IStorageService } from '../storage/interfaces/storage.interface';
 import { User } from '../auth/entities/user.entity';
@@ -27,6 +27,16 @@ export class MediaService {
     ) { }
 
     async createMedia(dto: any, userId?: string): Promise<Media> {
+        const topic = dto.topic || '';
+        const wordCount = topic.trim().split(/\s+/).filter(word => word.length > 0).length;
+        const charCount = topic.length;
+
+        if (charCount < 45 || wordCount < 8) {
+            throw new BadRequestException(
+                `Creative intent is too short. Please provide at least 45 characters and 8 words to help the AI generate a high-quality video. (Current: ${charCount} chars, ${wordCount} words)`
+            );
+        }
+
         const flowKey = dto.flowKey || 'videoMotion';
         const flow = MEDIA_FLOWS[flowKey];
 
@@ -34,11 +44,14 @@ export class MediaService {
             throw new BadRequestException(`Invalid flow_key: ${flowKey}`);
         }
 
+        const duration = dto.duration || '30-60';
+        const creditCost = CREDIT_COSTS[duration] || CREDIT_COSTS['default'];
+
         // Credit check
         if (userId) {
-            const hasEnoughCredits = await this.creditsService.hasEnoughCredits(userId, this.CREDITS_PER_MEDIA);
+            const hasEnoughCredits = await this.creditsService.hasEnoughCredits(userId, creditCost);
             if (!hasEnoughCredits) {
-                throw new BadRequestException('Insufficient credits.');
+                throw new BadRequestException(`Insufficient credits. This request requires ${creditCost} credits.`);
             }
             const user = await this.userRepository.findOne({ where: { id: userId } });
             if (user && !user.email_verified) {
@@ -152,5 +165,22 @@ export class MediaService {
             metadata,
         });
         return await this.assetRepository.save(asset);
+    }
+
+    async updateMedia(id: string, dto: any): Promise<Media> {
+        const media = await this.mediaRepository.findOne({ where: { id } });
+        if (!media) {
+            throw new NotFoundException(`Media ID ${id} not found`);
+        }
+
+        // Only update input_config for now
+        if (dto) {
+            media.input_config = {
+                ...(media.input_config || {}),
+                ...dto
+            };
+        }
+
+        return await this.mediaRepository.save(media);
     }
 }

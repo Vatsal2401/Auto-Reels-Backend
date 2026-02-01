@@ -31,16 +31,21 @@ export class FFmpegRendererProvider implements IVideoRenderer {
 
       // 3. Get Audio Duration to calculate pacing
       const audioDuration = await this.getMediaDuration(audioPath);
-      
+
       // Calculate duration per slide accounting for overlapping transitions
       // With xfade: total_duration = slideDuration + (imageCount - 1) * (slideDuration - transitionDuration)
       // Solving for slideDuration: slideDuration = (audioDuration + (imageCount - 1) * transitionDuration) / imageCount
       const imageCount = imagePaths.length || 1;
-      const transitionDuration = 0.5;
-      
+
+      // Use rendering hints for pacing if available
+      const pacing = options.rendering_hints?.pacing || 'moderate';
+      let transitionDuration = 0.5;
+      if (pacing === 'fast') transitionDuration = 0.3;
+      if (pacing === 'slow') transitionDuration = 1.0;
+
       // Add a small buffer (0.5s) to ensure video is slightly longer than audio to prevent cutting off
       const audioDurationWithBuffer = audioDuration + 0.5;
-      
+
       let slideDuration: number;
       if (imageCount > 1) {
         // Account for overlapping transitions
@@ -49,7 +54,7 @@ export class FFmpegRendererProvider implements IVideoRenderer {
         // Single image, just match audio duration
         slideDuration = audioDurationWithBuffer;
       }
-      
+
       slideDuration = Math.max(3, slideDuration); // Ensure minimum 3s per slide
 
       return new Promise((resolve, reject) => {

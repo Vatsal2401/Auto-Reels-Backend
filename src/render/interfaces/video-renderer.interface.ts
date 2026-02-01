@@ -4,6 +4,7 @@ export interface ComposeOptions {
   assets?: Buffer[]; // Legacy: for backward compatibility
   video?: Buffer; // New: video from Replicate image-to-video
   duration?: number;
+  rendering_hints?: any;
 }
 
 export interface IVideoRenderer {

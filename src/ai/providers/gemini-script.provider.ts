@@ -46,9 +46,13 @@ export class GeminiScriptProvider implements IScriptGenerator {
             }
         }
 
+        const audioStyle = typeof optionsOrTopic !== 'string' && optionsOrTopic.audioPrompt
+            ? `\nNarration Style & Persona: ${optionsOrTopic.audioPrompt}. Ensure the script's tone and structure match this style.`
+            : '';
+
         const prompt = `You are a professional video script writer.
 Create a ${duration}-second video script about: "${topic}".
-Language: ${language}.
+Language: ${language}.${audioStyle}
 Output ONLY valid JSON. Do not include any markdown formatting, backticks, or code blocks. Just the raw JSON object.
 Structure:
 {

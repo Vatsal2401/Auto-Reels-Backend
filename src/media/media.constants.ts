@@ -5,6 +5,7 @@ export enum MediaAssetType {
     CAPTION = 'caption',
     VIDEO = 'video',
     AVATAR = 'avatar',
+    INTENT = 'intent',
 }
 
 export enum MediaType {
@@ -23,9 +24,10 @@ export enum MediaStatus {
 
 export const MEDIA_FLOWS: Record<string, { steps: string[]; dependencies: Record<string, string[]> }> = {
     videoMotion: {
-        steps: ['script', 'audio', 'captions', 'images', 'render'],
+        steps: ['intent', 'script', 'audio', 'captions', 'images', 'render'],
         dependencies: {
-            script: [],
+            intent: [],
+            script: ['intent'],
             audio: ['script'],
             captions: ['audio'],
             images: ['script'],
@@ -46,9 +48,10 @@ export const MEDIA_FLOWS: Record<string, { steps: string[]; dependencies: Record
         },
     },
     avatar: {
-        steps: ['script', 'audio', 'avatar', 'render'],
+        steps: ['intent', 'script', 'audio', 'avatar', 'render'],
         dependencies: {
-            script: [],
+            intent: [],
+            script: ['intent'],
             audio: ['script'],
             avatar: ['audio'],
             render: ['avatar'],
@@ -63,9 +66,10 @@ export const MEDIA_FLOWS: Record<string, { steps: string[]; dependencies: Record
         },
     },
     videoWithImages: {
-        steps: ['script', 'audio', 'captions', 'images', 'video', 'render'],
+        steps: ['intent', 'script', 'audio', 'captions', 'images', 'video', 'render'],
         dependencies: {
-            script: [],
+            intent: [],
+            script: ['intent'],
             audio: ['script'],
             captions: ['audio'],
             images: ['script'],
@@ -87,4 +91,11 @@ export const MEDIA_FLOWS: Record<string, { steps: string[]; dependencies: Record
             video: ['script'],
         },
     },
+};
+
+export const CREDIT_COSTS: Record<string, number> = {
+    '30-60': 1,
+    '60-90': 2,
+    '90-120': 3,
+    'default': 1,
 };

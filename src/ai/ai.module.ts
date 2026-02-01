@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { StorageModule } from '../storage/storage.module';
 import { IScriptGenerator } from './interfaces/script-generator.interface';
 import { ITextToSpeech } from './interfaces/text-to-speech.interface';
 import { ICaptionGenerator } from './interfaces/caption-generator.interface';
@@ -9,7 +10,6 @@ import { OpenAITTSProvider } from './providers/openai-tts.provider';
 import { MockScriptProvider } from './providers/mock-script.provider';
 import { MockTTSProvider } from './providers/mock-tts.provider';
 import { MockImageProvider } from './providers/mock-image.provider';
-import { ReplicateCaptionProvider } from './providers/replicate-caption.provider';
 import { DalleImageProvider } from './providers/dalle-image.provider';
 import { ReplicateImageToVideoProvider } from './providers/replicate-image-to-video.provider';
 import { HuggingFaceImageToVideoProvider } from './providers/huggingface-image-to-video.provider';
@@ -18,6 +18,9 @@ import { GeminiScriptProvider } from './providers/gemini-script.provider';
 import { GeminiImageProvider } from './providers/gemini-image.provider';
 import { GeminiVideoProvider } from './providers/gemini-video.provider';
 import { ElevenLabsTTSProvider } from './providers/elevenlabs-tts.provider';
+import { GeminiIntentProvider } from './providers/gemini-intent.provider';
+import { GeminiTTSProvider } from './providers/gemini-tts.provider';
+import { LocalCaptionProvider } from './providers/local-caption.provider';
 import { ElevenLabsService } from './elevenlabs.service';
 import { VoicesController } from './controllers/voices.controller';
 import { TTSController } from './controllers/tts.controller';
@@ -54,16 +57,20 @@ const getImageToVideoProvider = () => {
 import { ReplicateImageProvider } from './providers/replicate-image.provider';
 
 @Module({
+  imports: [StorageModule],
   controllers: [VoicesController, TTSController],
   providers: [
     AiProviderFactory,
     ElevenLabsService,
     // Concrete Providers
+    GeminiIntentProvider,
     OpenAIScriptProvider,
     GeminiScriptProvider,
     OpenAITTSProvider,
+    OpenAITTSProvider,
     ElevenLabsTTSProvider,
-    ReplicateCaptionProvider,
+    GeminiTTSProvider,
+    LocalCaptionProvider,
     DalleImageProvider,
     GeminiImageProvider,
     ReplicateImageToVideoProvider,
@@ -86,7 +93,7 @@ import { ReplicateImageProvider } from './providers/replicate-image.provider';
     },
     {
       provide: 'ICaptionGenerator',
-      useClass: ReplicateCaptionProvider,
+      useClass: LocalCaptionProvider,
     },
     {
       provide: 'IImageGenerator',
@@ -99,6 +106,9 @@ import { ReplicateImageProvider } from './providers/replicate-image.provider';
   ],
   exports: [
     AiProviderFactory,
+    GeminiTTSProvider,
+    OpenAITTSProvider,
+    ElevenLabsService,
     'IScriptGenerator', 'ITextToSpeech', 'ICaptionGenerator', 'IImageGenerator', 'IImageToVideo'
   ],
 })

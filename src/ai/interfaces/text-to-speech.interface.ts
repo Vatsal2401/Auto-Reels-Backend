@@ -2,6 +2,7 @@ export interface AudioOptions {
   text: string;
   voiceId?: string;
   language?: string;
+  prompt?: string;
 }
 
 export interface ITextToSpeech {

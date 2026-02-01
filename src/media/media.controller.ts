@@ -4,6 +4,7 @@ import {
     Get,
     Param,
     Body,
+    Patch,
     UseGuards,
     Request,
     HttpCode,
@@ -53,5 +54,11 @@ export class MediaController {
         const media = await this.mediaService.retryMedia(id);
         this.orchestratorService.processMedia(media.id);
         return media;
+    }
+
+    @Patch(':id')
+    @UseGuards(JwtAuthGuard)
+    async updateMedia(@Param('id') id: string, @Body() dto: any) {
+        return await this.mediaService.updateMedia(id, dto);
     }
 }

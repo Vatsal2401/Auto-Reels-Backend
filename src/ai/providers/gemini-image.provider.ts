@@ -35,7 +35,8 @@ export class GeminiImageProvider implements IImageGenerator {
             prompt = `${style} style. ${prompt}`;
         }
 
-        this.logger.log(`Generating ${options.count} images with Gemini (Imagen 4)... Prompt: ${prompt.substring(0, 50)}... Ratio: ${aspectRatio}`);
+        this.logger.log(`Generating ${options.count} images with Gemini (Imagen 4)...`);
+        this.logger.debug(`FULL PROMPT: ${prompt}`);
 
         try {
             const modelId = 'imagen-4.0-generate-001';
@@ -53,9 +54,9 @@ export class GeminiImageProvider implements IImageGenerator {
 
             // FALLBACK to Imagen 3 if Imagen 4 returns no images
             if (!response || !response.generatedImages || response.generatedImages.length === 0) {
-                this.logger.warn(`Imagen 4.0 returned no images. Falling back to Imagen 3.0... Prompt: ${prompt.substring(0, 50)}`);
+                this.logger.warn(`Imagen 4.0 returned no images. Falling back to Imagen 4.0 FAST... Prompt: ${prompt.substring(0, 50)}`);
 
-                const fallbackModelId = 'imagen-3.0-generate-001';
+                const fallbackModelId = 'imagen-4.0-fast-generate-001';
                 response = await this.client.models.generateImages({
                     model: fallbackModelId,
                     prompt: prompt,
@@ -66,11 +67,11 @@ export class GeminiImageProvider implements IImageGenerator {
                     }
                 });
 
-                this.logger.debug(`Gemini Imagen 3 Response: ${JSON.stringify(response, null, 2)}`);
+                this.logger.debug(`Gemini Imagen 4 Fast Response: ${JSON.stringify(response, null, 2)}`);
             }
 
             if (!response || !response.generatedImages || response.generatedImages.length === 0) {
-                this.logger.error('Both Imagen 4 and 3 returned no images.', { response });
+                this.logger.error('Both Imagen 4 models returned no images.', { response });
                 throw new Error('No images returned from Gemini API (both models failed)');
             }
 

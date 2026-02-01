@@ -1,3 +1,3 @@
 export interface ICaptionGenerator {
-  generateCaptions(audioBuffer: Buffer, script?: string): Promise<Buffer>;
+  generateCaptions(audioBuffer: Buffer, script?: string, captionPrompt?: string): Promise<Buffer>;
 }

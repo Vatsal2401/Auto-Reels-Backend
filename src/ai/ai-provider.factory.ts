@@ -6,6 +6,7 @@ import { ITextToSpeech } from './interfaces/text-to-speech.interface';
 import { IImageGenerator } from './interfaces/image-generator.interface';
 import { IImageToVideo } from './interfaces/image-to-video.interface';
 import { ICaptionGenerator } from './interfaces/caption-generator.interface';
+import { IIntentInterpreter } from './interfaces/intent-interpreter.interface';
 
 // Import concrete providers to reference them by class/token
 import { OpenAIScriptProvider } from './providers/openai-script.provider';
@@ -13,7 +14,7 @@ import { OpenAITTSProvider } from './providers/openai-tts.provider';
 import { DalleImageProvider } from './providers/dalle-image.provider';
 import { ReplicateImageToVideoProvider } from './providers/replicate-image-to-video.provider';
 import { FreeImageToVideoProvider } from './providers/free-image-to-video.provider';
-import { ReplicateCaptionProvider } from './providers/replicate-caption.provider';
+import { LocalCaptionProvider } from './providers/local-caption.provider';
 import { MockScriptProvider } from './providers/mock-script.provider';
 import { GeminiScriptProvider } from './providers/gemini-script.provider';
 import { GeminiImageProvider } from './providers/gemini-image.provider';
@@ -22,10 +23,20 @@ import { ElevenLabsTTSProvider } from './providers/elevenlabs-tts.provider';
 import { MockTTSProvider } from './providers/mock-tts.provider';
 import { MockImageProvider } from './providers/mock-image.provider';
 import { ReplicateImageProvider } from './providers/replicate-image.provider';
+import { GeminiIntentProvider } from './providers/gemini-intent.provider';
 
 @Injectable()
 export class AiProviderFactory {
     constructor(private moduleRef: ModuleRef) { }
+
+    getIntentInterpreter(providerName: string = 'gemini'): IIntentInterpreter {
+        switch (providerName) {
+            case 'gemini':
+                return this.moduleRef.get(GeminiIntentProvider, { strict: false });
+            default:
+                throw new Error(`Intent Interpreter provider '${providerName}' not supported`);
+        }
+    }
 
     getScriptGenerator(providerName: string = 'openai'): IScriptGenerator {
         switch (providerName) {
@@ -82,10 +93,11 @@ export class AiProviderFactory {
         }
     }
 
-    getCaptionGenerator(providerName: string = 'replicate'): ICaptionGenerator {
+    getCaptionGenerator(providerName: string = 'local'): ICaptionGenerator {
         switch (providerName) {
             case 'replicate':
-                return this.moduleRef.get(ReplicateCaptionProvider, { strict: false });
+            case 'local':
+                return this.moduleRef.get(LocalCaptionProvider, { strict: false });
             default:
                 throw new Error(`Caption provider '${providerName}' not supported`);
         }

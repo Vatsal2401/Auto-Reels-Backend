@@ -36,6 +36,17 @@ export class ElevenLabsTTSProvider implements ITextToSpeech {
 
         this.logger.log(`Generating audio with ElevenLabs SDK... Text length: ${text.length}, Voice: ${voiceId}`);
 
+        // Heuristic: Adjust voice settings based on prompt keywords
+        let stability = 0.5;
+        let similarityBoost = 0.8;
+        const prompt = (typeof optionsOrText !== 'string' ? optionsOrText.prompt : '').toLowerCase();
+
+        if (prompt.includes('excited') || prompt.includes('energetic') || prompt.includes('expressive')) {
+            stability = 0.35; // More expressive
+        } else if (prompt.includes('calm') || prompt.includes('steady') || prompt.includes('professional')) {
+            stability = 0.7; // More stable
+        }
+
         try {
             const audioStream = await this.client.textToSpeech.convert(
                 voiceId,
@@ -44,8 +55,8 @@ export class ElevenLabsTTSProvider implements ITextToSpeech {
                     modelId: "eleven_multilingual_v2",
                     outputFormat: "mp3_44100_128",
                     voiceSettings: {
-                        stability: 0.5,
-                        similarityBoost: 0.8
+                        stability,
+                        similarityBoost
                     }
                 }
             );
