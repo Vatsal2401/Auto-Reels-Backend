@@ -8,6 +8,7 @@ import { MediaStatus, MediaAssetType, CREDIT_COSTS } from './media.constants';
 import { CreditsService } from '../credits/credits.service';
 import { IStorageService } from '../storage/interfaces/storage.interface';
 import { IVideoRenderer } from '../render/interfaces/video-renderer.interface';
+import { RenderQueueService } from '../render/render-queue.service';
 import { AiProviderFactory } from '../ai/ai-provider.factory';
 import { ScriptJSON } from '../ai/interfaces/script-generator.interface';
 import { GeminiTTSProvider } from '../ai/providers/gemini-tts.provider';
@@ -15,7 +16,6 @@ import { OpenAITTSProvider } from '../ai/providers/openai-tts.provider';
 import { join } from 'path';
 import { existsSync, mkdirSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
-import { Readable } from 'stream';
 
 @Injectable()
 export class MediaOrchestratorService {
@@ -35,6 +35,7 @@ export class MediaOrchestratorService {
     private readonly openAITTS: OpenAITTSProvider,
     @Inject('IStorageService') private storageService: IStorageService,
     @Inject('IVideoRenderer') private videoRenderer: IVideoRenderer,
+    private readonly renderQueueService: RenderQueueService,
   ) {}
 
   async processMedia(mediaId: string): Promise<void> {
@@ -187,9 +188,9 @@ export class MediaOrchestratorService {
       }
 
       await this.stepRepository.update(step.id, {
-        status: StepStatus.SUCCESS,
+        status: step.step === 'render' ? StepStatus.PROCESSING : StepStatus.SUCCESS,
         blob_storage_id: resultBlobIds,
-        completed_at: new Date(),
+        completed_at: step.step === 'render' ? null : new Date(),
       });
     } catch (error) {
       this.logger.error(`Step ${step.step} failed for media ${mediaId}:`, error);
@@ -466,26 +467,28 @@ export class MediaOrchestratorService {
       });
       const intentData = intentAsset ? (intentAsset.metadata as any) : null;
 
-      const videoStream = await this.videoRenderer.compose({
-        audioPath,
-        captionPath,
-        assetPaths,
-        rendering_hints: intentData?.rendering_hints,
-      });
-
-      const blobId = await this.storageService.upload({
-        userId: media.user_id,
+      // PRODUCTION CHANGE: Delegate to worker queue
+      await this.renderQueueService.queueRenderJob({
         mediaId: media.id,
-        type: 'video',
-        step: 'render',
-        stream: videoStream as unknown as Readable,
-        fileName: 'final_render.mp4',
+        stepId: (
+          await this.stepRepository.findOne({ where: { media_id: media.id, step: 'render' } })
+        ).id,
+        userId: media.user_id,
+        assets: {
+          audio: audioAsset.blob_storage_id,
+          caption: captionAsset.blob_storage_id,
+          images: imageAssets.map((a) => a.blob_storage_id),
+        },
+        options: {
+          preset: 'fast', // Default to fast
+          rendering_hints: intentData?.rendering_hints,
+        },
       });
 
-      await this.addAsset(media.id, MediaAssetType.VIDEO, blobId);
-      return blobId;
+      return null; // Will be updated by worker on completion
     } finally {
-      // Cleanup session dir
+      // Local cleanup skipped as we didn't download anything locally if we were purely queuing,
+      // but keeping the finally for safety.
       try {
         if (existsSync(sessionDir)) rmSync(sessionDir, { recursive: true, force: true });
       } catch (e) {

@@ -1,6 +1,25 @@
 import ffmpeg from 'fluent-ffmpeg';
 import { existsSync, readdirSync, unlinkSync, createWriteStream, statSync } from 'fs';
+import { execSync } from 'child_process';
 import { join } from 'path';
+
+function logMemoryUsage(label: string) {
+  const mem = process.memoryUsage();
+  const toMB = (bytes: number) => (bytes / 1024 / 1024).toFixed(2);
+  console.log(
+    `[MEMORY] [${label}] RSS: ${toMB(mem.rss)} MB, Heap: ${toMB(mem.heapUsed)}/${toMB(mem.heapTotal)} MB, External: ${toMB(mem.external)} MB`,
+  );
+}
+
+function getProcessMemory(pid: number): string {
+  try {
+    const output = execSync(`ps -p ${pid} -o rss=`).toString().trim();
+    const rssKB = parseInt(output, 10);
+    return (rssKB / 1024).toFixed(2) + ' MB';
+  } catch (_e) {
+    return 'N/A';
+  }
+}
 
 // Config
 const ASSETS_DIR = join(__dirname, '../../test-assets'); // Root/backend/test-assets
@@ -16,6 +35,7 @@ interface ComposeOptions {
   audioPath: string;
   captionPath: string;
   assetPaths: string[];
+  preset: string;
 }
 
 // Ensure FFmpeg is available
@@ -23,9 +43,9 @@ interface ComposeOptions {
 
 class VideoComposer {
   async compose(options: ComposeOptions): Promise<Readable> {
-    const { audioPath, captionPath, assetPaths } = options;
+    const { audioPath, captionPath, assetPaths, preset } = options;
 
-    console.log(`[Composer] Rendering from local paths...`);
+    console.log(`[Composer] Rendering with preset: ${preset}...`);
 
     // 1. Get Audio Duration
     const audioDuration = await this.getMediaDuration(audioPath);
@@ -101,7 +121,7 @@ class VideoComposer {
           '-map [v_final]',
           `-map ${audioIndex}:a`,
           '-c:v libx264',
-          '-preset fast',
+          `-preset ${preset}`,
           '-crf 23',
           '-c:a aac',
           '-b:a 192k',
@@ -119,7 +139,9 @@ class VideoComposer {
         });
 
       // Return stream
-      resolve(command.pipe() as any);
+      const stream = command.pipe();
+      (stream as any).getFFmpegProc = () => (command as any).ffmpegProc;
+      resolve(stream as any);
     });
   }
 
@@ -155,7 +177,6 @@ class VideoComposer {
   }
 }
 
-// --- MAIN EXECUTION ---
 async function main() {
   console.log('--- TEST VIDEO RENDERER START ---');
   console.log(`Checking for assets in: ${ASSETS_DIR}`);
@@ -195,7 +216,7 @@ async function main() {
 
   // Find Images (*.png, *.jpg) sorted by name
   const allFiles = readdirSync(ASSETS_DIR);
-  const imageFiles = allFiles.filter((f) => f.match(/\.(png|jpg|jpeg)$/i)).sort(); // Sort makes sure 1.png comes before 2.png (usually)
+  const imageFiles = allFiles.filter((f) => f.match(/\.(png|jpg|jpeg)$/i)).sort();
 
   if (imageFiles.length === 0) {
     console.error(`ERROR: No images found in ${ASSETS_DIR}`);
@@ -209,24 +230,59 @@ async function main() {
 
   const assetPaths = imageFiles.map((f) => join(ASSETS_DIR, f));
 
-  // Run Composer
-  const composer = new VideoComposer();
-  console.log('\nStarting Composition...');
+  const presets = ['fast', 'ultrafast'];
+  const results: any[] = [];
 
-  const videoStream = await composer.compose({
-    audioPath,
-    captionPath,
-    assetPaths,
-  });
+  for (const preset of presets) {
+    const outputFile = OUTPUT_FILE.replace('.mp4', `_${preset}.mp4`);
+    console.log(`\n--- BENCHMARK: PRESET ${preset.toUpperCase()} ---`);
 
-  console.log(`\nComposition Success! Streaming output to: ${OUTPUT_FILE}`);
+    logMemoryUsage(`START_${preset}`);
+    const startTime = Date.now();
 
-  // Pipe stream to output file
-  const outputStream = createWriteStream(OUTPUT_FILE);
-  await streamPipeline(videoStream, outputStream);
+    const composer = new VideoComposer();
+    const videoStream = await composer.compose({
+      audioPath,
+      captionPath,
+      assetPaths,
+      preset,
+    });
 
-  const stats = statSync(OUTPUT_FILE);
-  console.log(`Saved result to: ${OUTPUT_FILE} (${(stats.size / 1024 / 1024).toFixed(2)} MB)`);
+    const outputStream = createWriteStream(outputFile);
+    const memInterval = setInterval(() => {
+      const ffmpegProc = (videoStream as any).getFFmpegProc
+        ? (videoStream as any).getFFmpegProc()
+        : null;
+      if (ffmpegProc && ffmpegProc.pid) {
+        logMemoryUsage(`PIPING_${preset}`);
+        console.log(`[MEMORY] [FFMPEG] PID ${ffmpegProc.pid}: ${getProcessMemory(ffmpegProc.pid)}`);
+      }
+    }, 2000);
+
+    try {
+      await streamPipeline(videoStream, outputStream);
+    } finally {
+      clearInterval(memInterval);
+    }
+
+    const endTime = Date.now();
+    const stats = statSync(outputFile);
+    const duration = (endTime - startTime) / 1000;
+
+    results.push({
+      preset,
+      time: duration.toFixed(2) + 's',
+      size: (stats.size / 1024 / 1024).toFixed(2) + ' MB',
+    });
+
+    logMemoryUsage(`END_${preset}`);
+  }
+
+  console.log('\n' + '='.repeat(30));
+  console.log('BENCHMARK RESULTS');
+  console.log('='.repeat(30));
+  console.table(results);
+  console.log('='.repeat(30));
 }
 
 main().catch((err) => {
