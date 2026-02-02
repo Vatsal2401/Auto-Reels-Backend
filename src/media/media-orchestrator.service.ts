@@ -33,7 +33,7 @@ export class MediaOrchestratorService {
     @Inject('IStorageService') private storageService: IStorageService,
     @Inject('IVideoRenderer') private videoRenderer: IVideoRenderer,
     private readonly renderQueueService: RenderQueueService,
-  ) {}
+  ) { }
 
   async processMedia(mediaId: string): Promise<void> {
     if (MediaOrchestratorService.isJobActive) {
@@ -63,50 +63,9 @@ export class MediaOrchestratorService {
       await this.mediaRepository.update(mediaId, { status: MediaStatus.PROCESSING });
       await this.runFlow(mediaId);
 
-      // Finalize media status if all steps succeeded
-      const allSteps = await this.stepRepository.find({ where: { media_id: mediaId } });
-      const failedStep = allSteps.find((s) => s.status === StepStatus.FAILED);
-
-      if (failedStep) {
-        await this.mediaRepository.update(mediaId, {
-          status: MediaStatus.FAILED,
-          error_message: failedStep.error_message,
-        });
-      } else if (allSteps.every((s) => s.status === StepStatus.SUCCESS)) {
-        // Find the final video asset if any
-        const videoAsset = await this.assetRepository.findOne({
-          where: { media_id: mediaId, type: MediaAssetType.VIDEO },
-          order: { created_at: 'DESC' },
-        });
-
-        await this.mediaRepository.update(mediaId, {
-          status: MediaStatus.COMPLETED,
-          blob_storage_id: videoAsset?.blob_storage_id || media.blob_storage_id,
-          completed_at: new Date(),
-        });
-
-        // Deduct credits after successful completion
-        if (media.user_id) {
-          try {
-            const topic = media.input_config?.topic || 'Media';
-            const duration = media.input_config?.duration || '30-60';
-            const creditCost = CREDIT_COSTS[duration] || CREDIT_COSTS['default'];
-
-            await this.creditsService.deductCredits(
-              media.user_id,
-              creditCost,
-              `Media generation: ${topic}`,
-              media.id,
-              { media_id: media.id, topic, duration, creditCost },
-            );
-            this.logger.log(
-              `Deducted ${creditCost} credits for completed media ${mediaId} (duration: ${duration})`,
-            );
-          } catch (creditError) {
-            this.logger.error(`Failed to deduct credits for media ${mediaId}:`, creditError);
-          }
-        }
-      }
+      // DELEGATED TO WORKER:
+      // Final status update and credit deduction are now handled
+      // by the render-worker upon successful job completion.
     } catch (error) {
       this.logger.error(`Flow execution failed for ${mediaId}:`, error);
       await this.mediaRepository.update(mediaId, {
@@ -397,7 +356,7 @@ export class MediaOrchestratorService {
     const masterPrompt = intentData?.image_prompt
       ? `${intentData.image_prompt}. ` + scriptJson.scenes.map((s) => s.image_prompt).join('. ')
       : `Cinematic video about ${media.input_config?.topic}. ` +
-        scriptJson.scenes.map((s) => s.image_prompt).join('. ');
+      scriptJson.scenes.map((s) => s.image_prompt).join('. ');
 
     const sceneCount = scriptJson.scenes.length;
     const blobIds: string[] = [];
