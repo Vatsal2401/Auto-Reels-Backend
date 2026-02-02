@@ -25,4 +25,4 @@ import { VideoGenerationService } from './video-generation.service';
   providers: [VideoService, VideoGenerationService],
   exports: [VideoService],
 })
-export class VideoModule { }
+export class VideoModule {}

@@ -16,18 +16,18 @@ async function bootstrap() {
   const isProduction = process.env.NODE_ENV === 'production';
 
   const app = await NestFactory.create(AppModule, {
-    logger: isProduction
-      ? ['error', 'warn', 'log']
-      : ['error', 'warn', 'log', 'debug', 'verbose'],
+    logger: isProduction ? ['error', 'warn', 'log'] : ['error', 'warn', 'log', 'debug', 'verbose'],
     bodyParser: false, // We'll configure it manually
   });
 
   // Security middleware
-  app.use(helmet({
-    contentSecurityPolicy: isProduction,
-    crossOriginEmbedderPolicy: isProduction,
-    crossOriginResourcePolicy: { policy: 'cross-origin' },
-  }));
+  app.use(
+    helmet({
+      contentSecurityPolicy: isProduction,
+      crossOriginEmbedderPolicy: isProduction,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
 
   // Compression
   app.use(compression());
@@ -61,7 +61,7 @@ async function bootstrap() {
   // CORS configuration
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
   const allowedOrigins = isProduction
-    ? frontendUrl.split(',').map(url => url.trim())
+    ? frontendUrl.split(',').map((url) => url.trim())
     : [frontendUrl, 'http://localhost:3001', 'http://localhost:3000'];
 
   app.enableCors({

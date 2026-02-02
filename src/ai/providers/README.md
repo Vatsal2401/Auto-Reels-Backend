@@ -5,6 +5,7 @@ This directory contains implementations of AI service interfaces. To swap provid
 ## Adding a New Script Generator
 
 1. Create a new provider class implementing `IScriptGenerator`:
+
 ```typescript
 @Injectable()
 export class AnthropicScriptProvider implements IScriptGenerator {
@@ -15,6 +16,7 @@ export class AnthropicScriptProvider implements IScriptGenerator {
 ```
 
 2. Update `ai.module.ts`:
+
 ```typescript
 {
   provide: 'IScriptGenerator',

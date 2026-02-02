@@ -18,23 +18,19 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     const status =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+      exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
 
     const message =
-      exception instanceof HttpException
-        ? exception.getResponse()
-        : 'Internal server error';
+      exception instanceof HttpException ? exception.getResponse() : 'Internal server error';
 
     const isProduction = process.env.NODE_ENV === 'production';
-    
+
     // Don't expose internal errors in production
-    const errorMessage = 
+    const errorMessage =
       status >= 500 && isProduction
         ? 'Internal server error'
-        : typeof message === 'string' 
-          ? message 
+        : typeof message === 'string'
+          ? message
           : (message as any).message || message;
 
     const errorResponse: any = {

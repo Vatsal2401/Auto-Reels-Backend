@@ -18,7 +18,7 @@ export class VideoService {
     private userRepository: Repository<User>,
     private creditsService: CreditsService,
     @Inject('IStorageService') private storageService: IStorageService,
-  ) { }
+  ) {}
 
   async createVideo(dto: CreateVideoDto, userId?: string): Promise<Video> {
     // Check if user has enough credits (only for authenticated users)
@@ -77,7 +77,7 @@ export class VideoService {
       where: { user_id: userId },
       order: { created_at: 'DESC' },
     });
-    return await Promise.all(videos.map(video => this.transformVideoUrls(video)));
+    return await Promise.all(videos.map((video) => this.transformVideoUrls(video)));
   }
 
   async updateStatus(id: string, status: VideoStatus): Promise<void> {

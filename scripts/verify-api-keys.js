@@ -34,7 +34,7 @@ async function testGemini() {
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    const result = await model.generateContent("Hello");
+    const result = await model.generateContent('Hello');
     const response = await result.response;
     console.log(`✅ Gemini Connected! Response: "${response.text().trim()}"`);
   } catch (error) {

@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { IScriptGenerator, ScriptJSON, ScriptGenerationOptions } from '../interfaces/script-generator.interface';
+import {
+  IScriptGenerator,
+  ScriptJSON,
+  ScriptGenerationOptions,
+} from '../interfaces/script-generator.interface';
 
 @Injectable()
 export class MockScriptProvider implements IScriptGenerator {

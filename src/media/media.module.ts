@@ -14,16 +14,16 @@ import { AuthModule } from '../auth/auth.module';
 import { User } from '../auth/entities/user.entity';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([Media, MediaStep, MediaAsset, User]),
-        CreditsModule,
-        StorageModule,
-        AIModule,
-        RenderModule,
-        forwardRef(() => AuthModule),
-    ],
-    providers: [MediaService, MediaOrchestratorService],
-    controllers: [MediaController],
-    exports: [MediaService, MediaOrchestratorService],
+  imports: [
+    TypeOrmModule.forFeature([Media, MediaStep, MediaAsset, User]),
+    CreditsModule,
+    StorageModule,
+    AIModule,
+    RenderModule,
+    forwardRef(() => AuthModule),
+  ],
+  providers: [MediaService, MediaOrchestratorService],
+  controllers: [MediaController],
+  exports: [MediaService, MediaOrchestratorService],
 })
-export class MediaModule { }
+export class MediaModule {}

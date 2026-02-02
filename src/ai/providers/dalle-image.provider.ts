@@ -22,7 +22,7 @@ export class DalleImageProvider implements IImageGenerator {
 
     let prompt: string;
     let size: '1024x1024' | '1024x1792' | '1792x1024' = '1024x1024';
-    let style = "";
+    let style = '';
 
     if (typeof optionsOrPrompt === 'string') {
       prompt = optionsOrPrompt;
@@ -69,7 +69,9 @@ export class DalleImageProvider implements IImageGenerator {
   }
 
   async generateImages(options: ImageGenerationOptions & { count: number }): Promise<Buffer[]> {
-    const promises = Array(options.count).fill(null).map(() => this.generateImage(options));
+    const promises = Array(options.count)
+      .fill(null)
+      .map(() => this.generateImage(options));
     return Promise.all(promises);
   }
 }

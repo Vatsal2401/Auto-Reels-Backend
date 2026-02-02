@@ -5,6 +5,7 @@ This directory contains implementations of storage service interfaces. To swap s
 ## Adding a New Storage Provider (e.g., Google Cloud Storage)
 
 1. Create a new provider implementing `IStorageService`:
+
 ```typescript
 @Injectable()
 export class GCSStorageProvider implements IStorageService {
@@ -16,6 +17,7 @@ export class GCSStorageProvider implements IStorageService {
 ```
 
 2. Update `storage.module.ts`:
+
 ```typescript
 {
   provide: 'IStorageService',

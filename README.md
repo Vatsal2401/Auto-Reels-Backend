@@ -30,6 +30,7 @@ This will check prerequisites, install dependencies, set up the `.env` file, sta
 - **SOLID Principles**: Extensible design with interfaces for AI providers, storage, and rendering.
 
 ### System Flow
+
 1. **API Request**: User calls `POST /videos`.
 2. **Orchestrator**: `VideoGenerationService` starts background process.
 3. **Script**: Generates script using AI (OpenAI).
@@ -69,6 +70,7 @@ S3_BUCKET_NAME=...
 ### Installation
 
 1. **Run setup script:**
+
    ```bash
    npm run setup
    ```
@@ -83,16 +85,19 @@ S3_BUCKET_NAME=...
 ## Development
 
 **Start infrastructure** (PostgreSQL):
+
 ```bash
 npm run infra:up
 ```
 
 **Start API server:**
+
 ```bash
 npm run start:dev
 ```
 
 **Development tools** (optional):
+
 ```bash
 npm run infra:tools  # Starts pgAdmin
 ```
@@ -109,19 +114,23 @@ npm run start:prod
 ## API Endpoints
 
 ### Videos
+
 - `POST /videos` - Create new video
 - `GET /videos` - List user's videos
 - `GET /videos/:id` - Get video details
 
 ### Authentication
+
 - `POST /auth/signup` - User registration
 - `POST /auth/signin` - User login
 
 ### Credits
+
 - `GET /credits/balance` - Get credit balance
 - `GET /credits/history` - Get transaction history
 
 ### Health
+
 - `GET /health` - Basic health check
 - `GET /api-docs` - Swagger UI (development)
 

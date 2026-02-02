@@ -7,11 +7,11 @@ import { tmpdir } from 'os';
 
 /**
  * Free Image-to-Video Provider (Local Processing)
- * 
+ *
  * Uses FFmpeg to create a simple video from image
  * This is a basic implementation - creates a static video with the image
  * For testing purposes only - not production quality
- * 
+ *
  * NO API KEY REQUIRED - 100% FREE
  */
 @Injectable()

@@ -54,10 +54,7 @@ export class CreditsController {
 
   @Post('purchase')
   @HttpCode(HttpStatus.OK)
-  async purchaseCredits(
-    @CurrentUser() user: any,
-    @Body() dto: PurchaseCreditsDto,
-  ) {
+  async purchaseCredits(@CurrentUser() user: any, @Body() dto: PurchaseCreditsDto) {
     // TODO: Integrate with payment provider (Stripe, PayPal, etc.)
     // For now, this is a placeholder that adds credits without payment
     const transaction = await this.creditsService.addCredits(

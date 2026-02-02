@@ -7,7 +7,7 @@ export interface StorageUploadParams {
   buffer?: Buffer;
   stream?: Readable;
   fileName?: string; // Optional: specific filename
-  step?: string;     // Optional: specific step name
+  step?: string; // Optional: specific step name
 }
 
 export interface IStorageService {
@@ -39,5 +39,9 @@ export interface IStorageService {
   /**
    * Generates a signed URL for the Object ID
    */
-  getSignedUrl(objectId: string, expiresIn?: number, options?: { promptDownload?: boolean; filename?: string }): Promise<string>;
+  getSignedUrl(
+    objectId: string,
+    expiresIn?: number,
+    options?: { promptDownload?: boolean; filename?: string },
+  ): Promise<string>;
 }

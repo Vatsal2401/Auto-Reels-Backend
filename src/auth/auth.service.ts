@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -18,7 +23,7 @@ export class AuthService {
     private jwtService: JwtService,
     private creditsService: CreditsService,
     private mailService: MailService,
-  ) { }
+  ) {}
 
   async signUp(dto: SignUpDto) {
     const email = dto.email.toLowerCase().trim();
@@ -54,8 +59,8 @@ export class AuthService {
       const savedUser = await manager.save(user);
 
       // Initialize free credits for new user
-      // Note: We use the injected creditsService but within the transaction we should ideally use the manager 
-      // but since CreditsService uses userRepository (injected), we'll just call it. 
+      // Note: We use the injected creditsService but within the transaction we should ideally use the manager
+      // but since CreditsService uses userRepository (injected), we'll just call it.
       // For absolute correctness, we'd need to refactor CreditsService to accept a manager.
       // However, since it's a new user, it's fine for now as long as the user exists.
       await this.creditsService.initializeUserCredits(savedUser.id, manager);
@@ -95,7 +100,7 @@ export class AuthService {
       }
     }
 
-    // Generate new token or reuse old one? Keeping current token is safer for the link they might have just received, 
+    // Generate new token or reuse old one? Keeping current token is safer for the link they might have just received,
     // but generating a new one is standard. Let's keep existing if it's there.
     if (!user.verification_token) {
       user.verification_token = uuidv4();

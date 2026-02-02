@@ -85,11 +85,19 @@ import { ReplicateImageProvider } from './providers/replicate-image.provider';
     // Default Alias Bindings (Kept for backward compat)
     {
       provide: 'IScriptGenerator',
-      useClass: hasGeminiKey ? GeminiScriptProvider : (hasOpenAIKey ? OpenAIScriptProvider : MockScriptProvider),
+      useClass: hasGeminiKey
+        ? GeminiScriptProvider
+        : hasOpenAIKey
+          ? OpenAIScriptProvider
+          : MockScriptProvider,
     },
     {
       provide: 'ITextToSpeech',
-      useClass: hasElevenLabsKey ? ElevenLabsTTSProvider : (hasOpenAIKey ? OpenAITTSProvider : MockTTSProvider),
+      useClass: hasElevenLabsKey
+        ? ElevenLabsTTSProvider
+        : hasOpenAIKey
+          ? OpenAITTSProvider
+          : MockTTSProvider,
     },
     {
       provide: 'ICaptionGenerator',
@@ -97,7 +105,11 @@ import { ReplicateImageProvider } from './providers/replicate-image.provider';
     },
     {
       provide: 'IImageGenerator',
-      useClass: hasGeminiKey ? GeminiImageProvider : (hasOpenAIKey ? DalleImageProvider : MockImageProvider),
+      useClass: hasGeminiKey
+        ? GeminiImageProvider
+        : hasOpenAIKey
+          ? DalleImageProvider
+          : MockImageProvider,
     },
     {
       provide: 'IImageToVideo',
@@ -109,7 +121,11 @@ import { ReplicateImageProvider } from './providers/replicate-image.provider';
     GeminiTTSProvider,
     OpenAITTSProvider,
     ElevenLabsService,
-    'IScriptGenerator', 'ITextToSpeech', 'ICaptionGenerator', 'IImageGenerator', 'IImageToVideo'
+    'IScriptGenerator',
+    'ITextToSpeech',
+    'ICaptionGenerator',
+    'IImageGenerator',
+    'IImageToVideo',
   ],
 })
 export class AIModule {

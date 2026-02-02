@@ -21,13 +21,18 @@ import { CreditTransaction } from '../credits/entities/credit-transaction.entity
         database: configService.get<string>('DB_DATABASE') || 'ai_reels',
         entities: [Video, Job, Asset, User, CreditTransaction],
         synchronize: false,
-        logging: configService.get<string>('NODE_ENV') === 'development' ? ['error', 'warn', 'schema'] : false,
+        logging:
+          configService.get<string>('NODE_ENV') === 'development'
+            ? ['error', 'warn', 'schema']
+            : false,
         retryAttempts: 10,
         retryDelay: 3000,
         autoLoadEntities: true,
-        ssl: configService.get<string>('DB_SSL') === 'true' || configService.get<string>('DB_SSL') === 'require'
-          ? { rejectUnauthorized: false }
-          : false,
+        ssl:
+          configService.get<string>('DB_SSL') === 'true' ||
+          configService.get<string>('DB_SSL') === 'require'
+            ? { rejectUnauthorized: false }
+            : false,
         extra: {
           max: parseInt(configService.get<string>('DB_POOL_MAX') || '20', 10),
           min: parseInt(configService.get<string>('DB_POOL_MIN') || '5', 10),
@@ -40,4 +45,4 @@ import { CreditTransaction } from '../credits/entities/credit-transaction.entity
     }),
   ],
 })
-export class DatabaseModule { }
+export class DatabaseModule {}

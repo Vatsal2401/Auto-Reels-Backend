@@ -1,13 +1,13 @@
 import {
-    Entity,
-    PrimaryGeneratedColumn,
-    Column,
-    CreateDateColumn,
-    UpdateDateColumn,
-    OneToMany,
-    ManyToOne,
-    JoinColumn,
-    Relation,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToMany,
+  ManyToOne,
+  JoinColumn,
+  Relation,
 } from 'typeorm';
 import { User } from '../../auth/entities/user.entity';
 import { MediaStep } from './media-step.entity';
@@ -16,56 +16,56 @@ import { MediaType, MediaStatus } from '../media.constants';
 
 @Entity('media')
 export class Media {
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-    @Column({
-        type: 'enum',
-        enum: MediaType,
-    })
-    type: MediaType;
+  @Column({
+    type: 'enum',
+    enum: MediaType,
+  })
+  type: MediaType;
 
-    @Column({ type: 'text' })
-    flow_key: string;
+  @Column({ type: 'text' })
+  flow_key: string;
 
-    @Column({
-        type: 'enum',
-        enum: MediaStatus,
-        default: MediaStatus.PENDING,
-    })
-    status: MediaStatus;
+  @Column({
+    type: 'enum',
+    enum: MediaStatus,
+    default: MediaStatus.PENDING,
+  })
+  status: MediaStatus;
 
-    @Column({ type: 'uuid', nullable: true })
-    user_id: string | null;
+  @Column({ type: 'uuid', nullable: true })
+  user_id: string | null;
 
-    @ManyToOne(() => User, { nullable: true })
-    @JoinColumn({ name: 'user_id' })
-    user: User | null;
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'user_id' })
+  user: User | null;
 
-    @Column({ type: 'jsonb', nullable: true })
-    input_config: Record<string, any> | null;
+  @Column({ type: 'jsonb', nullable: true })
+  input_config: Record<string, any> | null;
 
-    @Column({ type: 'text', nullable: true })
-    blob_storage_id: string | null;
+  @Column({ type: 'text', nullable: true })
+  blob_storage_id: string | null;
 
-    @Column({ type: 'text', nullable: true })
-    script: string | null;
+  @Column({ type: 'text', nullable: true })
+  script: string | null;
 
-    @Column({ type: 'text', nullable: true })
-    error_message: string | null;
+  @Column({ type: 'text', nullable: true })
+  error_message: string | null;
 
-    @CreateDateColumn()
-    created_at: Date;
+  @CreateDateColumn()
+  created_at: Date;
 
-    @UpdateDateColumn()
-    updated_at: Date;
+  @UpdateDateColumn()
+  updated_at: Date;
 
-    @Column({ type: 'timestamp', nullable: true })
-    completed_at: Date | null;
+  @Column({ type: 'timestamp', nullable: true })
+  completed_at: Date | null;
 
-    @OneToMany(() => MediaStep, (step: MediaStep) => step.media)
-    steps: Relation<MediaStep[]>;
+  @OneToMany(() => MediaStep, (step: MediaStep) => step.media)
+  steps: Relation<MediaStep[]>;
 
-    @OneToMany(() => MediaAsset, (asset: MediaAsset) => asset.media)
-    assets: Relation<MediaAsset[]>;
+  @OneToMany(() => MediaAsset, (asset: MediaAsset) => asset.media)
+  assets: Relation<MediaAsset[]>;
 }

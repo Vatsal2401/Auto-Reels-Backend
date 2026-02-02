@@ -25,7 +25,9 @@ export class ReplicateImageToVideoProvider implements IImageToVideo {
         auth: this.apiToken,
       });
     } else {
-      console.warn('Warning: REPLICATE_API_TOKEN not set. Image-to-video generation will fail at runtime.');
+      console.warn(
+        'Warning: REPLICATE_API_TOKEN not set. Image-to-video generation will fail at runtime.',
+      );
     }
   }
 
@@ -44,19 +46,19 @@ export class ReplicateImageToVideoProvider implements IImageToVideo {
     try {
       // Use Stable Video Diffusion (SVD)
       // Model: stability-ai/stable-video-diffusion:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b
-      const output = await this.replicate.run(
+      const output = (await this.replicate.run(
         'stability-ai/stable-video-diffusion:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b',
         {
           input: {
             input_image: dataUrl,
-            video_length: "14 frames_with_svd_xt",
-            sizing_strategy: "maintain_aspect_ratio",
+            video_length: '14 frames_with_svd_xt',
+            sizing_strategy: 'maintain_aspect_ratio',
             frames_per_second: 6,
             motion_bucket_id: 127,
-            cond_aug: 0.02
+            cond_aug: 0.02,
           },
         },
-      ) as any;
+      )) as any;
 
       console.log('Replicate Output:', JSON.stringify(output, null, 2));
 

@@ -5,6 +5,7 @@ This directory contains implementations of video rendering services. To swap ren
 ## Adding a New Renderer (e.g., Cloud-based rendering)
 
 1. Create a new provider implementing `IVideoRenderer`:
+
 ```typescript
 @Injectable()
 export class CloudRendererProvider implements IVideoRenderer {
@@ -15,6 +16,7 @@ export class CloudRendererProvider implements IVideoRenderer {
 ```
 
 2. Update `render.module.ts`:
+
 ```typescript
 {
   provide: 'IVideoRenderer',

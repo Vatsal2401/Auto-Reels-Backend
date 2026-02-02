@@ -2,10 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import { User } from '../auth/entities/user.entity';
-import {
-  CreditTransaction,
-  TransactionType,
-} from './entities/credit-transaction.entity';
+import { CreditTransaction, TransactionType } from './entities/credit-transaction.entity';
 
 @Injectable()
 export class CreditsService {
@@ -14,7 +11,7 @@ export class CreditsService {
     private userRepository: Repository<User>,
     @InjectRepository(CreditTransaction)
     private transactionRepository: Repository<CreditTransaction>,
-  ) { }
+  ) {}
 
   async getBalance(userId: string): Promise<number> {
     const user = await this.userRepository.findOne({

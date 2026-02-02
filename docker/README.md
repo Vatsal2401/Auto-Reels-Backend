@@ -3,16 +3,19 @@
 ## Quick Start
 
 1. **Make sure you're in the docker directory:**
+
 ```bash
 cd docker
 ```
 
 2. **Start all services:**
+
 ```bash
 docker-compose up -d
 ```
 
 3. **Check logs:**
+
 ```bash
 # All services
 docker-compose logs -f
@@ -23,11 +26,13 @@ docker-compose logs -f orchestrator-worker
 ```
 
 4. **Test the API:**
+
 ```bash
 curl http://localhost:3000/videos -X POST -H "Content-Type: application/json" -d '{"topic": "test video"}'
 ```
 
 5. **Stop all services:**
+
 ```bash
 docker-compose down
 ```

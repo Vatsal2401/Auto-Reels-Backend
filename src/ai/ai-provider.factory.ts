@@ -1,4 +1,3 @@
-
 import { Injectable, Inject, Type } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { IScriptGenerator } from './interfaces/script-generator.interface';
@@ -27,79 +26,79 @@ import { GeminiIntentProvider } from './providers/gemini-intent.provider';
 
 @Injectable()
 export class AiProviderFactory {
-    constructor(private moduleRef: ModuleRef) { }
+  constructor(private moduleRef: ModuleRef) {}
 
-    getIntentInterpreter(providerName: string = 'gemini'): IIntentInterpreter {
-        switch (providerName) {
-            case 'gemini':
-                return this.moduleRef.get(GeminiIntentProvider, { strict: false });
-            default:
-                throw new Error(`Intent Interpreter provider '${providerName}' not supported`);
-        }
+  getIntentInterpreter(providerName: string = 'gemini'): IIntentInterpreter {
+    switch (providerName) {
+      case 'gemini':
+        return this.moduleRef.get(GeminiIntentProvider, { strict: false });
+      default:
+        throw new Error(`Intent Interpreter provider '${providerName}' not supported`);
     }
+  }
 
-    getScriptGenerator(providerName: string = 'openai'): IScriptGenerator {
-        switch (providerName) {
-            case 'openai':
-                return this.moduleRef.get(OpenAIScriptProvider, { strict: false });
-            case 'gemini':
-                return this.moduleRef.get(GeminiScriptProvider, { strict: false });
-            case 'mock':
-                return this.moduleRef.get(MockScriptProvider, { strict: false });
-            default:
-                throw new Error(`Script provider '${providerName}' not supported`);
-        }
+  getScriptGenerator(providerName: string = 'openai'): IScriptGenerator {
+    switch (providerName) {
+      case 'openai':
+        return this.moduleRef.get(OpenAIScriptProvider, { strict: false });
+      case 'gemini':
+        return this.moduleRef.get(GeminiScriptProvider, { strict: false });
+      case 'mock':
+        return this.moduleRef.get(MockScriptProvider, { strict: false });
+      default:
+        throw new Error(`Script provider '${providerName}' not supported`);
     }
+  }
 
-    getTextToSpeech(providerName: string = 'openai'): ITextToSpeech {
-        switch (providerName) {
-            case 'openai':
-                return this.moduleRef.get(OpenAITTSProvider, { strict: false });
-            case 'elevenlabs':
-                return this.moduleRef.get(ElevenLabsTTSProvider, { strict: false });
-            case 'mock':
-                return this.moduleRef.get(MockTTSProvider, { strict: false });
-            default:
-                throw new Error(`TTS provider '${providerName}' not supported`);
-        }
+  getTextToSpeech(providerName: string = 'openai'): ITextToSpeech {
+    switch (providerName) {
+      case 'openai':
+        return this.moduleRef.get(OpenAITTSProvider, { strict: false });
+      case 'elevenlabs':
+        return this.moduleRef.get(ElevenLabsTTSProvider, { strict: false });
+      case 'mock':
+        return this.moduleRef.get(MockTTSProvider, { strict: false });
+      default:
+        throw new Error(`TTS provider '${providerName}' not supported`);
     }
+  }
 
-    getImageGenerator(providerName: string = 'dalle'): IImageGenerator {
-        switch (providerName) {
-            case 'dalle':
-                return this.moduleRef.get(DalleImageProvider, { strict: false });
-            case 'gemini':
-                return this.moduleRef.get(GeminiImageProvider, { strict: false });
-            case 'replicate':
-                return this.moduleRef.get(ReplicateImageProvider, { strict: false });
-            case 'mock':
-                return this.moduleRef.get(MockImageProvider, { strict: false });
-            default:
-                throw new Error(`Image provider '${providerName}' not supported`);
-        }
+  getImageGenerator(providerName: string = 'dalle'): IImageGenerator {
+    switch (providerName) {
+      case 'dalle':
+        return this.moduleRef.get(DalleImageProvider, { strict: false });
+      case 'gemini':
+        return this.moduleRef.get(GeminiImageProvider, { strict: false });
+      case 'replicate':
+        return this.moduleRef.get(ReplicateImageProvider, { strict: false });
+      case 'mock':
+        return this.moduleRef.get(MockImageProvider, { strict: false });
+      default:
+        throw new Error(`Image provider '${providerName}' not supported`);
     }
+  }
 
-    getImageToVideo(providerName: string = 'replicate'): IImageToVideo {
-        switch (providerName) {
-            case 'replicate':
-                return this.moduleRef.get(ReplicateImageToVideoProvider, { strict: false });
-            case 'gemini':
-                return this.moduleRef.get(GeminiVideoProvider, { strict: false });
-            case 'free':
-                return this.moduleRef.get(FreeImageToVideoProvider, { strict: false });
-            default:
-                // Fallback
-                return this.moduleRef.get(FreeImageToVideoProvider, { strict: false });
-        }
+  getImageToVideo(providerName: string = 'replicate'): IImageToVideo {
+    switch (providerName) {
+      case 'replicate':
+        return this.moduleRef.get(ReplicateImageToVideoProvider, { strict: false });
+      case 'gemini':
+        return this.moduleRef.get(GeminiVideoProvider, { strict: false });
+      case 'free':
+        return this.moduleRef.get(FreeImageToVideoProvider, { strict: false });
+      default:
+        // Fallback
+        return this.moduleRef.get(FreeImageToVideoProvider, { strict: false });
     }
+  }
 
-    getCaptionGenerator(providerName: string = 'local'): ICaptionGenerator {
-        switch (providerName) {
-            case 'replicate':
-            case 'local':
-                return this.moduleRef.get(LocalCaptionProvider, { strict: false });
-            default:
-                throw new Error(`Caption provider '${providerName}' not supported`);
-        }
+  getCaptionGenerator(providerName: string = 'local'): ICaptionGenerator {
+    switch (providerName) {
+      case 'replicate':
+      case 'local':
+        return this.moduleRef.get(LocalCaptionProvider, { strict: false });
+      default:
+        throw new Error(`Caption provider '${providerName}' not supported`);
     }
+  }
 }

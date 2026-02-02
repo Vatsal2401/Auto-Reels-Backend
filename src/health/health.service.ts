@@ -7,7 +7,7 @@ export class HealthService {
   constructor(
     @InjectConnection()
     private connection: Connection,
-  ) { }
+  ) {}
 
   async check() {
     const dbStatus = await this.checkDatabase();

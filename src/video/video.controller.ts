@@ -13,7 +13,7 @@ export class VideoController {
   constructor(
     private readonly videoService: VideoService,
     private readonly videoGenerationService: VideoGenerationService,
-  ) { }
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -26,7 +26,7 @@ export class VideoController {
     const video = await this.videoService.createVideo(dto, user.userId);
 
     // Start signal generation in background (fire-and-forget)
-    this.videoGenerationService.startGeneration(video.id).catch(err => {
+    this.videoGenerationService.startGeneration(video.id).catch((err) => {
       console.error(`Failed to trigger generation for video ${video.id}`, err);
     });
 

@@ -3,17 +3,18 @@ import { IImageToVideo } from '../interfaces/image-to-video.interface';
 
 /**
  * Hugging Face Image-to-Video Provider (FREE)
- * 
+ *
  * Uses Hugging Face Inference API - FREE tier available
  * Model: stabilityai/stable-video-diffusion-img2vid
- * 
+ *
  * Get free API key: https://huggingface.co/settings/tokens
  * No credit card required for free tier
  */
 @Injectable()
 export class HuggingFaceImageToVideoProvider implements IImageToVideo {
   private apiToken: string;
-  private baseUrl = 'https://api-inference.huggingface.co/models/stabilityai/stable-video-diffusion-img2vid';
+  private baseUrl =
+    'https://api-inference.huggingface.co/models/stabilityai/stable-video-diffusion-img2vid';
 
   constructor() {
     this.apiToken = process.env.HUGGINGFACE_API_KEY || '';

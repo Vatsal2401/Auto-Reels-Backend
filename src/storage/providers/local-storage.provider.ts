@@ -1,16 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import { IStorageService, StorageUploadParams } from '../interfaces/storage.interface';
-import { writeFileSync, readFileSync, mkdirSync, existsSync, createReadStream, createWriteStream } from 'fs';
+import {
+  writeFileSync,
+  readFileSync,
+  mkdirSync,
+  existsSync,
+  createReadStream,
+  createWriteStream,
+} from 'fs';
 import { join, dirname } from 'path';
 import { pipeline } from 'stream/promises';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Local Storage Provider
- * 
+ *
  * Stores files locally on the filesystem instead of S3
  * Perfect for testing and development without AWS credentials
- * 
+ *
  * Files are stored in: storage/
  *   - storage/audio/{videoId}/
  *   - storage/captions/{videoId}/
@@ -86,13 +93,28 @@ export class LocalStorageProvider implements IStorageService {
     return `file://${absolutePath}`;
   }
 
-  private getStoragePath(userId: string, mediaId: string, type: string, fileName?: string, step?: string): string {
-    const safeUserId = (userId && userId !== 'null') ? userId : 'anonymous';
+  private getStoragePath(
+    userId: string,
+    mediaId: string,
+    type: string,
+    fileName?: string,
+    step?: string,
+  ): string {
+    const safeUserId = userId && userId !== 'null' ? userId : 'anonymous';
     const extension = this.getExtensionForType(type);
     const actualFileName = fileName || `${uuidv4()}${extension}`;
     const stepPart = step ? step : '';
 
-    return join(this.storageBasePath, 'users', safeUserId, 'media', mediaId, type, stepPart, actualFileName);
+    return join(
+      this.storageBasePath,
+      'users',
+      safeUserId,
+      'media',
+      mediaId,
+      type,
+      stepPart,
+      actualFileName,
+    );
   }
 
   private getAbsolutePath(objectId: string): string {
@@ -108,12 +130,18 @@ export class LocalStorageProvider implements IStorageService {
 
   private getExtensionForType(type: string): string {
     switch (type) {
-      case 'audio': return '.mp3';
-      case 'caption': return '.srt';
-      case 'image': return '.jpg';
-      case 'video': return '.mp4';
-      case 'script': return '.json';
-      default: return '';
+      case 'audio':
+        return '.mp3';
+      case 'caption':
+        return '.srt';
+      case 'image':
+        return '.jpg';
+      case 'video':
+        return '.mp4';
+      case 'script':
+        return '.json';
+      default:
+        return '';
     }
   }
 }

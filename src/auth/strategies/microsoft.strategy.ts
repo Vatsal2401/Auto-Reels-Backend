@@ -9,11 +9,13 @@ export class MicrosoftStrategy extends PassportStrategy(Strategy, 'microsoft') {
   constructor(private authService: AuthService) {
     const clientID = process.env.MICROSOFT_CLIENT_ID;
     const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
-    
+
     if (!clientID || !clientSecret) {
-      throw new Error('Microsoft OAuth credentials are not configured. Please set MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET environment variables.');
+      throw new Error(
+        'Microsoft OAuth credentials are not configured. Please set MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET environment variables.',
+      );
     }
-    
+
     super({
       clientID,
       clientSecret,

@@ -1,17 +1,17 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class MediaRefactor1769874000000 implements MigrationInterface {
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        // 1. Create MediaType and MediaStatus enums if they don't exist as types (Postgres)
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    // 1. Create MediaType and MediaStatus enums if they don't exist as types (Postgres)
+    await queryRunner.query(`
       CREATE TYPE "media_type_enum" AS ENUM('image', 'video', 'avatar', 'audio');
       CREATE TYPE "media_status_enum" AS ENUM('pending', 'processing', 'completed', 'failed');
       CREATE TYPE "step_status_enum" AS ENUM('pending', 'processing', 'success', 'failed');
       CREATE TYPE "media_asset_type_enum" AS ENUM('script', 'audio', 'image', 'caption', 'video', 'avatar');
     `);
 
-        // 2. Create media table
-        await queryRunner.query(`
+    // 2. Create media table
+    await queryRunner.query(`
       CREATE TABLE "media" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "type" "media_type_enum" NOT NULL,
@@ -28,8 +28,8 @@ export class MediaRefactor1769874000000 implements MigrationInterface {
       )
     `);
 
-        // 3. Create media_steps table
-        await queryRunner.query(`
+    // 3. Create media_steps table
+    await queryRunner.query(`
       CREATE TABLE "media_steps" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "media_id" uuid NOT NULL,
@@ -47,8 +47,8 @@ export class MediaRefactor1769874000000 implements MigrationInterface {
       )
     `);
 
-        // 4. Create media_assets table
-        await queryRunner.query(`
+    // 4. Create media_assets table
+    await queryRunner.query(`
       CREATE TABLE "media_assets" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "media_id" uuid NOT NULL,
@@ -60,16 +60,16 @@ export class MediaRefactor1769874000000 implements MigrationInterface {
       )
     `);
 
-        // 5. Add Foreign Key constraints
-        await queryRunner.query(`
+    // 5. Add Foreign Key constraints
+    await queryRunner.query(`
       ALTER TABLE "media_steps" ADD CONSTRAINT "FK_media_steps_media" FOREIGN KEY ("media_id") REFERENCES "media"("id") ON DELETE CASCADE;
       ALTER TABLE "media_assets" ADD CONSTRAINT "FK_media_assets_media" FOREIGN KEY ("media_id") REFERENCES "media"("id") ON DELETE CASCADE;
       ALTER TABLE "media" ADD CONSTRAINT "FK_media_user" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL;
     `);
 
-        // 6. Migrate data from videos to media
-        // Note: This assumes existing videos were of type 'video' and flow 'videoMotion'
-        await queryRunner.query(`
+    // 6. Migrate data from videos to media
+    // Note: This assumes existing videos were of type 'video' and flow 'videoMotion'
+    await queryRunner.query(`
       INSERT INTO "media" ("id", "type", "flow_key", "status", "user_id", "input_config", "blob_storage_id", "error_message", "created_at", "updated_at", "completed_at")
       SELECT 
         "id", 
@@ -91,8 +91,8 @@ export class MediaRefactor1769874000000 implements MigrationInterface {
       FROM "videos";
     `);
 
-        // 7. Migrate data from jobs to media_steps
-        await queryRunner.query(`
+    // 7. Migrate data from jobs to media_steps
+    await queryRunner.query(`
       INSERT INTO "media_steps" ("media_id", "step", "status", "retry_count", "error_message", "started_at", "completed_at", "created_at", "updated_at")
       SELECT 
         "video_id", 
@@ -110,8 +110,8 @@ export class MediaRefactor1769874000000 implements MigrationInterface {
       FROM "jobs";
     `);
 
-        // 8. Migrate data from assets to media_assets
-        await queryRunner.query(`
+    // 8. Migrate data from assets to media_assets
+    await queryRunner.query(`
       INSERT INTO "media_assets" ("media_id", "type", "blob_storage_id", "metadata", "created_at")
       SELECT 
         "video_id", 
@@ -121,16 +121,16 @@ export class MediaRefactor1769874000000 implements MigrationInterface {
         "created_at"
       FROM "assets";
     `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        // Drop new tables and types
-        await queryRunner.query('DROP TABLE "media_assets"');
-        await queryRunner.query('DROP TABLE "media_steps"');
-        await queryRunner.query('DROP TABLE "media"');
-        await queryRunner.query('DROP TYPE "media_asset_type_enum"');
-        await queryRunner.query('DROP TYPE "step_status_enum"');
-        await queryRunner.query('DROP TYPE "media_status_enum"');
-        await queryRunner.query('DROP TYPE "media_type_enum"');
-    }
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    // Drop new tables and types
+    await queryRunner.query('DROP TABLE "media_assets"');
+    await queryRunner.query('DROP TABLE "media_steps"');
+    await queryRunner.query('DROP TABLE "media"');
+    await queryRunner.query('DROP TYPE "media_asset_type_enum"');
+    await queryRunner.query('DROP TYPE "step_status_enum"');
+    await queryRunner.query('DROP TYPE "media_status_enum"');
+    await queryRunner.query('DROP TYPE "media_type_enum"');
+  }
 }

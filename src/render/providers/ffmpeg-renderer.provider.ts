@@ -31,7 +31,8 @@ export class FFmpegRendererProvider implements IVideoRenderer {
       let slideDuration: number;
       if (imageCount > 1) {
         // Account for overlapping transitions
-        slideDuration = (audioDurationWithBuffer + (imageCount - 1) * transitionDuration) / imageCount;
+        slideDuration =
+          (audioDurationWithBuffer + (imageCount - 1) * transitionDuration) / imageCount;
       } else {
         // Single image, just match audio duration
         slideDuration = audioDurationWithBuffer;
@@ -47,7 +48,7 @@ export class FFmpegRendererProvider implements IVideoRenderer {
         // --- SLIDESHOW MODE (Images -> Video) ---
         if (assetPaths.length > 0) {
           // Input all images
-          assetPaths.forEach(img => command.input(img));
+          assetPaths.forEach((img) => command.input(img));
 
           // Create ZoomPan + Scale filters for each image
           assetPaths.forEach((_, i) => {
@@ -60,7 +61,7 @@ export class FFmpegRendererProvider implements IVideoRenderer {
             // Optimized for 720p for memory stability on 512MB RAM
             complexFilters.push(
               `[${i}:v]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1,` +
-              `zoompan=${effect}d=${frames}:s=720x1280:fps=25[v${i}]`
+                `zoompan=${effect}d=${frames}:s=720x1280:fps=25[v${i}]`,
             );
             videoStreams.push(`v${i}`);
           });
@@ -75,17 +76,16 @@ export class FFmpegRendererProvider implements IVideoRenderer {
               const outStream = i === videoStreams.length - 1 ? 'v_merged' : `x${i}`;
 
               complexFilters.push(
-                `[${prevStream}][${nextStream}]xfade=transition=fade:duration=${transitionDuration}:offset=${currentOffset}[${outStream}]`
+                `[${prevStream}][${nextStream}]xfade=transition=fade:duration=${transitionDuration}:offset=${currentOffset}[${outStream}]`,
               );
 
               prevStream = outStream;
-              currentOffset += (slideDuration - transitionDuration);
+              currentOffset += slideDuration - transitionDuration;
             }
           } else {
             // Case for single image
             complexFilters.push(`[v0]copy[v_merged]`);
           }
-
         } else {
           // No Assets? Create Blank.
           command.input('color=c=black:s=720x1280:d=' + (audioDuration || 30)).inputFormat('lavfi');
@@ -99,7 +99,7 @@ export class FFmpegRendererProvider implements IVideoRenderer {
 
         // Burn Captions on 'v_merged'
         complexFilters.push(
-          `[v_merged]subtitles=${captionPath}:force_style='FontSize=16,PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=1,Outline=1,Shadow=0,Bold=1,Alignment=2,MarginV=50'[v_final]`
+          `[v_merged]subtitles=${captionPath}:force_style='FontSize=16,PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=1,Outline=1,Shadow=0,Bold=1,Alignment=2,MarginV=50'[v_final]`,
         );
 
         command
@@ -107,11 +107,14 @@ export class FFmpegRendererProvider implements IVideoRenderer {
           .outputOptions([
             '-map [v_final]',
             `-map ${audioIndex}:a`, // Map audio correctly
-            '-c:v libx264', '-preset fast', '-crf 23',
-            '-c:a aac', '-b:a 192k',
+            '-c:v libx264',
+            '-preset fast',
+            '-crf 23',
+            '-c:a aac',
+            '-b:a 192k',
             '-pix_fmt yuv420p',
-            '-shortest',        // Stop when audio ends
-            '-movflags +faststart'
+            '-shortest', // Stop when audio ends
+            '-movflags +faststart',
           ])
           .on('start', (commandLine) => {
             console.log('Spawned FFmpeg with command: ' + commandLine);
@@ -123,7 +126,6 @@ export class FFmpegRendererProvider implements IVideoRenderer {
         // Use streaming output instead of writing to file
         resolve(command.pipe() as any);
       });
-
     } catch (error) {
       throw error;
     }
@@ -149,7 +151,7 @@ export class FFmpegRendererProvider implements IVideoRenderer {
       // Pan Left
       "z=1.2:x='if(eq(on,1),0,min(x+1,iw-iw/zoom))':y='(ih-ih/zoom)/2':",
       // Pan Right
-      "z=1.2:x='if(eq(on,1),iw-iw/zoom,max(x-1,0))':y='(ih-ih/zoom)/2':"
+      "z=1.2:x='if(eq(on,1),iw-iw/zoom,max(x-1,0))':y='(ih-ih/zoom)/2':",
     ];
     return effects[Math.floor(Math.random() * effects.length)];
   }

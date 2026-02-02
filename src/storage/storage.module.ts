@@ -30,9 +30,13 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
 export class StorageModule {
   constructor() {
     if (!hasS3ProviderConfig && isDevelopment) {
-      console.warn('⚠️  Cloud Storage credentials not set. Using LOCAL storage provider for testing.');
+      console.warn(
+        '⚠️  Cloud Storage credentials not set. Using LOCAL storage provider for testing.',
+      );
       console.warn('💡 Files will be stored in: ./storage/');
-      console.warn('💡 To use Cloud Storage, set: CURRENT_BLOB_STORAGE to "s3" or "supabase" and provide respective keys.');
+      console.warn(
+        '💡 To use Cloud Storage, set: CURRENT_BLOB_STORAGE to "s3" or "supabase" and provide respective keys.',
+      );
     }
   }
 }

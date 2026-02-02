@@ -48,4 +48,4 @@ const createOAuthProviders = () => {
   providers: [AuthService, MailService, ...createOAuthProviders()],
   exports: [AuthService],
 })
-export class AuthModule { }
+export class AuthModule {}

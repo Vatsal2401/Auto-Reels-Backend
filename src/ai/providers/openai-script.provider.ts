@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { IScriptGenerator, ScriptJSON, ScriptGenerationOptions } from '../interfaces/script-generator.interface';
+import {
+  IScriptGenerator,
+  ScriptJSON,
+  ScriptGenerationOptions,
+} from '../interfaces/script-generator.interface';
 import OpenAI from 'openai';
 
 @Injectable()
@@ -110,7 +114,9 @@ Create 3-6 scenes that total ${duration} seconds. Make it engaging and suitable 
       }
       return parsed as ScriptJSON;
     } catch (error) {
-      throw new Error(`Failed to parse script JSON: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to parse script JSON: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 }

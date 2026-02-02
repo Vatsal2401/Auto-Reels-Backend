@@ -52,7 +52,7 @@ export class S3StorageProvider implements IStorageService {
     const { userId, mediaId, type, buffer, stream, fileName, step } = params;
 
     // Construct user-isolated path: users/{userId}/media/{mediaId}/{type}/{fileName or random}
-    const safeUserId = (userId && userId !== 'null') ? userId : 'anonymous';
+    const safeUserId = userId && userId !== 'null' ? userId : 'anonymous';
     const extension = this.getExtensionForType(type);
     const actualFileName = fileName || `${uuidv4()}${extension}`;
     const stepPart = step ? `${step}/` : '';
@@ -100,8 +100,8 @@ export class S3StorageProvider implements IStorageService {
   }
 
   getLocalPath(objectId: string): string {
-    // For S3, we check our local mirror if we implement one, 
-    // but for now, we'll return the objectId to signal it's cloud-only 
+    // For S3, we check our local mirror if we implement one,
+    // but for now, we'll return the objectId to signal it's cloud-only
     // or return a path in a known /tmp/storage-cache dir if we decide to mirror everything.
     // Given the request, we should probably check if it exists in the mirror.
     const storageBasePath = process.env.LOCAL_STORAGE_PATH || join(process.cwd(), 'storage');
@@ -125,7 +125,11 @@ export class S3StorageProvider implements IStorageService {
     return Promise.all(objectIds.map((id) => this.download(id)));
   }
 
-  async getSignedUrl(objectId: string, expiresIn: number = 3600, options?: { promptDownload?: boolean; filename?: string }): Promise<string> {
+  async getSignedUrl(
+    objectId: string,
+    expiresIn: number = 3600,
+    options?: { promptDownload?: boolean; filename?: string },
+  ): Promise<string> {
     const commandInput: any = {
       Bucket: this.bucketName,
       Key: objectId,
@@ -142,23 +146,35 @@ export class S3StorageProvider implements IStorageService {
 
   private getExtensionForType(type: string): string {
     switch (type) {
-      case 'audio': return '.mp3';
-      case 'caption': return '.srt';
-      case 'image': return '.jpg';
-      case 'video': return '.mp4';
-      case 'script': return '.json';
-      default: return '';
+      case 'audio':
+        return '.mp3';
+      case 'caption':
+        return '.srt';
+      case 'image':
+        return '.jpg';
+      case 'video':
+        return '.mp4';
+      case 'script':
+        return '.json';
+      default:
+        return '';
     }
   }
 
   private getContentTypeForType(type: string): string {
     switch (type) {
-      case 'audio': return 'audio/mpeg';
-      case 'caption': return 'text/plain';
-      case 'image': return 'image/jpeg';
-      case 'video': return 'video/mp4';
-      case 'script': return 'application/json';
-      default: return 'application/octet-stream';
+      case 'audio':
+        return 'audio/mpeg';
+      case 'caption':
+        return 'text/plain';
+      case 'image':
+        return 'image/jpeg';
+      case 'video':
+        return 'video/mp4';
+      case 'script':
+        return 'application/json';
+      default:
+        return 'application/octet-stream';
     }
   }
 }

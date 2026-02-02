@@ -29,7 +29,7 @@ export class AuthController {
     private authService: AuthService,
     private creditsService: CreditsService,
     private mailService: MailService,
-  ) { }
+  ) {}
 
   @Get('test-email')
   @ApiOperation({ summary: 'Test email sending' })
@@ -92,10 +92,7 @@ export class AuthController {
 
   @Get('verify-email')
   @ApiOperation({ summary: 'Verify user email' })
-  async verifyEmail(
-    @Query('token') token: string,
-    @Query('email') email: string,
-  ) {
+  async verifyEmail(@Query('token') token: string, @Query('email') email: string) {
     return this.authService.verifyEmail(token, email);
   }
 

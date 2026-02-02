@@ -6,11 +6,8 @@ import { CreditsModule } from '../credits/credits.module';
 import { User } from '../auth/entities/user.entity';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([User]),
-        CreditsModule
-    ],
-    controllers: [PaymentController],
-    providers: [PaymentService],
+  imports: [TypeOrmModule.forFeature([User]), CreditsModule],
+  controllers: [PaymentController],
+  providers: [PaymentService],
 })
-export class PaymentModule { }
+export class PaymentModule {}

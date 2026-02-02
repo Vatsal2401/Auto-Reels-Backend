@@ -17,6 +17,7 @@ Complete authentication system with email/password, Google OAuth, and Microsoft 
 ### Email/Password Auth
 
 **Sign Up:**
+
 ```bash
 POST /auth/signup
 Content-Type: application/json
@@ -29,6 +30,7 @@ Content-Type: application/json
 ```
 
 **Sign In:**
+
 ```bash
 POST /auth/signin
 Content-Type: application/json
@@ -40,6 +42,7 @@ Content-Type: application/json
 ```
 
 **Refresh Token:**
+
 ```bash
 POST /auth/refresh
 Content-Type: application/json
@@ -50,6 +53,7 @@ Content-Type: application/json
 ```
 
 **Get Current User:**
+
 ```bash
 GET /auth/me
 Authorization: Bearer <access_token>
@@ -58,10 +62,12 @@ Authorization: Bearer <access_token>
 ### OAuth
 
 **Google:**
+
 - Initiate: `GET /auth/google`
 - Callback: `GET /auth/google/callback` (handled automatically)
 
 **Microsoft:**
+
 - Initiate: `GET /auth/microsoft`
 - Callback: `GET /auth/microsoft/callback` (handled automatically)
 
