@@ -1,7 +1,7 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { VideoService } from './video.service';
 import { VideoStatus } from './entities/video.entity';
-import { ScriptJSON, ScriptScene } from '../ai/interfaces/script-generator.interface';
+import { ScriptJSON } from '../ai/interfaces/script-generator.interface';
 import { IStorageService } from '../storage/interfaces/storage.interface';
 import { IVideoRenderer } from '../render/interfaces/video-renderer.interface';
 import { AiProviderFactory } from '../ai/ai-provider.factory';

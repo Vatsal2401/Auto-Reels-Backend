@@ -105,7 +105,7 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   async googleCallback(@Req() req: Request, @Res() res: Response) {
-    const { user, tokens } = req.user as any;
+    const { tokens } = req.user as any;
     // Redirect to frontend with tokens
     const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/auth/callback?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}`;
     res.redirect(redirectUrl);
@@ -120,7 +120,7 @@ export class AuthController {
   @Get('microsoft/callback')
   @UseGuards(AuthGuard('microsoft'))
   async microsoftCallback(@Req() req: Request, @Res() res: Response) {
-    const { user, tokens } = req.user as any;
+    const { tokens } = req.user as any;
     // Redirect to frontend with tokens
     const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/auth/callback?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}`;
     res.redirect(redirectUrl);

@@ -87,7 +87,7 @@ export class LocalStorageProvider implements IStorageService {
     return Promise.all(objectIds.map((id) => this.download(id)));
   }
 
-  async getSignedUrl(objectId: string, expiresIn: number = 3600): Promise<string> {
+  async getSignedUrl(objectId: string, _expiresIn: number = 3600): Promise<string> {
     // For local storage, return a file:// URL
     const absolutePath = this.getAbsolutePath(objectId);
     return `file://${absolutePath}`;

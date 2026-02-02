@@ -223,7 +223,7 @@ export class AuthService {
   }
 
   async verifyEmail(token: string, email?: string) {
-    let user = await this.userRepository.findOne({
+    const user = await this.userRepository.findOne({
       where: { verification_token: token },
     });
 

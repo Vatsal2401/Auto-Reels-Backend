@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { IStorageService } from './interfaces/storage.interface';
 import { S3StorageProvider } from './providers/s3-storage.provider';
 import { LocalStorageProvider } from './providers/local-storage.provider';
 

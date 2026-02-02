@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { ITextToSpeech, AudioOptions } from '../interfaces/text-to-speech.interface';
+import { ITextToSpeech } from '../interfaces/text-to-speech.interface';
 
 @Injectable()
 export class MockTTSProvider implements ITextToSpeech {
-  async textToSpeech(optionsOrText: AudioOptions | string): Promise<Buffer> {
+  async textToSpeech(): Promise<Buffer> {
     // Return a mock audio buffer (silent audio for testing)
     // In a real scenario, you might want to use a local TTS library
     // For now, return an empty buffer with a warning

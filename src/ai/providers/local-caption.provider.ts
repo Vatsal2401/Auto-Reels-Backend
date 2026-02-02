@@ -35,11 +35,7 @@ export class LocalCaptionProvider implements ICaptionGenerator {
     'anyhow',
   ]);
 
-  async generateCaptions(
-    audioBuffer: Buffer,
-    script?: string,
-    captionPrompt?: string,
-  ): Promise<Buffer> {
+  async generateCaptions(audioBuffer: Buffer, script?: string): Promise<Buffer> {
     try {
       if (!script) return Buffer.from('', 'utf-8');
 
@@ -69,7 +65,7 @@ export class LocalCaptionProvider implements ICaptionGenerator {
         ffmpeg.ffprobe(tempPath, (err, metadata) => {
           try {
             unlinkSync(tempPath);
-          } catch (e) {}
+          } catch {}
           if (err) resolve(0);
           else resolve(metadata.format.duration || 0);
         });

@@ -3,7 +3,6 @@ import {
   IsString,
   IsNumber,
   IsOptional,
-  IsBoolean,
   IsUrl,
   ValidateNested,
   validateSync,

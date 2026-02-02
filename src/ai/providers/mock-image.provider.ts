@@ -3,7 +3,7 @@ import { IImageGenerator, ImageGenerationOptions } from '../interfaces/image-gen
 
 @Injectable()
 export class MockImageProvider implements IImageGenerator {
-  async generateImage(optionsOrPrompt: ImageGenerationOptions | string): Promise<Buffer> {
+  async generateImage(): Promise<Buffer> {
     console.warn('⚠️  Mock Image Provider: Returning placeholder image.');
 
     const pngBuffer = Buffer.from([
@@ -18,7 +18,7 @@ export class MockImageProvider implements IImageGenerator {
   }
 
   async generateImages(options: ImageGenerationOptions & { count: number }): Promise<Buffer[]> {
-    const buffer = await this.generateImage(options);
+    const buffer = await this.generateImage();
     return Array(options.count).fill(buffer);
   }
 }

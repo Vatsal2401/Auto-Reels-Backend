@@ -40,7 +40,7 @@ export class ElevenLabsTTSProvider implements ITextToSpeech {
 
     // Heuristic: Adjust voice settings based on prompt keywords
     let stability = 0.5;
-    let similarityBoost = 0.8;
+    const similarityBoost = 0.8;
     const prompt = (typeof optionsOrText !== 'string' ? optionsOrText.prompt : '').toLowerCase();
 
     if (

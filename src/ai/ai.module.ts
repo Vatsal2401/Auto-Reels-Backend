@@ -1,10 +1,5 @@
 import { Module } from '@nestjs/common';
 import { StorageModule } from '../storage/storage.module';
-import { IScriptGenerator } from './interfaces/script-generator.interface';
-import { ITextToSpeech } from './interfaces/text-to-speech.interface';
-import { ICaptionGenerator } from './interfaces/caption-generator.interface';
-import { IImageGenerator } from './interfaces/image-generator.interface';
-import { IImageToVideo } from './interfaces/image-to-video.interface';
 import { OpenAIScriptProvider } from './providers/openai-script.provider';
 import { OpenAITTSProvider } from './providers/openai-tts.provider';
 import { MockScriptProvider } from './providers/mock-script.provider';

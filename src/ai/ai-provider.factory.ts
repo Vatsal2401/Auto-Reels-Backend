@@ -1,4 +1,4 @@
-import { Injectable, Inject, Type } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { IScriptGenerator } from './interfaces/script-generator.interface';
 import { ITextToSpeech } from './interfaces/text-to-speech.interface';

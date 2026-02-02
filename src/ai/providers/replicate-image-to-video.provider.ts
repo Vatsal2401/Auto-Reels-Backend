@@ -1,13 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { IImageToVideo } from '../interfaces/image-to-video.interface';
+import Replicate from 'replicate';
+
 // Note: Install with: npm install replicate
 // If not installed, this will use HuggingFace or Free provider instead
-let Replicate: any;
-try {
-  Replicate = require('replicate').default || require('replicate');
-} catch (e) {
-  // Replicate package not installed - will use alternative provider
-}
 
 @Injectable()
 export class ReplicateImageToVideoProvider implements IImageToVideo {
@@ -31,7 +27,7 @@ export class ReplicateImageToVideoProvider implements IImageToVideo {
     }
   }
 
-  async generateVideo(imageBuffer: Buffer, prompt: string, duration: number = 5): Promise<Buffer> {
+  async generateVideo(imageBuffer: Buffer, _prompt: string): Promise<Buffer> {
     if (!Replicate) {
       throw new Error('Replicate package not installed. Install with: npm install replicate');
     }

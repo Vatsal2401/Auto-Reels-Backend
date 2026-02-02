@@ -18,7 +18,7 @@ export class GeminiVideoProvider implements IImageToVideo {
     }
   }
 
-  async generateVideo(imageBuffer: Buffer, prompt: string, duration: number = 5): Promise<Buffer> {
+  async generateVideo(imageBuffer: Buffer, prompt: string): Promise<Buffer> {
     if (!this.client) {
       throw new Error('Gemini client not initialized (missing key)');
     }

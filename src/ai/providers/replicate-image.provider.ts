@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { IImageGenerator, ImageGenerationOptions } from '../interfaces/image-generator.interface';
 
-const Replicate = require('replicate');
+import Replicate from 'replicate';
 
 @Injectable()
 export class ReplicateImageProvider implements IImageGenerator {

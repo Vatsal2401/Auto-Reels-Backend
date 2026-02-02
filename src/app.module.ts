@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { VideoModule } from './video/video.module';
 import { DatabaseModule } from './database/database.module';
 import { ConfigModule as AppConfigModule } from './config/config.module';

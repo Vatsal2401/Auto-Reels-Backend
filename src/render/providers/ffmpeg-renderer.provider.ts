@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { IVideoRenderer, ComposeOptions } from '../interfaces/video-renderer.interface';
 import ffmpeg from 'fluent-ffmpeg';
-import { createReadStream, statSync } from 'fs';
-import { join } from 'path';
 import { Readable } from 'stream';
 
 @Injectable()
@@ -41,7 +39,7 @@ export class FFmpegRendererProvider implements IVideoRenderer {
       slideDuration = Math.max(3, slideDuration); // Ensure minimum 3s per slide
 
       return new Promise((resolve, reject) => {
-        let command = ffmpeg();
+        const command = ffmpeg();
         const complexFilters: string[] = [];
         const videoStreams: string[] = [];
 
@@ -99,7 +97,7 @@ export class FFmpegRendererProvider implements IVideoRenderer {
 
         // Burn Captions on 'v_merged'
         complexFilters.push(
-          `[v_merged]subtitles=${captionPath}:force_style='FontSize=16,PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=1,Outline=1,Shadow=0,Bold=1,Alignment=2,MarginV=50'[v_final]`,
+          `[v_merged]subtitles='${captionPath}':force_style='FontSize=16,PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=1,Outline=1,Shadow=0,Bold=1,Alignment=2,MarginV=50'[v_final]`,
         );
 
         command
@@ -114,7 +112,8 @@ export class FFmpegRendererProvider implements IVideoRenderer {
             '-b:a 192k',
             '-pix_fmt yuv420p',
             '-shortest', // Stop when audio ends
-            '-movflags +faststart',
+            '-f mp4',
+            '-movflags frag_keyframe+empty_moov+default_base_moof',
           ])
           .on('start', (commandLine) => {
             console.log('Spawned FFmpeg with command: ' + commandLine);
@@ -156,7 +155,7 @@ export class FFmpegRendererProvider implements IVideoRenderer {
     return effects[Math.floor(Math.random() * effects.length)];
   }
 
-  private cleanup(paths: string[]): void {
+  private cleanup(): void {
     // Deprecated in favor of session-based cleanup in GenerationService
   }
 }

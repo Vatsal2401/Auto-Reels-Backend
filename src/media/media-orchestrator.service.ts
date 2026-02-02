@@ -6,7 +6,7 @@ import { MediaStep, StepStatus } from './entities/media-step.entity';
 import { MediaAsset } from './entities/media-asset.entity';
 import { MediaStatus, MediaAssetType, CREDIT_COSTS } from './media.constants';
 import { CreditsService } from '../credits/credits.service';
-import { IStorageService, StorageUploadParams } from '../storage/interfaces/storage.interface';
+import { IStorageService } from '../storage/interfaces/storage.interface';
 import { IVideoRenderer } from '../render/interfaces/video-renderer.interface';
 import { AiProviderFactory } from '../ai/ai-provider.factory';
 import { ScriptJSON } from '../ai/interfaces/script-generator.interface';

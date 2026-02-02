@@ -1,15 +1,6 @@
 import ffmpeg from 'fluent-ffmpeg';
-import {
-  writeFileSync,
-  readFileSync,
-  existsSync,
-  readdirSync,
-  unlinkSync,
-  createWriteStream,
-  statSync,
-} from 'fs';
+import { existsSync, readdirSync, unlinkSync, createWriteStream, statSync } from 'fs';
 import { join } from 'path';
-import { tmpdir } from 'os';
 
 // Config
 const ASSETS_DIR = join(__dirname, '../../test-assets'); // Root/backend/test-assets
@@ -116,12 +107,13 @@ class VideoComposer {
           '-b:a 192k',
           '-pix_fmt yuv420p',
           '-shortest',
-          '-movflags +faststart',
+          '-f mp4',
+          '-movflags frag_keyframe+empty_moov+default_base_moof',
         ])
         .on('start', (cmdLine) => {
           console.log('[Composer] FFmpeg Command: ' + cmdLine);
         })
-        .on('error', (err, stdout, stderr) => {
+        .on('error', (err, _stdout, _stderr) => {
           console.error('[Composer] FFmpeg Error:', err.message);
           reject(err);
         });
@@ -158,7 +150,7 @@ class VideoComposer {
     paths.forEach((p) => {
       try {
         if (p && existsSync(p)) unlinkSync(p);
-      } catch (e) {}
+      } catch (_e) {}
     });
   }
 }

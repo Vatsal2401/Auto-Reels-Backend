@@ -85,14 +85,14 @@ export class PaymentService {
     return isAuthentic;
   }
 
-  async handleWebhook(payload: any, signature: string) {
+  async handleWebhook(payload: any, _signature: string) {
     const secret =
       this.configService.get<string>('RAZORPAY_WEBHOOK_SECRET') || 'webhook_secret_placeholder';
 
     // In NestJS, we typically need the raw body for signature verification.
     // If we use JSON.stringify, we must ensure it matches the original exactly.
     const text = JSON.stringify(payload);
-    const expectedSignature = crypto.createHmac('sha256', secret).update(text).digest('hex');
+    const _expectedSignature = crypto.createHmac('sha256', secret).update(text).digest('hex');
 
     // NOTE: Manual verification might be tricky with NestJS body parser.
     // Razorpay docs recommend comparing signature.

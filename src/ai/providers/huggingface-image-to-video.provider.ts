@@ -23,7 +23,7 @@ export class HuggingFaceImageToVideoProvider implements IImageToVideo {
     }
   }
 
-  async generateVideo(imageBuffer: Buffer, prompt: string, duration: number = 5): Promise<Buffer> {
+  async generateVideo(imageBuffer: Buffer, _prompt: string): Promise<Buffer> {
     // Convert buffer to base64
     const base64Image = imageBuffer.toString('base64');
 
