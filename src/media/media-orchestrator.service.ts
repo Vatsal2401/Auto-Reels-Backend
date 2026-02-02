@@ -13,9 +13,6 @@ import { AiProviderFactory } from '../ai/ai-provider.factory';
 import { ScriptJSON } from '../ai/interfaces/script-generator.interface';
 import { GeminiTTSProvider } from '../ai/providers/gemini-tts.provider';
 import { OpenAITTSProvider } from '../ai/providers/openai-tts.provider';
-import { join } from 'path';
-import { existsSync, mkdirSync, rmSync } from 'fs';
-import { tmpdir } from 'os';
 
 @Injectable()
 export class MediaOrchestratorService {
@@ -431,6 +428,7 @@ export class MediaOrchestratorService {
   }
 
   private async handleRenderStep(media: Media): Promise<string> {
+    // PRODUCTION CHANGE: Delegate to worker queue
     const audioAsset = await this.assetRepository.findOne({
       where: { media_id: media.id, type: MediaAssetType.AUDIO },
     });
@@ -445,56 +443,29 @@ export class MediaOrchestratorService {
       throw new Error('Assets missing for rendering');
     }
 
-    const sessionDir = join(tmpdir(), `media-render-${media.id}`);
-    if (!existsSync(sessionDir)) mkdirSync(sessionDir, { recursive: true });
+    const intentAsset = await this.assetRepository.findOne({
+      where: { media_id: media.id, type: MediaAssetType.INTENT },
+    });
+    const intentData = intentAsset ? (intentAsset.metadata as any) : null;
 
-    try {
-      const audioPath = join(sessionDir, 'audio.mp3');
-      const captionPath = join(sessionDir, 'captions.srt');
-      const assetPaths = imageAssets.map((_, i) => join(sessionDir, `image-${i}.jpg`));
+    // PRODUCTION CHANGE: Delegate to worker queue
+    await this.renderQueueService.queueRenderJob({
+      mediaId: media.id,
+      stepId: (await this.stepRepository.findOne({ where: { media_id: media.id, step: 'render' } }))
+        .id,
+      userId: media.user_id,
+      assets: {
+        audio: audioAsset.blob_storage_id,
+        caption: captionAsset.blob_storage_id,
+        images: imageAssets.map((a) => a.blob_storage_id),
+      },
+      options: {
+        preset: 'fast', // Default to fast
+        rendering_hints: intentData?.rendering_hints,
+      },
+    });
 
-      // Download assets to local session
-      await this.storageService.downloadToFile(audioAsset.blob_storage_id, audioPath);
-      await this.storageService.downloadToFile(captionAsset.blob_storage_id, captionPath);
-      await Promise.all(
-        imageAssets.map((a, i) =>
-          this.storageService.downloadToFile(a.blob_storage_id, assetPaths[i]),
-        ),
-      );
-
-      const intentAsset = await this.assetRepository.findOne({
-        where: { media_id: media.id, type: MediaAssetType.INTENT },
-      });
-      const intentData = intentAsset ? (intentAsset.metadata as any) : null;
-
-      // PRODUCTION CHANGE: Delegate to worker queue
-      await this.renderQueueService.queueRenderJob({
-        mediaId: media.id,
-        stepId: (
-          await this.stepRepository.findOne({ where: { media_id: media.id, step: 'render' } })
-        ).id,
-        userId: media.user_id,
-        assets: {
-          audio: audioAsset.blob_storage_id,
-          caption: captionAsset.blob_storage_id,
-          images: imageAssets.map((a) => a.blob_storage_id),
-        },
-        options: {
-          preset: 'fast', // Default to fast
-          rendering_hints: intentData?.rendering_hints,
-        },
-      });
-
-      return null; // Will be updated by worker on completion
-    } finally {
-      // Local cleanup skipped as we didn't download anything locally if we were purely queuing,
-      // but keeping the finally for safety.
-      try {
-        if (existsSync(sessionDir)) rmSync(sessionDir, { recursive: true, force: true });
-      } catch (e) {
-        this.logger.error(`Failed to cleanup session ${sessionDir}:`, e);
-      }
-    }
+    return null; // Will be updated by worker on completion
   }
 
   private async addAsset(
