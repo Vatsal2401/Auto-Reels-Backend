@@ -33,7 +33,7 @@ export class MediaOrchestratorService {
     @Inject('IStorageService') private storageService: IStorageService,
     @Inject('IVideoRenderer') private videoRenderer: IVideoRenderer,
     private readonly renderQueueService: RenderQueueService,
-  ) { }
+  ) {}
 
   async processMedia(mediaId: string): Promise<void> {
     if (MediaOrchestratorService.isJobActive) {
@@ -356,14 +356,27 @@ export class MediaOrchestratorService {
     const masterPrompt = intentData?.image_prompt
       ? `${intentData.image_prompt}. ` + scriptJson.scenes.map((s) => s.image_prompt).join('. ')
       : `Cinematic video about ${media.input_config?.topic}. ` +
-      scriptJson.scenes.map((s) => s.image_prompt).join('. ');
+        scriptJson.scenes.map((s) => s.image_prompt).join('. ');
 
-    const sceneCount = scriptJson.scenes.length;
+    // --- REEL FAST MODE LOGIC ---
+    // Enforce strict image counts based on duration to minimize batches
+    // 30-60s -> 4 images (1 batch)
+    // 60-90s -> 6 images (2 batches)
+    // 90-120s -> 8 images (2 batches)
+    const durationStr = media.input_config?.duration || '30-60';
+    let targetImageCount = 4;
+    if (durationStr === '60-90') targetImageCount = 6;
+    if (durationStr === '90-120') targetImageCount = 8;
+
+    this.logger.log(
+      `Reel Fast Mode: Generating strictly ${targetImageCount} images for duration ${durationStr}`,
+    );
+
     const blobIds: string[] = [];
     const batchSize = 4;
 
-    for (let i = 0; i < sceneCount; i += batchSize) {
-      const count = Math.min(batchSize, sceneCount - i);
+    for (let i = 0; i < targetImageCount; i += batchSize) {
+      const count = Math.min(batchSize, targetImageCount - i);
       const buffers = await imageProvider.generateImages({
         prompt: masterPrompt,
         style: media.input_config?.imageStyle,
@@ -419,8 +432,12 @@ export class MediaOrchestratorService {
         images: imageAssets.map((a) => a.blob_storage_id),
       },
       options: {
-        preset: 'fast', // Default to fast
-        rendering_hints: intentData?.rendering_hints,
+        preset: 'superfast',
+        rendering_hints: {
+          ...intentData?.rendering_hints,
+          fast_mode: true, // Signal generic fast mode
+          smart_micro_scenes: true, // Signal to use new engine
+        },
       },
     });
 

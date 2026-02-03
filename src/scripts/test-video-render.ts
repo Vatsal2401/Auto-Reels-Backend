@@ -36,16 +36,17 @@ interface ComposeOptions {
   captionPath: string;
   assetPaths: string[];
   preset: string;
+  width?: number;
 }
 
-// Ensure FFmpeg is available
-// ffmpeg.setFfmpegPath('/usr/bin/ffmpeg');
+// ...
 
 class VideoComposer {
   async compose(options: ComposeOptions): Promise<Readable> {
-    const { audioPath, captionPath, assetPaths, preset } = options;
+    const { audioPath, captionPath, assetPaths, preset, width = 720 } = options;
+    const height = Math.round(width * (16 / 9)); // Maintain 9:16 aspect ratio
 
-    console.log(`[Composer] Rendering with preset: ${preset}...`);
+    console.log(`[Composer] Rendering with preset: ${preset}, Resolution: ${width}x${height}...`);
 
     // 1. Get Audio Duration
     const audioDuration = await this.getMediaDuration(audioPath);
@@ -70,7 +71,7 @@ class VideoComposer {
       const complexFilters: string[] = [];
       const videoStreams: string[] = [];
 
-      // --- SLIDESHOW MODE (720p Optimized) ---
+      // --- SLIDESHOW MODE ---
       if (assetPaths.length > 0) {
         assetPaths.forEach((img) => command.input(img));
 
@@ -78,10 +79,10 @@ class VideoComposer {
           const effect = this.getRandomKenBurnsEffect();
           const frames = Math.ceil((slideDuration + transitionDuration) * 25);
 
-          // Optimized for 720p
+          // Optimized for target resolution
           complexFilters.push(
-            `[${i}:v]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1,` +
-              `zoompan=${effect}d=${frames}:s=720x1280:fps=25[v${i}]`,
+            `[${i}:v]scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},setsar=1,` +
+              `zoompan=${effect}d=${frames}:s=${width}x${height}:fps=25[v${i}]`,
           );
           videoStreams.push(`v${i}`);
         });
@@ -103,7 +104,9 @@ class VideoComposer {
           complexFilters.push(`[v0]copy[v_merged]`);
         }
       } else {
-        command.input('color=c=black:s=720x1280:d=' + (audioDuration || 30)).inputFormat('lavfi');
+        command
+          .input(`color=c=black:s=${width}x${height}:d=` + (audioDuration || 30))
+          .inputFormat('lavfi');
         complexFilters.push(`[0:v]null[v_merged]`);
       }
 
@@ -111,8 +114,12 @@ class VideoComposer {
       const audioIndex = assetPaths.length > 0 ? assetPaths.length : 1;
       command.input(audioPath);
 
+      // Adjust caption font size based on resolution (approx 2.2% of height)
+      const fontSize = Math.round(height * 0.022);
+      const marginV = Math.round(height * 0.04);
+
       complexFilters.push(
-        `[v_merged]subtitles='${captionPath}':force_style='FontSize=16,PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=1,Outline=1,Shadow=0,Bold=1,Alignment=2,MarginV=50'[v_final]`,
+        `[v_merged]subtitles='${captionPath}':force_style='FontSize=${fontSize},PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=1,Outline=1,Shadow=0,Bold=1,Alignment=2,MarginV=${marginV}'[v_final]`,
       );
 
       command
@@ -122,9 +129,12 @@ class VideoComposer {
           `-map ${audioIndex}:a`,
           '-c:v libx264',
           `-preset ${preset}`,
+          '-threads 1',
+          '-filter_threads 1',
+          '-filter_complex_threads 1',
           '-crf 23',
           '-c:a aac',
-          '-b:a 192k',
+          '-b:a 128k', // Lower audio bitrate slightly for speed
           '-pix_fmt yuv420p',
           '-shortest',
           '-f mp4',
@@ -230,14 +240,26 @@ async function main() {
 
   const assetPaths = imageFiles.map((f) => join(ASSETS_DIR, f));
 
-  const presets = ['fast', 'ultrafast'];
+  const presets = ['fast', 'superfast', 'ultrafast'];
+  // We will handle 'fast_540p' as a special case in the loop logic if needed,
+  // or just add a 'resolution' param to compose options.
+
   const results: any[] = [];
 
-  for (const preset of presets) {
-    const outputFile = OUTPUT_FILE.replace('.mp4', `_${preset}.mp4`);
-    console.log(`\n--- BENCHMARK: PRESET ${preset.toUpperCase()} ---`);
+  // Define test cases
+  const testCases = [
+    { name: 'fast_720p', preset: 'fast', width: 720 },
+    { name: 'superfast_720p', preset: 'superfast', width: 720 },
+    { name: 'ultrafast_720p', preset: 'ultrafast', width: 720 },
+    { name: 'fast_540p', preset: 'fast', width: 540 },
+    { name: 'superfast_540p', preset: 'superfast', width: 540 },
+  ];
 
-    logMemoryUsage(`START_${preset}`);
+  for (const test of testCases) {
+    const outputFile = OUTPUT_FILE.replace('.mp4', `_${test.name}.mp4`);
+    console.log(`\n--- BENCHMARK: ${test.name.toUpperCase()} ---`);
+
+    logMemoryUsage(`START_${test.name}`);
     const startTime = Date.now();
 
     const composer = new VideoComposer();
@@ -245,7 +267,8 @@ async function main() {
       audioPath,
       captionPath,
       assetPaths,
-      preset,
+      preset: test.preset,
+      width: test.width,
     });
 
     const outputStream = createWriteStream(outputFile);
@@ -254,7 +277,7 @@ async function main() {
         ? (videoStream as any).getFFmpegProc()
         : null;
       if (ffmpegProc && ffmpegProc.pid) {
-        logMemoryUsage(`PIPING_${preset}`);
+        logMemoryUsage(`PIPING_${test.name}`);
         console.log(`[MEMORY] [FFMPEG] PID ${ffmpegProc.pid}: ${getProcessMemory(ffmpegProc.pid)}`);
       }
     }, 2000);
@@ -270,12 +293,12 @@ async function main() {
     const duration = (endTime - startTime) / 1000;
 
     results.push({
-      preset,
+      name: test.name,
       time: duration.toFixed(2) + 's',
       size: (stats.size / 1024 / 1024).toFixed(2) + ' MB',
     });
 
-    logMemoryUsage(`END_${preset}`);
+    logMemoryUsage(`END_${test.name}`);
   }
 
   console.log('\n' + '='.repeat(30));
