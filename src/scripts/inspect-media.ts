@@ -16,7 +16,7 @@ const AppDataSource = new DataSource({
 });
 
 async function inspectMedia() {
-  const mediaId = '61c8686c-5407-40fc-b60c-3707eab4bf74';
+  const mediaId = '8d8a4fb8-1dd1-455f-bc86-2b9709648ef0';
   await AppDataSource.initialize();
 
   console.log('--- Media Details ---');

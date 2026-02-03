@@ -55,13 +55,17 @@ export class GeminiScriptProvider implements IScriptGenerator {
         ? `\nNarration Style & Persona: ${optionsOrTopic.audioPrompt}. Ensure the script's tone and structure match this style.`
         : '';
 
-    const prompt = `You are a professional video script writer.
-Create a ${duration}-second video script about: "${topic}".
+    const prompt = `You are a professional video script writer and creative director.
+Create a ${duration}-second video script based on the user's input: "${topic}".
+Interpret the user's intent to determine the best visual style, mood, and tone.
 Language: ${language}.${audioStyle}
 Output ONLY valid JSON. Do not include any markdown formatting, backticks, or code blocks. Just the raw JSON object.
 Structure:
 {
   "topic": "${topic}",
+  "visual_style": "Concise description of the visual aesthetic (e.g., Cinematic, Minimalist, Cyberpunk)",
+  "audio_mood": "Description of the background music mood and voiceover tone",
+  "caption_style": "Suggested caption style (e.g., Bold, Typewriter, Minimal)",
   "total_duration": ${duration},
   "scenes": [
     {

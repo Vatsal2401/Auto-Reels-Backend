@@ -161,21 +161,29 @@ export class MediaOrchestratorService {
   // --- Step Handlers ---
 
   private async handleIntentStep(media: Media): Promise<string> {
-    const interpreter = this.aiFactory.getIntentInterpreter('gemini');
-    const userPrompt = media.input_config?.topic || 'Inspiration';
+    // UNIFIED STEP OPTIMIZATION:
+    // We skip the explicit Intent AI call here to save time.
+    // The "Script" step will now handle "intent interpretation" implicitly.
+    // We just create a placeholder asset so dependencies in the DAG are satisfied.
 
-    const interpreted = await interpreter.interpretIntent(userPrompt);
+    const placeholderIntent = {
+      script_prompt: media.input_config?.topic || 'Inspiration',
+      image_prompt: '', // Will be populated by Script Step
+      audio_prompt: '', // Will be populated by Script Step
+      caption_prompt: '', // Will be populated by Script Step
+      rendering_hints: { fast_mode: true },
+    };
 
     const blobId = await this.storageService.upload({
       userId: media.user_id,
       mediaId: media.id,
       type: 'intent',
       step: 'intent',
-      buffer: Buffer.from(JSON.stringify(interpreted)),
+      buffer: Buffer.from(JSON.stringify(placeholderIntent)),
       fileName: 'intent.json',
     });
 
-    await this.addAsset(media.id, MediaAssetType.INTENT, blobId, interpreted);
+    await this.addAsset(media.id, MediaAssetType.INTENT, blobId, placeholderIntent);
     return blobId;
   }
 
@@ -219,6 +227,31 @@ export class MediaOrchestratorService {
       duration: scriptJSON.total_duration,
       text: scriptText,
     });
+
+    // UNIFIED STEP: Back-propagate generated style metadata to the INTENT asset
+    if (intentAsset && scriptJSON.visual_style) {
+      const updatedIntent = {
+        ...intentData,
+        image_prompt: scriptJSON.visual_style,
+        audio_prompt: scriptJSON.audio_mood,
+        caption_prompt: scriptJSON.caption_style,
+      };
+
+      // 1. Update Asset Metadata in DB
+      await this.assetRepository.update(intentAsset.id, { metadata: updatedIntent });
+
+      // 2. Update Blob Content (Optional, but good for consistency)
+      await this.storageService.upload({
+        userId: media.user_id,
+        mediaId: media.id,
+        type: 'intent',
+        step: 'intent',
+        buffer: Buffer.from(JSON.stringify(updatedIntent)),
+        fileName: 'intent.json',
+        overwrite: true, // Ensure we update the file
+      });
+    }
+
     return blobId;
   }
 

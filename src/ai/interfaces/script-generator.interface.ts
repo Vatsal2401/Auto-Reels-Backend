@@ -10,6 +10,9 @@ export interface ScriptJSON {
   scenes: ScriptScene[];
   total_duration: number;
   topic: string;
+  visual_style?: string;
+  audio_mood?: string;
+  caption_style?: string;
 }
 
 export interface ScriptGenerationOptions {
