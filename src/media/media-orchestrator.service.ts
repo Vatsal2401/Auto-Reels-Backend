@@ -248,7 +248,6 @@ export class MediaOrchestratorService {
         step: 'intent',
         buffer: Buffer.from(JSON.stringify(updatedIntent)),
         fileName: 'intent.json',
-        overwrite: true, // Ensure we update the file
       });
     }
 

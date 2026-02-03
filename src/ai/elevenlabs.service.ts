@@ -24,12 +24,28 @@ export class ElevenLabsService {
     try {
       const { voices } = await this.client.voices.getAll();
 
-      return voices.map((v) => ({
+      const normalizedVoices = voices.map((v) => ({
         value: v.voiceId,
         label: v.name || 'Unnamed Voice',
         meta: `${v.labels?.accent || 'Global'} ${v.labels?.gender || 'Neural'}`,
         description: v.labels?.description || '',
       }));
+
+      // FEATURED VOICE: Mad Scientist (Dr. Von)
+      // ID: yjJ45q8TVCrtMhEKurxY
+      // This is a shared voice. If not in user's library, we force it here.
+      // NOTE: Using this might fail if the user is on a Free Tier.
+      const madScientistId = 'yjJ45q8TVCrtMhEKurxY';
+      if (!normalizedVoices.find((v) => v.value === madScientistId)) {
+        normalizedVoices.unshift({
+          value: madScientistId,
+          label: 'Dr. Von (Mad Scientist)',
+          meta: 'American Male Neural',
+          description: 'Quirky, energetic, mad scientist voice. (Requires Creator Tier)',
+        });
+      }
+
+      return normalizedVoices;
     } catch (error) {
       this.logger.error('Failed to fetch voices from ElevenLabs SDK', error);
       throw error;
