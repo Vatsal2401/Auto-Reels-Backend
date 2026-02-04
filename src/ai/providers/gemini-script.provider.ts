@@ -5,6 +5,7 @@ import {
   ScriptGenerationOptions,
 } from '../interfaces/script-generator.interface';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getScriptGenerationPrompt, getSimpleScriptPrompt } from '../prompts/script-prompts';
 
 @Injectable()
 export class GeminiScriptProvider implements IScriptGenerator {
@@ -24,10 +25,7 @@ export class GeminiScriptProvider implements IScriptGenerator {
 
   async generateScript(topic: string): Promise<string> {
     if (!this.model) throw new Error('Gemini API key missing');
-
-    const prompt = `Write a short 30-second video script about: "${topic}". 
-    Format it as a sequence of scenes with visual descriptions and narration.`;
-
+    const prompt = getSimpleScriptPrompt(topic);
     const result = await this.model.generateContent(prompt);
     const response = await result.response;
     return response.text();
@@ -39,6 +37,8 @@ export class GeminiScriptProvider implements IScriptGenerator {
     let topic: string;
     let language = 'English (US)';
     let duration = 30;
+    let audioStyle = '';
+    let visualStyle = 'Cinematic';
 
     if (typeof optionsOrTopic === 'string') {
       topic = optionsOrTopic;
@@ -48,35 +48,16 @@ export class GeminiScriptProvider implements IScriptGenerator {
       if (optionsOrTopic.targetDurationSeconds) {
         duration = optionsOrTopic.targetDurationSeconds;
       }
+      audioStyle = optionsOrTopic.audioPrompt || '';
+      // EXTRACT VISUAL STYLE IF PASSED IN
+      visualStyle = (optionsOrTopic as any).visualStyle || 'Cinematic';
     }
 
-    const audioStyle =
-      typeof optionsOrTopic !== 'string' && optionsOrTopic.audioPrompt
-        ? `\nNarration Style & Persona: ${optionsOrTopic.audioPrompt}. Ensure the script's tone and structure match this style.`
-        : '';
+    const prompt = getScriptGenerationPrompt(topic, duration, language, audioStyle, visualStyle);
 
-    const prompt = `You are a professional video script writer and creative director.
-Create a ${duration}-second video script based on the user's input: "${topic}".
-Interpret the user's intent to determine the best visual style, mood, and tone.
-Language: ${language}.${audioStyle}
-Output ONLY valid JSON. Do not include any markdown formatting, backticks, or code blocks. Just the raw JSON object.
-Structure:
-{
-  "topic": "${topic}",
-  "visual_style": "Concise description of the visual aesthetic (e.g., Cinematic, Minimalist, Cyberpunk)",
-  "audio_mood": "Description of the background music mood and voiceover tone",
-  "caption_style": "Suggested caption style (e.g., Bold, Typewriter, Minimal)",
-  "total_duration": ${duration},
-  "scenes": [
-    {
-      "scene_number": 1,
-      "description": "Visual description of the scene",
-      "image_prompt": "Detailed AI image generation prompt for this scene",
-      "duration": 5,
-      "audio_text": "Narration text for this scene (approx 15-20 words) in ${language}"
-    }
-  ]
-}`;
+    this.logger.debug(
+      `Generating script with topic: ${topic}, duration: ${duration}, style: ${visualStyle}`,
+    );
 
     const result = await this.model.generateContent(prompt);
     const response = await result.response;

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { IImageGenerator, ImageGenerationOptions } from '../interfaces/image-generator.interface';
 import { GoogleGenAI } from '@google/genai';
+import { getImageGenerationPrompt } from '../prompts/image-prompts';
 
 @Injectable()
 export class GeminiImageProvider implements IImageGenerator {
@@ -28,13 +29,9 @@ export class GeminiImageProvider implements IImageGenerator {
       throw new Error('Gemini client not initialized (missing key)');
     }
 
-    let prompt = options.prompt;
     const aspectRatio = options.aspectRatio || '16:9';
     const style = options.style || '';
-
-    if (style && style !== 'auto') {
-      prompt = `${style} style. ${prompt}`;
-    }
+    const prompt = getImageGenerationPrompt(options.prompt, style);
 
     this.logger.log(`Generating ${options.count} images with Gemini (Imagen 4)...`);
     this.logger.debug(`FULL PROMPT: ${prompt}`);
@@ -53,7 +50,6 @@ export class GeminiImageProvider implements IImageGenerator {
 
       this.logger.debug(`Gemini Imagen 4 Response: ${JSON.stringify(response, null, 2)}`);
 
-      // FALLBACK to Imagen 3 if Imagen 4 returns no images
       if (!response || !response.generatedImages || response.generatedImages.length === 0) {
         this.logger.warn(
           `Imagen 4.0 returned no images. Falling back to Imagen 4.0 FAST... Prompt: ${prompt.substring(0, 50)}`,
@@ -81,12 +77,10 @@ export class GeminiImageProvider implements IImageGenerator {
       return response.generatedImages.map((img: any) => {
         const imgObj = img.image as any;
 
-        // Handle new SDK imageBytes format
         if (imgObj && imgObj.imageBytes) {
           return Buffer.from(imgObj.imageBytes, 'base64');
         }
 
-        // Keep existing fallbacks for compatibility
         if (imgObj && imgObj.base64) {
           return Buffer.from(imgObj.base64, 'base64');
         } else if (imgObj instanceof Uint8Array) {
