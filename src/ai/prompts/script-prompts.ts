@@ -7,64 +7,61 @@ export function getScriptGenerationPrompt(
 ): string {
     const audioStyleSection = audioStyle ? `\nNARRATION STYLE: ${audioStyle}.` : '';
 
-    // Calculate target word counts
-    // 150 wpm is a good standard.
-    // 45s -> ~110 words MAX.
-    const targetWords = Math.floor(duration * 2.1);
-    const maxWords = Math.floor(duration * 2.5);
+    // Calculate strict word counts
+    // For 45s, natural pacing is ~95-100 words.
+    const targetWords = Math.floor(duration * 1.8);
+    const absoluteMaxWords = Math.floor(duration * 2.1);
 
     return `You are a professional social media scriptwriter.
 Create a ${duration}-second video script about: "${topic}".
 THEME: ${visualStyle}.
 LANGUAGE: ${language}.${audioStyleSection}
 
-STRICT DURATION RULES (CRITICAL):
-1. TOTAL LENGTH: The script MUST be between ${targetWords} and ${maxWords} words total.
-2. LIMIT: DO NOT exceed ${maxWords} words. If you do, the audio will be too long.
-3. SCENE BREAKDOWN: For a ${duration}s video, provide exactly ${Math.ceil(duration / 5)} scenes.
-4. WORD DISTRIBUTION: Each 5-second scene should have roughly 15-20 words.
+STRICT DURATION CONTROL (LIFE-OR-DEATH):
+1. **TOTAL WORD LIMIT**: The ENTIRE script (sum of all scenes) MUST be between ${targetWords} and ${absoluteMaxWords} words.
+2. **ABSOLUTE MAXIMUM**: DO NOT, under any circumstances, exceed ${absoluteMaxWords} words. If you write 150+ words, the video will be broken and 2 minutes long. 
+3. **SCENE COUNT**: Provide exactly ${Math.ceil(duration / 5)} scenes.
+4. **WORDS PER SCENE**: Each 5-second scene should have exactly 10-12 words. Simple, punchy sentences only.
+5. **NO HALLUCINATION**: Count your words. If you see more than 2 sentences in a scene, it's too long. Shorten it.
 
-JSON FORMATTING RULES:
+JSON FORMATTING:
 - Output ONLY valid JSON.
-- NO comments inside JSON.
-- NO trailing commas.
-- NO markdown formatting.
+- NO comments. NO markdown.
 
 Structure:
 {
   "topic": "${topic}",
-  "audio_mood": "Mood description",
+  "audio_mood": "...",
   "total_duration": ${duration},
   "scenes": [
     {
       "scene_number": 1,
-      "description": "Visual setting",
-      "image_prompt": "Cinematic prompt in ${visualStyle} style.",
+      "description": "...",
+      "image_prompt": "...",
       "duration": 5,
-      "audio_text": "Narration text in ${language} (approx 18 words)"
+      "audio_text": "Exactly 10-12 words in ${language}."
     }
   ]
 }`;
 }
 
 export function getSimpleScriptPrompt(topic: string): string {
-    return `Write a 30-second video script about: "${topic}". 
-    Exactly 75 words total. 6 scenes. JSON format.`;
+    return `Write a 30-second script about ${topic}. MAX 65 words total. JSON only.`;
 }
 
 export function getOpenAIScriptSystemPrompt(duration: string | number, language: string): string {
     const numDuration = Number(duration) || 30;
-    const targetWords = Math.floor(numDuration * 2.1);
-    const maxWords = Math.floor(numDuration * 2.5);
+    const targetWords = Math.floor(numDuration * 1.8);
+    const maxWords = Math.floor(numDuration * 2.1);
 
     return `You are a viral script writer.
 Create a ${numDuration}-second Reel script.
 LANGUAGE: ${language}.
 
 STRICT CONSTRAINTS:
-- Word count MUST be between ${targetWords} and ${maxWords}.
-- ABSOLUTELY NO more than ${maxWords} words.
-- Format: JSON only. No comments. No markdown.
+- TOTAL WORDS MUST NOT EXCEED ${maxWords}.
+- Each 5s scene = 10-12 words.
+- If you write too much, the audio will fail.
 
 {
   "scenes": [
@@ -73,7 +70,7 @@ STRICT CONSTRAINTS:
       "description": "...",
       "image_prompt": "...",
       "duration": 5,
-      "audio_text": "Narration (approx 18 words)"
+      "audio_text": "10-12 words narration"
     }
   ],
   "total_duration": ${numDuration},
@@ -82,5 +79,5 @@ STRICT CONSTRAINTS:
 }
 
 export function getOpenAISimpleScriptPrompt(topic: string): string {
-    return `Write a 45-second script about ${topic}. Strict limit: 100 words total. JSON only.`;
+    return `Write a 45-second script about ${topic}. ABSOLUTE LIMIT: 90 words. JSON only.`;
 }
