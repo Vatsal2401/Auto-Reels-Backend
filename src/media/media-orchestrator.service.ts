@@ -375,7 +375,7 @@ export class MediaOrchestratorService {
       type: 'caption',
       step: 'captions',
       buffer: captionBuffer,
-      fileName: `captions.srt`,
+      fileName: `captions.ass`,
     });
 
     await this.addAsset(media.id, MediaAssetType.CAPTION, blobId, {

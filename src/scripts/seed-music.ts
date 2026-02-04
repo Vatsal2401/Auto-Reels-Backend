@@ -1,6 +1,7 @@
+import * as dotenv from 'dotenv';
+dotenv.config();
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
-import { MusicService } from '../media/music.service';
 import { Repository } from 'typeorm';
 import { BackgroundMusic } from '../media/entities/background-music.entity';
 import { getRepositoryToken } from '@nestjs/typeorm';
