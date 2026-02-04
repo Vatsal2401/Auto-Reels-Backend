@@ -1,0 +1,24 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 720
+PlayResY: 1280
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: ViralPop,Arial Black,24,&H0000FF00,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,4,2,2,10,10,50,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:01.50,ViralPop,,0,0,0,,{\k150}REPURPOSE
+Dialogue: 0,0:00:01.50,0:00:03.00,ViralPop,,0,0,0,,{\k55}YOUR {\k96}CONTENT
+Dialogue: 0,0:00:03.00,0:00:04.47,ViralPop,,0,0,0,,{\k148}TURN
+Dialogue: 0,0:00:04.47,0:00:05.97,ViralPop,,0,0,0,,{\k150}LONG-FORM
+Dialogue: 0,0:00:05.97,0:00:07.47,ViralPop,,0,0,0,,{\k150}VIDEOS
+Dialogue: 0,0:00:07.47,0:00:08.95,ViralPop,,0,0,0,,{\k148}INTO
+Dialogue: 0,0:00:08.95,0:00:10.45,ViralPop,,0,0,0,,{\k150}ENGAGING
+Dialogue: 0,0:00:10.45,0:00:11.95,ViralPop,,0,0,0,,{\k150}VERTICAL
+Dialogue: 0,0:00:11.95,0:00:13.45,ViralPop,,0,0,0,,{\k150}SHORTS
+Dialogue: 0,0:00:13.45,0:00:14.69,ViralPop,,0,0,0,,{\k123}FOR
+Dialogue: 0,0:00:14.69,0:00:16.19,ViralPop,,0,0,0,,{\k150}INSTAGRAM
+Dialogue: 0,0:00:16.19,0:00:17.69,ViralPop,,0,0,0,,{\k45}AND {\k105}YOUTUBE

@@ -4,6 +4,7 @@ import ffmpeg from 'fluent-ffmpeg';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { writeFileSync, unlinkSync } from 'fs';
+import { AssSubtitleProvider, AssTiming } from './ass-subtitle.provider';
 
 @Injectable()
 export class LocalCaptionProvider implements ICaptionGenerator {
@@ -15,44 +16,40 @@ export class LocalCaptionProvider implements ICaptionGenerator {
   private readonly MAX_CHARS_PER_LINE = 28;
   private readonly MAX_WORDS_PER_CAPTION = 6;
   private readonly MIN_WORDS_PER_CAPTION = 2;
-  private readonly MAX_TOTAL_CAPTIONS = 50; // Prevention of overflow for long scripts
+  private readonly MAX_TOTAL_CAPTIONS = 50;
 
-  // Words to omit for punchy, editorial style
-  private readonly FILLER_WORDS = new Set([
-    'um',
-    'uh',
-    'er',
-    'ah',
-    'like',
-    'you know',
-    'basically',
-    'actually',
-    'literally',
-    'so',
-    'just',
-    'well',
-    'anyway',
-    'anyhow',
-  ]);
+  constructor(private readonly assProvider: AssSubtitleProvider) {}
 
-  async generateCaptions(audioBuffer: Buffer, script?: string): Promise<Buffer> {
+  async generateCaptions(
+    audioBuffer: Buffer,
+    script?: string,
+    _prompt?: string,
+    timing: 'sentence' | 'word' = 'sentence',
+    config: any = {},
+  ): Promise<Buffer> {
     try {
       if (!script) return Buffer.from('', 'utf-8');
 
-      this.logger.log('Generating Cinematic Local Captions...');
+      this.logger.log('Generating Advanced SubStation Alpha (ASS) Captions...');
 
-      // 1. Get exact audio duration using ffmpeg
+      // 1. Get exact audio duration
       const duration = await this.getAudioDuration(audioBuffer);
-      if (duration <= 0) {
-        this.logger.warn('Could not determine audio duration, captions might be out of sync');
-      }
 
-      // 2. Generate Optimized SRT with word-weighted pacing
-      const srt = this.generateSyncedSRT(script, duration);
+      // 2. Generate Timing Data
+      const assTimings = this.generateAssTimings(script, duration, timing);
 
-      return Buffer.from(srt, 'utf-8');
+      // 3. Generate ASS Content
+      const assConfig = {
+        preset: config.preset || 'clean-minimal',
+        position: config.position || 'bottom',
+        timing: timing,
+      };
+
+      const assContent = this.assProvider.generateAssContent(assTimings, assConfig);
+
+      return Buffer.from(assContent, 'utf-8');
     } catch (error) {
-      this.logger.error('Cinematic caption generation failed:', error);
+      this.logger.error('Caption generation failed:', error);
       return Buffer.from('', 'utf-8');
     }
   }
@@ -76,113 +73,82 @@ export class LocalCaptionProvider implements ICaptionGenerator {
     }
   }
 
-  private generateSyncedSRT(script: string, totalDuration: number): string {
-    // 1. Clean and filter script
-    const words = script
+  private generateAssTimings(
+    script: string,
+    totalDuration: number,
+    timingMode: 'sentence' | 'word',
+  ): AssTiming[] {
+    const rawWords = script
       .replace(/\n/g, ' ')
-      .replace(/[.,!?;:]/g, '') // Remove punctuation for timing calc
+      .replace(/[.,!?;:]/g, '')
       .split(/\s+/)
-      .filter((w) => w && !this.FILLER_WORDS.has(w.toLowerCase()));
+      .filter((w) => w.length > 0);
 
-    // 2. Group into Cinematic Blocks
-    const blocks: string[] = [];
-    let currentBlock: string[] = [];
+    const blocks: string[][] = [];
 
-    for (const word of words) {
-      const potentialBlock = [...currentBlock, word].join(' ');
-
-      if (
-        currentBlock.length >= this.MAX_WORDS_PER_CAPTION ||
-        potentialBlock.length > this.MAX_CHARS_PER_LINE
-      ) {
-        if (currentBlock.length > 0) {
-          blocks.push(currentBlock.join(' '));
+    if (timingMode === 'word') {
+      // Grouping for word mode to keep lines readable (1-3 words)
+      for (let i = 0; i < rawWords.length; i++) {
+        const current = rawWords[i];
+        const next = rawWords[i + 1];
+        if (next && current.length < 5 && current.length + next.length < 12) {
+          blocks.push([current, next]);
+          i++;
+        } else {
+          blocks.push([current]);
+        }
+      }
+    } else {
+      // Sentence grouping
+      let currentBlock: string[] = [];
+      for (const word of rawWords) {
+        if (
+          currentBlock.length >= this.MAX_WORDS_PER_CAPTION ||
+          [...currentBlock, word].join(' ').length > this.MAX_CHARS_PER_LINE
+        ) {
+          blocks.push(currentBlock);
           currentBlock = [word];
         } else {
-          // Single word is already too long (rare)
-          blocks.push(word);
-          currentBlock = [];
+          currentBlock.push(word);
         }
-      } else {
-        currentBlock.push(word);
       }
+      if (currentBlock.length > 0) blocks.push(currentBlock);
     }
-    if (currentBlock.length > 0) blocks.push(currentBlock.join(' '));
 
-    // Cap total captions to maintain performance and readability
     const limitedBlocks = blocks.slice(0, this.MAX_TOTAL_CAPTIONS);
-    if (limitedBlocks.length === 0) return '';
 
-    // 3. Word-Weighted Timing Calculation
-    // Use character counts of words to weigh duration (longer words = more time)
-    const blockWeights = limitedBlocks.map((block) => {
-      // Base weight is character length + a small constant per word for overhead
-      return block.length + block.split(' ').length * 2;
-    });
-
+    // Weighting
+    const blockWeights = limitedBlocks.map((b) => b.join(' ').length + b.length * 2);
     const totalWeight = blockWeights.reduce((a, b) => a + b, 0);
-    const durations = blockWeights.map((w) => (w / totalWeight) * totalDuration);
+    const blockDurations = blockWeights.map((w) => (w / totalWeight) * totalDuration);
 
-    // 4. Enforce Duration Constraints and Pacing
-    let srt = '';
     let currentTime = 0;
+    return limitedBlocks.map((words, index) => {
+      const start = currentTime;
+      const duration = Math.min(
+        blockDurations[index],
+        timingMode === 'word' ? 1.5 : this.MAX_CAPTION_DURATION,
+      );
+      const end = Math.min(start + duration, totalDuration);
 
-    limitedBlocks.forEach((text, index) => {
-      let blockDuration = durations[index];
+      currentTime = end;
 
-      // Apply Min/Max constraints
-      blockDuration = Math.max(this.MIN_CAPTION_DURATION, blockDuration);
-      blockDuration = Math.min(this.MAX_CAPTION_DURATION, blockDuration);
+      const timing: AssTiming = {
+        text: words.join(' ').toUpperCase(),
+        start,
+        end,
+      };
 
-      // Optional: Slight emphasis for first and last caption (linger 10% longer)
-      if (index === 0 || index === limitedBlocks.length - 1) {
-        blockDuration *= 1.1;
+      if (timingMode === 'word') {
+        // Distribute block duration among words for karaoke tags
+        const totalChars = words.join('').length;
+        timing.words = words.map((w) => ({
+          word: w.toUpperCase(),
+          durationMs: Math.round((w.length / totalChars) * duration * 1000),
+        }));
       }
 
-      const startTime = currentTime;
-      const endTime = Math.min(startTime + blockDuration, totalDuration);
-
-      // Break if we exceed total audio duration
-      if (startTime >= totalDuration) return;
-
-      // Header and Timing
-      srt += `${index + 1}\n`;
-      srt += `${this.formatTime(startTime)} --> ${this.formatTime(endTime)}\n`;
-
-      // Editorial Formatting (Uppercase for punchiness)
-      const punchyText = text.toUpperCase();
-
-      // Smart Line Break (if still needed, though we split at 28 chars)
-      srt += `${this.smartLineBreak(punchyText, 24)}\n\n`;
-
-      currentTime = endTime;
+      return timing;
     });
-
-    return srt;
-  }
-
-  private smartLineBreak(text: string, maxLen: number): string {
-    if (text.length <= maxLen) return text;
-    const words = text.split(' ');
-    let line1 = '';
-    let line2 = '';
-    for (const word of words) {
-      if ((line1 + word).length <= maxLen && !line2) {
-        line1 += (line1 ? ' ' : '') + word;
-      } else {
-        line2 += (line2 ? ' ' : '') + word;
-      }
-    }
-    return line2 ? `${line1}\n${line2}` : line1;
-  }
-
-  private formatTime(seconds: number): string {
-    const date = new Date(0);
-    date.setMilliseconds(seconds * 1000);
-    const hours = date.getUTCHours().toString().padStart(2, '0');
-    const minutes = date.getUTCMinutes().toString().padStart(2, '0');
-    const secs = date.getUTCSeconds().toString().padStart(2, '0');
-    const ms = date.getUTCMilliseconds().toString().padStart(3, '0');
-    return `${hours}:${minutes}:${secs},${ms}`;
   }
 }

@@ -13,6 +13,7 @@ import { AiProviderFactory } from '../ai/ai-provider.factory';
 import { ScriptJSON } from '../ai/interfaces/script-generator.interface';
 import { GeminiTTSProvider } from '../ai/providers/gemini-tts.provider';
 import { OpenAITTSProvider } from '../ai/providers/openai-tts.provider';
+import { BackgroundMusic } from './entities/background-music.entity';
 
 @Injectable()
 export class MediaOrchestratorService {
@@ -33,6 +34,8 @@ export class MediaOrchestratorService {
     @Inject('IStorageService') private storageService: IStorageService,
     @Inject('IVideoRenderer') private videoRenderer: IVideoRenderer,
     private readonly renderQueueService: RenderQueueService,
+    @InjectRepository(BackgroundMusic)
+    private musicRepository: Repository<BackgroundMusic>,
   ) {}
 
   async processMedia(mediaId: string): Promise<void> {
@@ -345,12 +348,26 @@ export class MediaOrchestratorService {
     });
     const intentData = intentAsset ? (intentAsset.metadata as any) : null;
 
-    const captionProvider = this.aiFactory.getCaptionGenerator('replicate');
-    const captionBuffer = await captionProvider.generateCaptions(
-      audioBuffer,
-      scriptData.text,
-      intentData?.caption_prompt,
-    );
+    // --- CAPTIONS TOGGLE ---
+    const captionsConfig = media.input_config?.captions || {};
+    // Default to enabled if not specified, for backward compatibility
+    const captionsEnabled = captionsConfig.enabled !== false;
+
+    let captionBuffer: Buffer;
+
+    if (!captionsEnabled) {
+      this.logger.log(`Captions disabled for media ${media.id}. Skipping generation.`);
+      captionBuffer = Buffer.from('', 'utf-8'); // Empty file
+    } else {
+      const captionProvider = this.aiFactory.getCaptionGenerator('local');
+      captionBuffer = await captionProvider.generateCaptions(
+        audioBuffer,
+        scriptData.text,
+        intentData?.caption_prompt,
+        captionsConfig.timing || 'sentence', // Pass timing mode
+        captionsConfig, // Pass full config for ASS presets/positioning
+      );
+    }
 
     const blobId = await this.storageService.upload({
       userId: media.user_id,
@@ -358,9 +375,14 @@ export class MediaOrchestratorService {
       type: 'caption',
       step: 'captions',
       buffer: captionBuffer,
+      fileName: `captions.srt`,
     });
 
-    await this.addAsset(media.id, MediaAssetType.CAPTION, blobId);
+    await this.addAsset(media.id, MediaAssetType.CAPTION, blobId, {
+      // Store config in metadata for Render step to read easily if needed
+      // (though Render step reads input_config usually)
+      skipped: !captionsEnabled,
+    });
     return blobId;
   }
 
@@ -452,6 +474,16 @@ export class MediaOrchestratorService {
     });
     const intentData = intentAsset ? (intentAsset.metadata as any) : null;
 
+    // Handle Background Music
+    let musicBlobId: string | undefined;
+    const musicConfig = media.input_config?.music;
+    if (musicConfig?.id) {
+      const musicEntity = await this.musicRepository.findOne({ where: { id: musicConfig.id } });
+      if (musicEntity) {
+        musicBlobId = musicEntity.blob_storage_id;
+      }
+    }
+
     // PRODUCTION CHANGE: Delegate to worker queue
     await this.renderQueueService.queueRenderJob({
       mediaId: media.id,
@@ -462,6 +494,7 @@ export class MediaOrchestratorService {
         audio: audioAsset.blob_storage_id,
         caption: captionAsset.blob_storage_id,
         images: imageAssets.map((a) => a.blob_storage_id),
+        music: musicBlobId,
       },
       options: {
         preset: 'superfast',
@@ -469,6 +502,8 @@ export class MediaOrchestratorService {
           ...intentData?.rendering_hints,
           fast_mode: true, // Signal generic fast mode
           smart_micro_scenes: true, // Signal to use new engine
+          captions: media.input_config?.captions, // Pass caption styles
+          musicVolume: musicConfig?.volume, // Pass music volume
         },
       },
     });

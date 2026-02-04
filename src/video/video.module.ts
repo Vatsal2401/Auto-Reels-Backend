@@ -12,6 +12,7 @@ import { AIModule } from '../ai/ai.module';
 import { StorageModule } from '../storage/storage.module';
 import { RenderModule } from '../render/render.module';
 import { VideoGenerationService } from './video-generation.service';
+import { MediaModule } from '../media/media.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { VideoGenerationService } from './video-generation.service';
     AIModule,
     StorageModule,
     RenderModule,
+    MediaModule,
   ],
   controllers: [VideoController],
   providers: [VideoService, VideoGenerationService],

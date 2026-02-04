@@ -91,27 +91,68 @@ export class FFmpegRendererProvider implements IVideoRenderer {
         }
 
         // --- FINAL COMPOSITION ---
-        // Audio Input is next available index (after all images)
-        const audioIndex = assetPaths.length > 0 ? assetPaths.length : 1;
+        // Audio Inputs
+        // 1. Voiceover (always present at audioIndex)
+        const voiceoverIndex = assetPaths.length > 0 ? assetPaths.length : 1;
         command.input(audioPath);
 
+        // 2. Background Music (optional)
+        let audioOutput = `${voiceoverIndex}:a`; // Default to just voiceover
+
+        if (options.musicPath) {
+          const musicIndex = voiceoverIndex + 1;
+          command.input(options.musicPath);
+
+          // Configure Music Volume and Loop
+          // volume=0.1 [music]; [music] aloop=loop=-1:size=2e+09 [looped_music]; [looped_music] apad [padded_music];
+          // amix=inputs=2:duration=first:dropout_transition=2 [a_out]
+          // note: 'duration=first' ensures we end when voiceover ends (plus buffer)
+
+          const musicVolume = options.musicVolume || 0.1;
+
+          complexFilters.push(
+            `[${musicIndex}:a]volume=${musicVolume},aloop=loop=-1:size=2e+09[music_looped]`,
+            `[${voiceoverIndex}:a][music_looped]amix=inputs=2:duration=first:dropout_transition=2[a_mixed]`,
+          );
+
+          audioOutput = 'a_mixed';
+        }
+
         // Burn Captions on 'v_merged'
-        complexFilters.push(
-          `[v_merged]subtitles='${captionPath}':force_style='FontSize=16,PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=1,Outline=1,Shadow=0,Bold=1,Alignment=2,MarginV=50'[v_final]`,
-        );
+        // Using force_style for maximum reliability and visibility
+        if (captionPath.endsWith('.ass')) {
+          complexFilters.push(`[v_merged]subtitles='${captionPath}'[v_final]`);
+        } else {
+          const alignment =
+            options.captions?.position === 'top'
+              ? 8
+              : options.captions?.position === 'center'
+                ? 5
+                : 2;
+          const marginV =
+            options.captions?.position === 'top'
+              ? 100
+              : options.captions?.position === 'center'
+                ? 50
+                : 100;
+
+          complexFilters.push(
+            `[v_merged]subtitles='${captionPath}':force_style='FontName=DejaVu Sans,FontSize=60,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,BorderStyle=1,Outline=2,Shadow=0,Bold=1,Alignment=${alignment},MarginV=${marginV}'[v_final]`,
+          );
+        }
 
         command
           .complexFilter(complexFilters)
           .outputOptions([
             '-map [v_final]',
-            `-map ${audioIndex}:a`, // Map audio correctly
+            `-map [${audioOutput}]`, // Map mixed audio
             '-c:v libx264',
             '-preset fast',
             '-crf 23',
             '-c:a aac',
             '-b:a 192k',
             '-pix_fmt yuv420p',
-            '-shortest', // Stop when audio ends
+            '-shortest', // Stop when shortest stream ends (usually video which matches voiceover duration)
             '-f mp4',
             '-movflags frag_keyframe+empty_moov+default_base_moof',
           ])

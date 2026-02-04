@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -16,6 +18,10 @@ import { MediaModule } from './media/media.module';
 
 @Module({
   imports: [
+    ServeStaticModule.forRoot({
+      rootPath: process.env.LOCAL_STORAGE_PATH || join(process.cwd(), 'storage'),
+      serveRoot: '/storage',
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',

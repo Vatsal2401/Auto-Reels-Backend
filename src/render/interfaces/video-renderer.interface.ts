@@ -6,6 +6,13 @@ export interface ComposeOptions {
   assetPaths: string[];
   duration?: number;
   rendering_hints?: any;
+  captions?: {
+    preset?: string;
+    position?: string;
+    timing?: string;
+  };
+  musicPath?: string;
+  musicVolume?: number;
 }
 
 export interface IVideoRenderer {

@@ -10,6 +10,7 @@ export interface RenderJobPayload {
     audio: string;
     caption: string;
     images: string[];
+    music?: string;
   };
   options: {
     preset: string;

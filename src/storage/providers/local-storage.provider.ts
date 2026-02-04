@@ -88,9 +88,11 @@ export class LocalStorageProvider implements IStorageService {
   }
 
   async getSignedUrl(objectId: string, _expiresIn: number = 3600): Promise<string> {
-    // For local storage, return a file:// URL
-    const absolutePath = this.getAbsolutePath(objectId);
-    return `file://${absolutePath}`;
+    // For local storage, return a public HTTP URL served by ServeStaticModule
+    // Remove 'local://' prefix if present
+    const cleanId = objectId.replace('local://', '');
+    const baseUrl = process.env.API_URL || 'http://localhost:3000';
+    return `${baseUrl}/storage/${cleanId}`;
   }
 
   private getStoragePath(

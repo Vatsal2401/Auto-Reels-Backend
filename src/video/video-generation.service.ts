@@ -9,6 +9,7 @@ import { join } from 'path';
 import { existsSync, mkdirSync, writeFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { Readable } from 'stream';
+import { MusicService } from '../media/music.service';
 
 @Injectable()
 export class VideoGenerationService {
@@ -20,6 +21,7 @@ export class VideoGenerationService {
     private readonly aiFactory: AiProviderFactory,
     @Inject('IStorageService') private readonly storageService: IStorageService,
     @Inject('IVideoRenderer') private readonly videoRenderer: IVideoRenderer,
+    private readonly musicService: MusicService,
   ) {}
 
   /**
@@ -321,18 +323,28 @@ export class VideoGenerationService {
     // Get Provider from Factory (default: replicate)
     const captionProvider = this.aiFactory.getCaptionGenerator('replicate');
 
-    // Pass actual audio buffer to provider
-    const captionBuffer = await captionProvider.generateCaptions(audioBuffer, video.script);
+    // Pass actual audio buffer to provider with metadata configs
+    const captionBuffer = await captionProvider.generateCaptions(
+      audioBuffer,
+      video.script,
+      undefined,
+      video.metadata?.captions?.timing === 'word' ? 'word' : 'sentence',
+      {
+        preset: video.metadata?.captions?.preset || 'bold-stroke',
+        position: video.metadata?.captions?.position || 'bottom',
+      },
+    );
 
-    // Cache Locally
-    writeFileSync(captionFile, captionBuffer);
+    // Cache Locally as .ass (SubStation Alpha) for rich styling
+    const captionFileAss = join(sessionDir, 'captions.ass');
+    writeFileSync(captionFileAss, captionBuffer);
 
     const captionUrl = await this.storageService.upload({
       userId: video.user_id || 'system',
       mediaId: videoId,
       type: 'caption',
       buffer: captionBuffer,
-      fileName: 'captions.srt',
+      fileName: 'captions.ass',
     });
 
     await this.videoService.updateCaptionUrl(videoId, captionUrl);
@@ -350,7 +362,7 @@ export class VideoGenerationService {
 
     // Prepare File Paths
     const audioPath = join(sessionDir, 'audio.mp3');
-    const captionPath = join(sessionDir, 'captions.srt');
+    const captionPath = join(sessionDir, 'captions.ass');
     const scriptJson = video.script_json as unknown as ScriptJSON;
     const imageCount = scriptJson.scenes.length;
     const assetPaths = Array.from({ length: imageCount }, (_, i) =>
@@ -368,12 +380,36 @@ export class VideoGenerationService {
       }
     }
 
-    this.logger.log(`Rendering with Local Paths: Audio=${audioPath}, Assets=${assetPaths.length}`);
+    // Prepare Background Music
+    let musicPath: string | undefined;
+    const musicConfig = video.metadata?.music;
+    if (musicConfig?.id) {
+      this.logger.log(`Preparing background music: ${musicConfig.id}`);
+      const musicEntity = await this.musicService.findById(musicConfig.id);
+
+      if (musicEntity) {
+        musicPath = join(sessionDir, 'music.mp3');
+        if (!existsSync(musicPath)) {
+          // Download using blob_storage_id
+          const musicBuffer = await this.storageService.download(musicEntity.blob_storage_id);
+          writeFileSync(musicPath, musicBuffer);
+        }
+      } else {
+        this.logger.warn(`Background music entity not found for ID: ${musicConfig.id}`);
+      }
+    }
+
+    this.logger.log(
+      `Rendering with Local Paths: Audio=${audioPath}, Assets=${assetPaths.length}, Music=${musicPath || 'None'}`,
+    );
 
     const videoStream = await this.videoRenderer.compose({
       audioPath,
       captionPath,
       assetPaths,
+      captions: video.metadata?.captions,
+      musicPath,
+      musicVolume: musicConfig?.volume,
     });
 
     // Upload using Stream to save memory

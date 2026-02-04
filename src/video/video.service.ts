@@ -51,6 +51,8 @@ export class VideoService {
         imageAspectRatio: dto.imageAspectRatio,
         voiceId: dto.voiceId,
         imageProvider: dto.imageProvider || 'replicate',
+        captions: dto.captions,
+        music: dto.music,
       },
     });
     return await this.videoRepository.save(video);

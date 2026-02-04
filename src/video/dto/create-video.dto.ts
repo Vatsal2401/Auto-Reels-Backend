@@ -23,4 +23,10 @@ export class CreateVideoDto {
 
   @IsString()
   imageProvider: string;
+
+  @IsString()
+  captions: any;
+
+  @IsString()
+  music: any;
 }
