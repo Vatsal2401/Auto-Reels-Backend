@@ -1,74 +1,79 @@
 export function getScriptGenerationPrompt(
-  topic: string,
-  duration: number,
-  language: string,
-  audioStyle: string = '',
-  visualStyle: string = 'Cinematic', // Receives the user's chosen style from the UI
+    topic: string,
+    duration: number,
+    language: string,
+    audioStyle: string = '',
+    visualStyle: string = 'Cinematic',
 ): string {
-  const audioStyleSection = audioStyle
-    ? `\nNARRATION STYLE: ${audioStyle}. Use this to guide sentence length and emphasis.`
-    : '';
+    const audioStyleSection = audioStyle ? `\nNARRATION STYLE: ${audioStyle}.` : '';
 
-  // Calculate minimum word count to ensure duration is met
-  // Average speaking rate is ~130-150 words per minute.
-  // For a 45s video, we need ~100-110 words.
-  const minWords = Math.floor(duration * 2.2);
+    // Calculate target word counts
+    // 150 wpm is a good standard.
+    // 45s -> ~110 words MAX.
+    const targetWords = Math.floor(duration * 2.1);
+    const maxWords = Math.floor(duration * 2.5);
 
-  return `You are a professional social media scriptwriter specializing in high-retention Reels/Shorts.
+    return `You are a professional social media scriptwriter.
 Create a ${duration}-second video script about: "${topic}".
-THEME: ${visualStyle}. Ensure all imagery and tone reflects this style.
+THEME: ${visualStyle}.
 LANGUAGE: ${language}.${audioStyleSection}
 
-DURATION & WORD-COUNT RULES (MANDATORY):
-1. TOTAL LENGTH: The script MUST be at least ${minWords} words total. 
-2. SCENE WORDS: Each 5-second scene MUST have at least 15-20 words.
-3. BE VERBOSE: Use descriptive, engaging language. If the text is too short, the video fails. 
-4. PACING: 0-3s is a "Pattern Interrupt" hook. 
+STRICT DURATION RULES (CRITICAL):
+1. TOTAL LENGTH: The script MUST be between ${targetWords} and ${maxWords} words total.
+2. LIMIT: DO NOT exceed ${maxWords} words. If you do, the audio will be too long.
+3. SCENE BREAKDOWN: For a ${duration}s video, provide exactly ${Math.ceil(duration / 5)} scenes.
+4. WORD DISTRIBUTION: Each 5-second scene should have roughly 15-20 words.
 
-Output ONLY valid JSON:
+JSON FORMATTING RULES:
+- Output ONLY valid JSON.
+- NO comments inside JSON.
+- NO trailing commas.
+- NO markdown formatting.
+
+Structure:
 {
   "topic": "${topic}",
-  "audio_mood": "Detailed description of music mood (e.g., Manic, Chill, Epic)",
+  "audio_mood": "Mood description",
   "total_duration": ${duration},
   "scenes": [
     {
       "scene_number": 1,
       "description": "Visual setting",
-      "image_prompt": "CRITICAL: Describe the scene following the ${visualStyle} style. Include lighting and composition.",
+      "image_prompt": "Cinematic prompt in ${visualStyle} style.",
       "duration": 5,
-      "audio_text": "Narration text in ${language} (MUST be 15+ words for this 5s slot)"
+      "audio_text": "Narration text in ${language} (approx 18 words)"
     }
   ]
 }`;
 }
 
 export function getSimpleScriptPrompt(topic: string): string {
-  return `Write a highly engaging 30-second video script about: "${topic}". 
-    Format with 6 scenes. Each scene needs at least 15 words of narration to fill the time.`;
+    return `Write a 30-second video script about: "${topic}". 
+    Exactly 75 words total. 6 scenes. JSON format.`;
 }
 
 export function getOpenAIScriptSystemPrompt(duration: string | number, language: string): string {
-  const numDuration = Number(duration) || 30;
-  const minWords = Math.floor(numDuration * 2.2);
+    const numDuration = Number(duration) || 30;
+    const targetWords = Math.floor(numDuration * 2.1);
+    const maxWords = Math.floor(numDuration * 2.5);
 
-  return `You are a viral script writer.
-Create a structured script for a ${numDuration}-second Reel.
+    return `You are a viral script writer.
+Create a ${numDuration}-second Reel script.
 LANGUAGE: ${language}.
 
-STRICT WORD COUNT:
-- Total words must be at least ${minWords}.
-- Short scripts are BANNED. Be descriptive and verbose.
-- Each scene needs 18-22 words for 5 seconds of footage.
+STRICT CONSTRAINTS:
+- Word count MUST be between ${targetWords} and ${maxWords}.
+- ABSOLUTELY NO more than ${maxWords} words.
+- Format: JSON only. No comments. No markdown.
 
-Return ONLY valid JSON:
 {
   "scenes": [
     {
       "scene_number": 1,
-      "description": "Visual details",
-      "image_prompt": "Cinematic AI image prompt",
+      "description": "...",
+      "image_prompt": "...",
       "duration": 5,
-      "audio_text": "Narration in ${language} (MUST be 18+ words)"
+      "audio_text": "Narration (approx 18 words)"
     }
   ],
   "total_duration": ${numDuration},
@@ -77,5 +82,5 @@ Return ONLY valid JSON:
 }
 
 export function getOpenAISimpleScriptPrompt(topic: string): string {
-  return `Write an engaging script about ${topic}. Ensure it is long enough to last 45 seconds (approx 100 words).`;
+    return `Write a 45-second script about ${topic}. Strict limit: 100 words total. JSON only.`;
 }
