@@ -504,7 +504,7 @@ export class MediaOrchestratorService {
           fast_mode: true, // Signal generic fast mode
           smart_micro_scenes: true, // Signal to use new engine
           captions: media.input_config?.captions, // Pass caption styles
-          musicVolume: musicConfig?.volume, // Pass music volume
+          musicVolume: typeof musicConfig?.volume === 'number' ? musicConfig.volume / 100 : 0.2, // Default 20%
         },
       },
     });

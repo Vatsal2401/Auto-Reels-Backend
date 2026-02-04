@@ -24,6 +24,10 @@ export class RenderQueueService {
   private renderQueue: Queue;
 
   constructor(private configService: ConfigService) {
+    if (!this.configService) {
+      this.logger.error('ConfigService is not available. Ensure it is provided in the module.');
+      return;
+    }
     const redisUrl = this.configService.get<string>('REDIS_URL');
 
     if (!redisUrl) {

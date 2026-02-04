@@ -1,18 +1,18 @@
 export function getScriptGenerationPrompt(
-    topic: string,
-    duration: number,
-    language: string,
-    audioStyle: string = '',
-    visualStyle: string = 'Cinematic',
+  topic: string,
+  duration: number,
+  language: string,
+  audioStyle: string = '',
+  visualStyle: string = 'Cinematic',
 ): string {
-    const audioStyleSection = audioStyle ? `\nNARRATION STYLE: ${audioStyle}.` : '';
+  const audioStyleSection = audioStyle ? `\nNARRATION STYLE: ${audioStyle}.` : '';
 
-    // Calculate strict word counts
-    // For 45s, natural pacing is ~95-100 words.
-    const targetWords = Math.floor(duration * 1.8);
-    const absoluteMaxWords = Math.floor(duration * 2.1);
+  // Calculate strict word counts
+  // For 45s, natural pacing is ~95-100 words.
+  const targetWords = Math.floor(duration * 1.8);
+  const absoluteMaxWords = Math.floor(duration * 2.1);
 
-    return `You are a professional social media scriptwriter.
+  return `You are a professional social media scriptwriter.
 Create a ${duration}-second video script about: "${topic}".
 THEME: ${visualStyle}.
 LANGUAGE: ${language}.${audioStyleSection}
@@ -46,15 +46,15 @@ Structure:
 }
 
 export function getSimpleScriptPrompt(topic: string): string {
-    return `Write a 30-second script about ${topic}. MAX 65 words total. JSON only.`;
+  return `Write a 30-second script about ${topic}. MAX 65 words total. JSON only.`;
 }
 
 export function getOpenAIScriptSystemPrompt(duration: string | number, language: string): string {
-    const numDuration = Number(duration) || 30;
-    const targetWords = Math.floor(numDuration * 1.8);
-    const maxWords = Math.floor(numDuration * 2.1);
+  const numDuration = Number(duration) || 30;
+  const targetWords = Math.floor(numDuration * 1.8);
+  const maxWords = Math.floor(numDuration * 2.1);
 
-    return `You are a viral script writer.
+  return `You are a viral script writer.
 Create a ${numDuration}-second Reel script.
 LANGUAGE: ${language}.
 
@@ -79,5 +79,5 @@ STRICT CONSTRAINTS:
 }
 
 export function getOpenAISimpleScriptPrompt(topic: string): string {
-    return `Write a 45-second script about ${topic}. ABSOLUTE LIMIT: 90 words. JSON only.`;
+  return `Write a 45-second script about ${topic}. ABSOLUTE LIMIT: 90 words. JSON only.`;
 }

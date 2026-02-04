@@ -6,7 +6,6 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { VideoModule } from './video/video.module';
 import { DatabaseModule } from './database/database.module';
-import { ConfigModule as AppConfigModule } from './config/config.module';
 import { AIModule } from './ai/ai.module';
 import { StorageModule } from './storage/storage.module';
 import { RenderModule } from './render/render.module';
@@ -34,7 +33,6 @@ import { MediaModule } from './media/media.module';
         limit: process.env.NODE_ENV === 'production' ? 100 : 1000, // 100 requests per minute in production
       },
     ]),
-    AppConfigModule,
     DatabaseModule,
     VideoModule,
     MediaModule,
@@ -53,4 +51,4 @@ import { MediaModule } from './media/media.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }

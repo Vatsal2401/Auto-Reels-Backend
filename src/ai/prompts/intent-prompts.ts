@@ -1,5 +1,5 @@
 export function getIntentSystemPrompt(userPrompt: string): string {
-    return `You are a World-Class Creative Director.
+  return `You are a World-Class Creative Director.
 Your task is to expand the user's idea into a high-end cinematic blueprint for a viral video.
 
 1. SCRIPT PROMPT: Focus on narrative tension. Keep it concise.

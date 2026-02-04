@@ -5,6 +5,7 @@ import * as path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 import { Media } from '../media/entities/media.entity';
 import { MediaStep } from '../media/entities/media-step.entity';
+import { BackgroundMusic } from '../media/entities/background-music.entity';
 import { MediaAsset } from '../media/entities/media-asset.entity';
 import { User } from '../auth/entities/user.entity';
 
@@ -16,7 +17,7 @@ export const AppDataSource = new DataSource({
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_DATABASE || 'ai_reels',
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-  entities: [Media, MediaStep, MediaAsset, User],
+  entities: [Media, MediaStep, MediaAsset, User, BackgroundMusic],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,
 });

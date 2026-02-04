@@ -15,44 +15,39 @@ async function bootstrap() {
 
   const categories = [
     {
-      name: 'Rise Above',
-      category: 'Motivational',
-      url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+      name: 'Viral Phonk',
+      category: 'Trending',
+      url: 'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibe-130.mp3',
     },
     {
-      name: 'Solitude',
-      category: 'Sad',
-      url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+      name: 'Chill Aesthetic',
+      category: 'Lofi',
+      url: 'https://assets.mixkit.co/music/preview/mixkit-sleepy-cat-135.mp3',
     },
     {
-      name: 'Urban Pulse',
-      category: 'Energetic',
-      url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+      name: 'Deep Cinematic',
+      category: 'Storytelling',
+      url: 'https://assets.mixkit.co/music/preview/mixkit-serene-view-443.mp3',
     },
     {
-      name: 'Serenity',
-      category: 'Calm',
-      url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
-    },
-    {
-      name: 'Epic Journey',
-      category: 'Cinematic',
-      url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
-    },
-    {
-      name: 'Midnight Study',
-      category: 'Lo-fi',
-      url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3',
-    },
-    {
-      name: 'Dark Alley',
+      name: 'Dark Mystery',
       category: 'Suspense',
-      url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-15.mp3',
+      url: 'https://assets.mixkit.co/music/preview/mixkit-under-the-stars-491.mp3',
     },
     {
-      name: 'Joyful Day',
+      name: 'Upbeat Vlog',
       category: 'Happy',
-      url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3',
+      url: 'https://assets.mixkit.co/music/preview/mixkit-fun-times-7.mp3',
+    },
+    {
+      name: 'Epic Motivation',
+      category: 'Power',
+      url: 'https://assets.mixkit.co/music/preview/mixkit-glitchy-hip-hop-752.mp3',
+    },
+    {
+      name: 'Retro Groove',
+      category: 'Vintage',
+      url: 'https://assets.mixkit.co/music/preview/mixkit-sun-and-matching-shades-177.mp3',
     },
   ];
 

@@ -20,7 +20,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { CreditsService } from '../credits/credits.service';
-import { MailService } from './mail.service';
+import { MailService } from '../mail/mail.service';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -29,7 +29,7 @@ export class AuthController {
     private authService: AuthService,
     private creditsService: CreditsService,
     private mailService: MailService,
-  ) {}
+  ) { }
 
   @Get('test-email')
   @ApiOperation({ summary: 'Test email sending' })
