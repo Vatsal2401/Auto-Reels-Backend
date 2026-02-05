@@ -360,13 +360,18 @@ export class MediaOrchestratorService {
       this.logger.log(`Captions disabled for media ${media.id}. Skipping generation.`);
       captionBuffer = Buffer.from('', 'utf-8'); // Empty file
     } else {
-      const captionProvider = this.aiFactory.getCaptionGenerator('local');
+      // Logic Switch: Use 'Karaoke' provider if style matches, otherwise default 'local'
+      const isKaraoke = captionsConfig.style?.toLowerCase() === 'karaoke';
+      const providerKey = isKaraoke ? 'karaoke' : 'local';
+
+      const captionProvider = this.aiFactory.getCaptionGenerator(providerKey);
+
       captionBuffer = await captionProvider.generateCaptions(
         audioBuffer,
         scriptData.text,
         intentData?.caption_prompt,
-        captionsConfig.timing || 'sentence', // Pass timing mode
-        captionsConfig, // Pass full config for ASS presets/positioning
+        isKaraoke ? 'word' : captionsConfig.timing || 'sentence', // Force word timing for Karaoke
+        captionsConfig,
       );
     }
 

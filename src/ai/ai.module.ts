@@ -16,6 +16,7 @@ import { ElevenLabsTTSProvider } from './providers/elevenlabs-tts.provider';
 import { GeminiIntentProvider } from './providers/gemini-intent.provider';
 import { GeminiTTSProvider } from './providers/gemini-tts.provider';
 import { LocalCaptionProvider } from './providers/local-caption.provider';
+import { KaraokeCaptionProvider } from './providers/karaoke-caption.provider';
 import { AssSubtitleProvider } from './providers/ass-subtitle.provider';
 import { ElevenLabsService } from './elevenlabs.service';
 import { VoicesController } from './controllers/voices.controller';
@@ -67,6 +68,7 @@ import { ReplicateImageProvider } from './providers/replicate-image.provider';
     ElevenLabsTTSProvider,
     GeminiTTSProvider,
     LocalCaptionProvider,
+    KaraokeCaptionProvider,
     AssSubtitleProvider,
     DalleImageProvider,
     GeminiImageProvider,
