@@ -29,7 +29,7 @@ export class AuthController {
     private authService: AuthService,
     private creditsService: CreditsService,
     private mailService: MailService,
-  ) { }
+  ) {}
 
   @Get('test-email')
   @ApiOperation({ summary: 'Test email sending' })

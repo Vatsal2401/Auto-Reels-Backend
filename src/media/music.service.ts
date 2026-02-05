@@ -10,7 +10,7 @@ export class MusicService {
     @InjectRepository(BackgroundMusic)
     private musicRepository: Repository<BackgroundMusic>,
     @Inject('IStorageService') private storageService: IStorageService,
-  ) { }
+  ) {}
 
   async findAllSystemMusic() {
     return this.musicRepository.find({

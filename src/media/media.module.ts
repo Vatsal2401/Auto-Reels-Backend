@@ -33,4 +33,4 @@ import { MusicController } from './music.controller';
   controllers: [MediaController, MusicController],
   exports: [MediaService, MediaOrchestratorService, MusicService],
 })
-export class MediaModule { }
+export class MediaModule {}

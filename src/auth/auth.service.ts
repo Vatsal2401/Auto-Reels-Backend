@@ -23,7 +23,7 @@ export class AuthService {
     private jwtService: JwtService,
     private creditsService: CreditsService,
     private mailService: MailService,
-  ) { }
+  ) {}
 
   async signUp(dto: SignUpDto) {
     const email = dto.email.toLowerCase().trim();
