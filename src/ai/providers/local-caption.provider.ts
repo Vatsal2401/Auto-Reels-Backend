@@ -15,7 +15,7 @@ export class LocalCaptionProvider implements ICaptionGenerator {
   private readonly MIN_BLOCK_DURATION = 1.0;
   private readonly MAX_BLOCK_DURATION = 1.5;
 
-  constructor() {}
+  constructor() { }
 
   async generateCaptions(
     audioBuffer: Buffer,
@@ -88,7 +88,7 @@ export class LocalCaptionProvider implements ICaptionGenerator {
 
       try {
         unlinkSync(tempPath);
-      } catch {}
+      } catch { }
 
       const speechSegments: { start: number; end: number }[] = [];
       let cursor = 0;
@@ -190,10 +190,34 @@ export class LocalCaptionProvider implements ICaptionGenerator {
       const rawText = blocks[i].join(' ');
       const text = blocks[i].length === 1 ? rawText.toUpperCase() : rawText;
 
+      // Generate Word-Level Timings for Karaoke
+      const words = [];
+      let wordCursor = realStart;
+      const blockDurationReal = realEnd - realStart;
+      const blockTotalChars = blocks[i].join('').length;
+
+      for (const wordText of blocks[i]) {
+        const wordChars = wordText.length;
+        const wordRatio = blockTotalChars > 0 ? wordChars / blockTotalChars : 1 / blocks[i].length;
+        const wordDur = wordRatio * blockDurationReal;
+
+        const wStart = Number(wordCursor.toFixed(2));
+        const wEnd = Number((wordCursor + wordDur).toFixed(2));
+
+        words.push({
+          text: wordText,
+          start: wStart,
+          end: wEnd,
+        });
+
+        wordCursor += wordDur;
+      }
+
       timings.push({
         text,
         start: Number(realStart.toFixed(2)),
         end: Number(realEnd.toFixed(2)),
+        words,
       });
 
       lastEndTime = realEnd;
