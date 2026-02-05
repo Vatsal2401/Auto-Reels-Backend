@@ -15,7 +15,7 @@ export class LocalCaptionProvider implements ICaptionGenerator {
   private readonly MIN_BLOCK_DURATION = 1.0;
   private readonly MAX_BLOCK_DURATION = 1.5;
 
-  constructor() { }
+  constructor() {}
 
   async generateCaptions(
     audioBuffer: Buffer,
@@ -36,7 +36,12 @@ export class LocalCaptionProvider implements ICaptionGenerator {
       );
 
       // 2. Generate Deterministic Timings
-      const timings = this.generateDeterministicTimings(script, speechSegments, totalDuration);
+      const timings = this.generateDeterministicTimings(
+        script,
+        speechSegments,
+        totalDuration,
+        _timing,
+      );
       this.logger.log(`Timing generation complete: ${timings.length} captions`);
 
       // 3. Return as JSON Buffer
@@ -88,7 +93,7 @@ export class LocalCaptionProvider implements ICaptionGenerator {
 
       try {
         unlinkSync(tempPath);
-      } catch { }
+      } catch {}
 
       const speechSegments: { start: number; end: number }[] = [];
       let cursor = 0;
@@ -113,6 +118,7 @@ export class LocalCaptionProvider implements ICaptionGenerator {
     script: string,
     speechSegments: { start: number; end: number }[],
     totalFileDuration: number,
+    _timing: 'sentence' | 'word' = 'sentence',
   ): any[] {
     const tokens = script.replace(/\n+/g, ' ').trim().split(/\s+/);
     const blocks: string[][] = [];
@@ -217,19 +223,21 @@ export class LocalCaptionProvider implements ICaptionGenerator {
         text,
         start: Number(realStart.toFixed(2)),
         end: Number(realEnd.toFixed(2)),
-        words,
+        // Only include words if explicitly requested (e.g. for Karaoke styling)
+        // Otherwise, avoid overhead to keep standard captions static and snappy.
+        ...(_timing === 'word' ? { words } : {}),
       });
 
       lastEndTime = realEnd;
     }
 
-    // Pass 3: Seamless Tail-Out Extension (Breathing Space threshold: 0.4s)
+    // Pass 3: Seamless Tail-Out Extension (Breathing Space threshold: 1.5s)
     for (let i = 0; i < timings.length - 1; i++) {
       const current = timings[i];
       const next = timings[i + 1];
       const gap = next.start - current.end;
-      // Bridge tiny blinks but allow natural breathing room for long pauses
-      if (gap > 0 && gap < 0.4) {
+      // Bridge blinks and natural pauses up to 1.5s to keep text visible
+      if (gap > 0 && gap < 1.5) {
         current.end = next.start;
       }
     }
