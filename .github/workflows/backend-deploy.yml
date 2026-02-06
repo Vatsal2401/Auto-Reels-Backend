@@ -25,37 +25,28 @@ jobs:
       - name: Build Project
         run: npm run build
 
-      # Load SSH key correctly (bulletproof)
       - name: Setup SSH Agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
 
-      # 🔎 TEMP DEBUG — remove after success
-      - name: Debug secrets presence
+      # 🔐 Sanitize secrets (THIS IS THE KEY FIX)
+      - name: Prepare SSH variables
         run: |
-          echo "HOST=${{ secrets.GCP_VM_HOST }}"
-          echo "USER=${{ secrets.GCP_VM_USER }}"
+          echo "HOST=$(echo '${{ secrets.GCP_VM_HOST }}' | tr -d '\r\n')" >> $GITHUB_ENV
+          echo "USER=$(echo '${{ secrets.GCP_VM_USER }}' | tr -d '\r\n')" >> $GITHUB_ENV
 
       - name: Ensure target directory exists
         run: |
           ssh -o StrictHostKeyChecking=no \
-            ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_HOST }} \
-            "mkdir -p /home/${{ secrets.GCP_VM_USER }}/backend-infra/auto-reels-backend"
+            $USER@$HOST \
+            "mkdir -p /home/$USER/backend-infra/auto-reels-backend"
 
       - name: Copy build to VM
         run: |
           scp -o StrictHostKeyChecking=no -r \
             dist package.json package-lock.json \
-            ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_HOST }}:/home/${{ secrets.GCP_VM_USER }}/backend-infra/auto-reels-backend
+            $USER@$HOST:/home/$USER/backend-infra/auto-reels-backend
 
       - name: Deploy and restart
         run: |
-          ssh -o StrictHostKeyChecking=no \
-            ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_HOST }} << 'EOF'
-              cd /home/${{ secrets.GCP_VM_USER }}/backend-infra/auto-reels-backend
-              echo "${{ secrets.BACKEND_ENV }}" > .env
-              npm ci --omit=dev
-              pm2 restart backend-api || pm2 start dist/main.js --name backend-api
-              pm2 save
-          EOF
