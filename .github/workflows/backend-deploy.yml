@@ -8,7 +8,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: Production # 🔥 THIS IS THE FIX
 
     steps:
       - name: Checkout Code
@@ -26,10 +25,17 @@ jobs:
       - name: Build Project
         run: npm run build
 
+      # Load SSH key correctly (bulletproof)
       - name: Setup SSH Agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+
+      # 🔎 TEMP DEBUG — remove after success
+      - name: Debug secrets presence
+        run: |
+          echo "HOST=${{ secrets.GCP_VM_HOST }}"
+          echo "USER=${{ secrets.GCP_VM_USER }}"
 
       - name: Ensure target directory exists
         run: |
