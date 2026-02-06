@@ -50,3 +50,11 @@ jobs:
 
       - name: Deploy and restart
         run: |
+          ssh -o StrictHostKeyChecking=no \
+            $USER@$HOST << 'EOF'
+              cd /home/$USER/backend-infra/auto-reels-backend
+              echo "${{ secrets.BACKEND_ENV }}" > .env
+              npm ci --omit=dev
+              pm2 restart backend-api || pm2 start dist/main.js --name backend-api
+              pm2 save
+          EOF
