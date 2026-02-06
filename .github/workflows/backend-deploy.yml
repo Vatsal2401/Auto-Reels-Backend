@@ -41,7 +41,7 @@ jobs:
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
           script: |
-            cd /home/ubuntu/backend-infra/auto-reels-backend
+            cd /backend-infra/auto-reels-backend
 
             # Create .env file from secret
             echo "${{ secrets.BACKEND_ENV }}" > .env
