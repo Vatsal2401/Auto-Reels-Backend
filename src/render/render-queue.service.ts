@@ -24,20 +24,45 @@ export class RenderQueueService {
   private renderQueue: Queue;
 
   constructor(private configService: ConfigService) {
-    const redisUrl = this.configService.get<string>('REDIS_URL');
+    const host = this.configService.get<string>('REDIS_HOST');
+    const port = this.configService.get<number>('REDIS_PORT');
+    const password = this.configService.get<string>('REDIS_PASSWORD');
+    const url = this.configService.get<string>('REDIS_URL');
+    const useTls = this.configService.get<string>('REDIS_TLS') === 'true';
 
-    if (!redisUrl) {
-      this.logger.error('REDIS_URL is not defined in environment variables');
+    this.logger.debug(`Redis Config Debug: host=${host}, port=${port}, hasPassword=${!!password}, hasUrl=${!!url}`);
+
+    if (!host && !url) {
+      this.logger.error('Neither REDIS_HOST nor REDIS_URL is defined in environment variables');
       return;
     }
 
+    const connectionOptions: any = host
+      ? {
+          host,
+          port: port || 6379,
+          password,
+        }
+      : {
+          url,
+        };
+
+    if (useTls) {
+      connectionOptions.tls = { rejectUnauthorized: false };
+      this.logger.log('Redis TLS enabled');
+    }
+
     this.renderQueue = new Queue('render-tasks', {
-      connection: {
-        url: redisUrl,
-      },
+      connection: connectionOptions,
     });
 
-    this.logger.log('RenderQueueService initialized with Redis connection');
+    this.logger.log(
+      `RenderQueueService initialized with Redis connection (${host ? 'host:port' : 'url'})`,
+    );
+
+    this.renderQueue.on('error', (error) => {
+      this.logger.error('Redis Queue Error:', error);
+    });
   }
 
   async queueRenderJob(payload: RenderJobPayload): Promise<string> {

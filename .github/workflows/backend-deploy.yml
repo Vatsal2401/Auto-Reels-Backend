@@ -1,0 +1,62 @@
+name: Backend Deployment
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Project
+        run: npm run build
+
+      - name: Transfer Build to VM
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.GCP_VM_HOST }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          source: "dist/*,package.json,package-lock.json"
+          target: "/home/ubuntu/backend-infra/auto-reels-backend"
+
+      - name: Deploy and Restart on VM
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.GCP_VM_HOST }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/ubuntu/backend-infra/auto-reels-backend
+            
+            # Create .env file from secret
+            echo "${{ secrets.BACKEND_ENV }}" > .env
+            
+            # Optimization: Only run npm ci if package-lock.json has changed
+            NEW_HASH=$(md5sum package-lock.json | awk '{ print $1 }')
+            HASH_FILE=".package-lock.hash"
+            
+            if [ ! -f "$HASH_FILE" ] || [ "$NEW_HASH" != "$(cat "$HASH_FILE")" ]; then
+                echo "Changes detected in package-lock.json (or first deploy). Installing dependencies..."
+                npm ci --omit=dev
+                echo "$NEW_HASH" > "$HASH_FILE"
+            else
+                echo "No changes in package-lock.json. Skipping npm ci."
+            fi
+            
+            pm2 restart backend-api --update-env || pm2 start dist/main.js --name backend-api
+            pm2 save

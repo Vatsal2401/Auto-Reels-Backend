@@ -2,14 +2,23 @@ import { Queue } from 'bullmq';
 import 'dotenv/config';
 
 async function inspect() {
-  const redisUrl = process.env.REDIS_URL;
-  if (!redisUrl) {
-    console.error('REDIS_URL missing');
+  const connection = process.env.REDIS_HOST
+    ? {
+        host: process.env.REDIS_HOST,
+        port: parseInt(process.env.REDIS_PORT || '6379'),
+        password: process.env.REDIS_PASSWORD,
+      }
+    : {
+        url: process.env.REDIS_URL,
+      };
+
+  if (!connection['host'] && !connection['url']) {
+    console.error('Redis configuration missing (REDIS_HOST or REDIS_URL)');
     return;
   }
 
   const q = new Queue('render-tasks', {
-    connection: { url: redisUrl },
+    connection,
   });
 
   const counts = await q.getJobCounts();

@@ -2,10 +2,18 @@ import { Queue } from 'bullmq';
 import 'dotenv/config';
 
 async function trigger() {
+  const connection = process.env.REDIS_HOST
+    ? {
+        host: process.env.REDIS_HOST,
+        port: parseInt(process.env.REDIS_PORT || '6379'),
+        password: process.env.REDIS_PASSWORD,
+      }
+    : {
+        url: process.env.REDIS_URL,
+      };
+
   const q = new Queue('render-tasks', {
-    connection: {
-      url: process.env.REDIS_URL,
-    },
+    connection,
   });
 
   console.log('Pushing job to queue...');
