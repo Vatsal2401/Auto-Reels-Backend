@@ -12,7 +12,7 @@ import { User, AuthProvider } from './entities/user.entity';
 import { SignUpDto } from './dto/signup.dto';
 import { SignInDto } from './dto/signin.dto';
 import { CreditsService } from '../credits/credits.service';
-import { MailService } from './mail.service';
+import { MailService } from '../mail/mail.service';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()

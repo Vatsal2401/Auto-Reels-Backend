@@ -210,7 +210,8 @@ export class MediaOrchestratorService {
       language: config.language || 'English (US)',
       targetDurationSeconds: durationMap[config.duration] || 45,
       audioPrompt: intentData?.audio_prompt,
-    });
+      visualStyle: config.imageStyle || 'Cinematic', // Pass user selection
+    } as any);
 
     const scriptText = scriptJSON.scenes.map((s) => s.audio_text).join(' ');
 
@@ -359,13 +360,18 @@ export class MediaOrchestratorService {
       this.logger.log(`Captions disabled for media ${media.id}. Skipping generation.`);
       captionBuffer = Buffer.from('', 'utf-8'); // Empty file
     } else {
-      const captionProvider = this.aiFactory.getCaptionGenerator('local');
+      // Logic Switch: Use 'Karaoke' provider if style matches, otherwise default 'local'
+      const isKaraoke = captionsConfig.style?.toLowerCase() === 'karaoke';
+      const providerKey = isKaraoke ? 'karaoke' : 'local';
+
+      const captionProvider = this.aiFactory.getCaptionGenerator(providerKey);
+
       captionBuffer = await captionProvider.generateCaptions(
         audioBuffer,
         scriptData.text,
         intentData?.caption_prompt,
-        captionsConfig.timing || 'sentence', // Pass timing mode
-        captionsConfig, // Pass full config for ASS presets/positioning
+        isKaraoke ? 'word' : captionsConfig.timing || 'sentence', // Force word timing for Karaoke
+        captionsConfig,
       );
     }
 
@@ -375,7 +381,7 @@ export class MediaOrchestratorService {
       type: 'caption',
       step: 'captions',
       buffer: captionBuffer,
-      fileName: `captions.srt`,
+      fileName: `captions.json`,
     });
 
     await this.addAsset(media.id, MediaAssetType.CAPTION, blobId, {
@@ -407,10 +413,10 @@ export class MediaOrchestratorService {
     );
 
     // Use interpreted image prompt if available
-    const masterPrompt = intentData?.image_prompt
-      ? `${intentData.image_prompt}. ` + scriptJson.scenes.map((s) => s.image_prompt).join('. ')
-      : `Cinematic video about ${media.input_config?.topic}. ` +
-        scriptJson.scenes.map((s) => s.image_prompt).join('. ');
+    // Use the primary style prompt from Intent.
+    // We avoid joining ALL scene prompts to prevent the AI from creating a 2x2 grid/collage.
+    const masterPrompt =
+      intentData?.image_prompt || `Cinematic video about ${media.input_config?.topic}`;
 
     // --- REEL FAST MODE LOGIC ---
     // Enforce strict image counts based on duration to minimize batches
@@ -503,7 +509,7 @@ export class MediaOrchestratorService {
           fast_mode: true, // Signal generic fast mode
           smart_micro_scenes: true, // Signal to use new engine
           captions: media.input_config?.captions, // Pass caption styles
-          musicVolume: musicConfig?.volume, // Pass music volume
+          musicVolume: typeof musicConfig?.volume === 'number' ? musicConfig.volume / 100 : 0.2, // Default 20%
         },
       },
     });

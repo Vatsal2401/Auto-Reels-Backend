@@ -78,3 +78,14 @@ docker-compose.override.yml
 .vercel
 
 .test-assets/
+!test-assets/
+
+# Media
+*.mp3
+*.mp4
+*.wav
+
+# Exceptions
+!test-assets/*.mp3
+!test-assets/*.mp4
+!test-assets/*.wav

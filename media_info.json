@@ -1,0 +1,39 @@
+[dotenv@17.2.3] injecting env (38) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+🔍 Inspecting Media: d2114fcd-6940-45b0-9c8f-7e580c0db62d
+
+--- Media Details ---
+Status: completed
+Input Config: {
+  "topic": "A clean, modern animated video explaining a new tech platform. Cartoon-style characters interacting with floating UI screens, dashboards, and graphs. Futuristic city background, soft gradients, smooth camera pans. Friendly narrator tone, bright colors, minimal text animations, professional startup vibe.",
+  "voiceId": "yjJ45q8TVCrtMhEKurxY",
+  "captions": {
+    "preset": "bold-stroke",
+    "timing": "sentence",
+    "enabled": true,
+    "position": "bottom"
+  },
+  "duration": "30-60",
+  "language": "English (US)",
+  "imageStyle": "Cinematic film still, high dynamic range, detailed textures, 8k resolution",
+  "imageProvider": "gemini",
+  "imageAspectRatio": "9:16"
+}
+Error: None
+
+--- Steps ---
+ - [captions] Status: success, Blob: users/777964c7-2284-4e00-b504-f1bb215a2bec/media/d2114fcd-6940-45b0-9c8f-7e580c0db62d/caption/captions/captions.srt, Error: None
+ - [intent] Status: success, Blob: users/777964c7-2284-4e00-b504-f1bb215a2bec/media/d2114fcd-6940-45b0-9c8f-7e580c0db62d/intent/intent/intent.json, Error: None
+ - [script] Status: success, Blob: users/777964c7-2284-4e00-b504-f1bb215a2bec/media/d2114fcd-6940-45b0-9c8f-7e580c0db62d/script/script/script.json, Error: None
+ - [render] Status: success, Blob: users/777964c7-2284-4e00-b504-f1bb215a2bec/media/d2114fcd-6940-45b0-9c8f-7e580c0db62d/video/render/final_render.mp4, Error: None
+ - [audio] Status: success, Blob: users/777964c7-2284-4e00-b504-f1bb215a2bec/media/d2114fcd-6940-45b0-9c8f-7e580c0db62d/audio/audio/51a3b45a-6837-41d7-8b47-7d09876f1bf3.mp3, Error: None
+ - [images] Status: success, Blob: users/777964c7-2284-4e00-b504-f1bb215a2bec/media/d2114fcd-6940-45b0-9c8f-7e580c0db62d/image/images/fbbc8ce5-ff0f-443e-a0e1-7dfea6e6a6d9.jpg,users/777964c7-2284-4e00-b504-f1bb215a2bec/media/d2114fcd-6940-45b0-9c8f-7e580c0db62d/image/images/47b0273b-0e4d-4de3-ab88-6bb25bbd3c82.jpg,users/777964c7-2284-4e00-b504-f1bb215a2bec/media/d2114fcd-6940-45b0-9c8f-7e580c0db62d/image/images/fd3f02a4-d121-4a4a-9426-03ff6f0ae7d8.jpg,users/777964c7-2284-4e00-b504-f1bb215a2bec/media/d2114fcd-6940-45b0-9c8f-7e580c0db62d/image/images/12843c80-e194-4d71-b496-ca003bb6d8a0.jpg, Error: None
+
+--- Assets ---
+ - [script] Blob: users/777964c7-2284-4e00-b504-f1bb215a2bec/media/d2114fcd-6940-45b0-9c8f-7e580c0db62d/script/script/script.json
+ - [intent] Blob: users/777964c7-2284-4e00-b504-f1bb215a2bec/media/d2114fcd-6940-45b0-9c8f-7e580c0db62d/intent/intent/intent.json
+ - [audio] Blob: users/777964c7-2284-4e00-b504-f1bb215a2bec/media/d2114fcd-6940-45b0-9c8f-7e580c0db62d/audio/audio/51a3b45a-6837-41d7-8b47-7d09876f1bf3.mp3
+ - [image] Blob: users/777964c7-2284-4e00-b504-f1bb215a2bec/media/d2114fcd-6940-45b0-9c8f-7e580c0db62d/image/images/fbbc8ce5-ff0f-443e-a0e1-7dfea6e6a6d9.jpg
+ - [image] Blob: users/777964c7-2284-4e00-b504-f1bb215a2bec/media/d2114fcd-6940-45b0-9c8f-7e580c0db62d/image/images/47b0273b-0e4d-4de3-ab88-6bb25bbd3c82.jpg
+ - [image] Blob: users/777964c7-2284-4e00-b504-f1bb215a2bec/media/d2114fcd-6940-45b0-9c8f-7e580c0db62d/image/images/fd3f02a4-d121-4a4a-9426-03ff6f0ae7d8.jpg
+ - [image] Blob: users/777964c7-2284-4e00-b504-f1bb215a2bec/media/d2114fcd-6940-45b0-9c8f-7e580c0db62d/image/images/12843c80-e194-4d71-b496-ca003bb6d8a0.jpg
+ - [caption] Blob: users/777964c7-2284-4e00-b504-f1bb215a2bec/media/d2114fcd-6940-45b0-9c8f-7e580c0db62d/caption/captions/captions.srt

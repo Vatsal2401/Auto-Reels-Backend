@@ -22,6 +22,7 @@ import { ElevenLabsTTSProvider } from './providers/elevenlabs-tts.provider';
 import { MockTTSProvider } from './providers/mock-tts.provider';
 import { MockImageProvider } from './providers/mock-image.provider';
 import { ReplicateImageProvider } from './providers/replicate-image.provider';
+import { KaraokeCaptionProvider } from './providers/karaoke-caption.provider';
 import { GeminiIntentProvider } from './providers/gemini-intent.provider';
 
 @Injectable()
@@ -94,6 +95,8 @@ export class AiProviderFactory {
 
   getCaptionGenerator(providerName: string = 'local'): ICaptionGenerator {
     switch (providerName) {
+      case 'karaoke':
+        return this.moduleRef.get(KaraokeCaptionProvider, { strict: false });
       case 'replicate':
       case 'local':
         return this.moduleRef.get(LocalCaptionProvider, { strict: false });

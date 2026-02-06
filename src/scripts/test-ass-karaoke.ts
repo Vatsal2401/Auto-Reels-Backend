@@ -1,11 +1,10 @@
 import { LocalCaptionProvider } from '../ai/providers/local-caption.provider';
-import { AssSubtitleProvider } from '../ai/providers/ass-subtitle.provider';
+
 import * as fs from 'fs';
 import * as path from 'path';
 
 async function testAssKaraoke() {
-  const assProvider = new AssSubtitleProvider();
-  const provider = new LocalCaptionProvider(assProvider);
+  const provider = new LocalCaptionProvider();
 
   const audioPath = path.resolve(__dirname, '../../test-assets/audio.mp3');
   const scriptText =

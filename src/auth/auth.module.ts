@@ -10,7 +10,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { MicrosoftStrategy } from './strategies/microsoft.strategy';
 import { CreditsModule } from '../credits/credits.module';
-import { MailService } from './mail.service';
+import { MailModule } from '../mail/mail.module';
 
 // Factory functions to conditionally provide OAuth strategies
 const createOAuthProviders = () => {
@@ -43,9 +43,10 @@ const createOAuthProviders = () => {
       inject: [ConfigService],
     }),
     CreditsModule,
+    MailModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, MailService, ...createOAuthProviders()],
+  providers: [AuthService, ...createOAuthProviders()],
   exports: [AuthService],
 })
 export class AuthModule {}

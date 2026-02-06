@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { IImageGenerator, ImageGenerationOptions } from '../interfaces/image-generator.interface';
 import OpenAI from 'openai';
+import { getImageGenerationPrompt } from '../prompts/image-prompts';
 
 @Injectable()
 export class DalleImageProvider implements IImageGenerator {
@@ -28,7 +29,6 @@ export class DalleImageProvider implements IImageGenerator {
       prompt = optionsOrPrompt;
     } else {
       prompt = optionsOrPrompt.prompt;
-      // Map aspect ratio to DALL-E sizes
       if (optionsOrPrompt.aspectRatio === '16:9') {
         size = '1792x1024';
       } else if (optionsOrPrompt.aspectRatio === '9:16') {
@@ -36,14 +36,10 @@ export class DalleImageProvider implements IImageGenerator {
       } else {
         size = '1024x1024';
       }
-      if (optionsOrPrompt.style) {
-        style = optionsOrPrompt.style;
-      }
+      style = optionsOrPrompt.style || '';
     }
 
-    if (style && style !== 'auto') {
-      prompt = `${style} style. ${prompt}`;
-    }
+    prompt = getImageGenerationPrompt(prompt, style);
 
     const response = await this.openai.images.generate({
       model: 'dall-e-3',

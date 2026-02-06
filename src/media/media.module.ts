@@ -12,6 +12,7 @@ import { AIModule } from '../ai/ai.module';
 import { RenderModule } from '../render/render.module';
 import { AuthModule } from '../auth/auth.module';
 import { User } from '../auth/entities/user.entity';
+import { MailModule } from '../mail/mail.module';
 
 import { BackgroundMusic } from './entities/background-music.entity';
 
@@ -25,6 +26,7 @@ import { MusicController } from './music.controller';
     StorageModule,
     AIModule,
     RenderModule,
+    MailModule,
     forwardRef(() => AuthModule),
   ],
   providers: [MediaService, MediaOrchestratorService, MusicService],

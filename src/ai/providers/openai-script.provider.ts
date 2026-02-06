@@ -5,6 +5,10 @@ import {
   ScriptGenerationOptions,
 } from '../interfaces/script-generator.interface';
 import OpenAI from 'openai';
+import {
+  getOpenAIScriptSystemPrompt,
+  getOpenAISimpleScriptPrompt,
+} from '../prompts/script-prompts';
 
 @Injectable()
 export class OpenAIScriptProvider implements IScriptGenerator {
@@ -29,15 +33,14 @@ export class OpenAIScriptProvider implements IScriptGenerator {
         {
           role: 'system',
           content:
-            'You are a script writer for short-form video content (30-60 seconds). Create engaging, concise scripts for faceless reels. Focus on hook, value, and call-to-action.',
+            'You are a script writer for short-form video content. Create engaging, high-retention scripts.',
         },
         {
           role: 'user',
-          content: `Write a script for a faceless reel about: ${topic}. Keep it between 30-60 seconds when spoken. Make it engaging and suitable for social media.`,
+          content: getOpenAISimpleScriptPrompt(topic),
         },
       ],
       temperature: 0.8,
-      max_tokens: 500,
     });
 
     return response.choices[0].message.content || '';
@@ -50,7 +53,7 @@ export class OpenAIScriptProvider implements IScriptGenerator {
 
     let topic: string;
     let language = 'English (US)';
-    let duration = '30-60';
+    let duration: string | number = '30-60';
 
     if (typeof optionsOrTopic === 'string') {
       topic = optionsOrTopic;
@@ -58,35 +61,11 @@ export class OpenAIScriptProvider implements IScriptGenerator {
       topic = optionsOrTopic.topic;
       language = optionsOrTopic.language || 'English (US)';
       if (optionsOrTopic.targetDurationSeconds) {
-        duration = `${optionsOrTopic.targetDurationSeconds}`;
+        duration = optionsOrTopic.targetDurationSeconds;
       }
     }
 
-    const systemPrompt = `You are a script writer for short-form video content (${duration} seconds). 
-Create engaging, structured scripts for faceless reels with multiple scenes. 
-Language: ${language}.
-Each scene should have:
-- A clear visual description
-- An image generation prompt (detailed, suitable for DALL-E)
-- Duration in seconds
-- Audio narration text (in ${language})
-
-Return ONLY valid JSON in this exact format:
-{
-  "scenes": [
-    {
-      "scene_number": 1,
-      "description": "Brief scene description",
-      "image_prompt": "Detailed prompt for image generation",
-      "duration": 5,
-      "audio_text": "Text to be spoken during this scene"
-    }
-  ],
-  "total_duration": ${Number(duration) || 30},
-  "topic": "Topic name"
-}
-
-Create 3-6 scenes that total ${duration} seconds. Make it engaging and suitable for social media.`;
+    const systemPrompt = getOpenAIScriptSystemPrompt(duration, language);
 
     const response = await this.openai.chat.completions.create({
       model: 'gpt-4o',
@@ -97,21 +76,16 @@ Create 3-6 scenes that total ${duration} seconds. Make it engaging and suitable 
         },
         {
           role: 'user',
-          content: `Create a structured script with scenes for a faceless reel about: ${topic}`,
+          content: `Create a structured script for: ${topic}. If a visual style or theme is intended, ensure scene prompts reflect it.`,
         },
       ],
       temperature: 0.8,
-      max_tokens: 2000,
       response_format: { type: 'json_object' },
     });
 
     const content = response.choices[0].message.content || '{}';
     try {
       const parsed = JSON.parse(content);
-      // Validate and ensure proper structure
-      if (!parsed.scenes || !Array.isArray(parsed.scenes)) {
-        throw new Error('Invalid JSON structure: missing scenes array');
-      }
       return parsed as ScriptJSON;
     } catch (error) {
       throw new Error(

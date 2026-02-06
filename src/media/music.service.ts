@@ -20,8 +20,9 @@ export class MusicService {
   }
 
   async findUserMusic(userId: string) {
+    if (!userId) return [];
     return this.musicRepository.find({
-      where: { user_id: userId },
+      where: { user_id: userId, is_system: false },
       order: { created_at: 'DESC' },
     });
   }
