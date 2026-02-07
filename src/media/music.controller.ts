@@ -16,9 +16,10 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class MusicController {
   constructor(private readonly musicService: MusicService) {}
 
+  @UseGuards(JwtAuthGuard)
   @Get('system')
-  async getSystemMusic() {
-    const music = await this.musicService.findAllSystemMusic();
+  async getSystemMusic(@Req() req: any) {
+    const music = await this.musicService.findUserMusic(req.user.userId);
     return Promise.all(
       music.map(async (m) => ({
         ...m,
@@ -30,7 +31,7 @@ export class MusicController {
   @UseGuards(JwtAuthGuard)
   @Get('user')
   async getUserMusic(@Req() req: any) {
-    const music = await this.musicService.findUserMusic(req.user.id);
+    const music = await this.musicService.findUserMusic(req.user.userId);
     return Promise.all(
       music.map(async (m) => ({
         ...m,
@@ -43,7 +44,7 @@ export class MusicController {
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   async uploadMusic(@Req() req: any, @UploadedFile() file: any, @Body('name') name: string) {
-    const music = await this.musicService.uploadMusic(req.user.id, file, name);
+    const music = await this.musicService.uploadMusic(req.user.userId, file, name);
     return {
       ...music,
       url: await this.musicService.getMusicUrl(music.blob_storage_id),

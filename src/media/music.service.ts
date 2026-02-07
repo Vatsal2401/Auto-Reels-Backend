@@ -20,11 +20,12 @@ export class MusicService {
   }
 
   async findUserMusic(userId: string) {
-    if (!userId) return [];
-    return this.musicRepository.find({
-      where: { user_id: userId, is_system: false },
-      order: { created_at: 'DESC' },
-    });
+    return this.musicRepository
+      .createQueryBuilder('music')
+      .where('music.is_system = true')
+      .orWhere('music.user_id = :userId AND music.is_system = false', { userId })
+      .orderBy('music.created_at', 'DESC')
+      .getMany();
   }
 
   async findById(id: string) {
