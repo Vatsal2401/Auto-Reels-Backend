@@ -30,7 +30,9 @@ export class RenderQueueService {
     const url = this.configService.get<string>('REDIS_URL');
     const useTls = this.configService.get<string>('REDIS_TLS') === 'true';
 
-    this.logger.debug(`Redis Config Debug: host=${host}, port=${port}, hasPassword=${!!password}, hasUrl=${!!url}`);
+    this.logger.debug(
+      `Redis Config Debug: host=${host}, port=${port}, hasPassword=${!!password}, hasUrl=${!!url}`,
+    );
 
     if (!host && !url) {
       this.logger.error('Neither REDIS_HOST nor REDIS_URL is defined in environment variables');

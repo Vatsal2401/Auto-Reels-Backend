@@ -1,0 +1,141 @@
+import { ICaptionStrategy } from './caption-strategy.interface';
+
+export class LongDurationStrategy implements ICaptionStrategy {
+  // Constants for Narrative Flow (Slower, more readable)
+  private readonly MAX_CHARS_PER_BLOCK = 60; // Increased from 22
+  private readonly MAX_WORDS_PER_BLOCK = 10; // Increased from 3
+  private readonly MIN_BLOCK_DURATION = 1.5; // Increased from 1.0
+  private readonly MAX_BLOCK_DURATION = 6.0; // Increased from 1.5
+
+  generate(
+    _audioBuffer: Buffer,
+    script: string,
+    speechSegments: { start: number; end: number }[],
+    totalDuration: number,
+    timingType: 'sentence' | 'word',
+  ): any[] {
+    const tokens = script.replace(/\n+/g, ' ').trim().split(/\s+/);
+    const blocks: string[][] = [];
+    let currentBlock: string[] = [];
+
+    // Pass 1: Break into "narrative" blocks (Sentence-focused)
+    for (const token of tokens) {
+      currentBlock.push(token);
+      const isStrongPunctuation = /[.?!]$/.test(token);
+      const isComma = /[,]$/.test(token);
+      const line = currentBlock.join(' ');
+
+      // Split primarily on sentences or very long clauses
+      if (
+        isStrongPunctuation ||
+        (isComma && currentBlock.length >= 5) ||
+        line.length > this.MAX_CHARS_PER_BLOCK ||
+        currentBlock.length >= this.MAX_WORDS_PER_BLOCK
+      ) {
+        blocks.push(currentBlock);
+        currentBlock = [];
+      }
+    }
+    if (currentBlock.length > 0) blocks.push(currentBlock);
+
+    const speechTotal = speechSegments.reduce((sum, s) => sum + (s.end - s.start), 0);
+    const effectiveTotal = speechTotal > 0.5 ? speechTotal : totalDuration;
+
+    // Pass 2: Calculate rhythmic duration based on character weight
+    const totalChars = blocks.reduce((sum, b) => sum + b.join(' ').length, 0);
+    let lastEndTime = 0;
+    const timings: any[] = [];
+    let charCursor = 0;
+
+    for (let i = 0; i < blocks.length; i++) {
+      const blockChars = blocks[i].join(' ').length;
+      const charRatio = blockChars / totalChars;
+      const targetStart = (charCursor / totalChars) * effectiveTotal;
+      charCursor += blockChars;
+
+      // Map proportional time to real speech segments
+      let rawStart = 0;
+      let remaining = targetStart;
+      if (speechSegments.length > 0) {
+        for (const seg of speechSegments) {
+          const len = seg.end - seg.start;
+          if (remaining <= len) {
+            rawStart = seg.start + remaining;
+            break;
+          }
+          remaining -= len;
+          rawStart = seg.end;
+        }
+      } else {
+        rawStart = targetStart;
+      }
+
+      // --- LEAD-IN SYNC ---
+      // Less aggressive lead-in for long form (0.1s)
+      let realStart = Math.max(0, rawStart - 0.1);
+
+      // Sequential lock
+      if (realStart < lastEndTime) {
+        realStart = lastEndTime;
+      }
+
+      // Character-weighted duration clamped to 1.5 - 6.0s
+      const blockDuration = charRatio * effectiveTotal;
+      let realEnd =
+        realStart +
+        Math.max(this.MIN_BLOCK_DURATION, Math.min(this.MAX_BLOCK_DURATION, blockDuration));
+
+      if (realEnd > totalDuration) realEnd = totalDuration;
+      if (realStart >= totalDuration) break;
+
+      const rawText = blocks[i].join(' ');
+      // No ALL CAPS forcing for long form, keep natural case
+      const text = rawText;
+
+      // Generate Word-Level Timings (if needed)
+      const words = [];
+      let wordCursor = realStart;
+      const blockDurationReal = realEnd - realStart;
+      const blockTotalChars = blocks[i].join('').length;
+
+      for (const wordText of blocks[i]) {
+        const wordChars = wordText.length;
+        const wordRatio = blockTotalChars > 0 ? wordChars / blockTotalChars : 1 / blocks[i].length;
+        const wordDur = wordRatio * blockDurationReal;
+
+        const wStart = Number(wordCursor.toFixed(2));
+        const wEnd = Number((wordCursor + wordDur).toFixed(2));
+
+        words.push({
+          text: wordText,
+          start: wStart,
+          end: wEnd,
+        });
+
+        wordCursor += wordDur;
+      }
+
+      timings.push({
+        text,
+        start: Number(realStart.toFixed(2)),
+        end: Number(realEnd.toFixed(2)),
+        ...(timingType === 'word' ? { words } : {}),
+      });
+
+      lastEndTime = realEnd;
+    }
+
+    // Pass 3: Gap bridging (Less aggressive for long form, allow breathing room)
+    for (let i = 0; i < timings.length - 1; i++) {
+      const current = timings[i];
+      const next = timings[i + 1];
+      const gap = next.start - current.end;
+      // Only bridge small jitter gaps (< 0.5s), allow natural pauses to exist
+      if (gap > 0 && gap < 0.5) {
+        current.end = next.start;
+      }
+    }
+
+    return timings;
+  }
+}

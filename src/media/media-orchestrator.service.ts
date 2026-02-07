@@ -35,7 +35,7 @@ export class MediaOrchestratorService {
     private readonly renderQueueService: RenderQueueService,
     @InjectRepository(BackgroundMusic)
     private musicRepository: Repository<BackgroundMusic>,
-  ) { }
+  ) {}
 
   async processMedia(mediaId: string): Promise<void> {
     const media = await this.mediaRepository.findOne({
@@ -495,10 +495,22 @@ export class MediaOrchestratorService {
         preset: 'superfast',
         rendering_hints: {
           ...intentData?.rendering_hints,
-          fast_mode: true, // Signal generic fast mode
-          smart_micro_scenes: true, // Signal to use new engine
-          captions: media.input_config?.captions, // Pass caption styles
-          musicVolume: typeof musicConfig?.volume === 'number' ? musicConfig.volume / 100 : 0.2, // Default 20%
+          fast_mode: true,
+          smart_micro_scenes: true,
+          captions: media.input_config?.captions,
+          musicVolume: typeof musicConfig?.volume === 'number' ? musicConfig.volume : 0.2, // Pass original 0-1 float
+          width:
+            media.input_config?.aspectRatio === '1:1'
+              ? 1080
+              : media.input_config?.aspectRatio === '16:9'
+                ? 1280
+                : 720,
+          height:
+            media.input_config?.aspectRatio === '1:1'
+              ? 1080
+              : media.input_config?.aspectRatio === '16:9'
+                ? 720
+                : 1280,
         },
       },
     });
