@@ -1,0 +1,136 @@
+[dotenv@17.2.4] injecting env (39) from .env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+--- Media Details ---
+[
+  {
+    "id": "794f6017-13dc-4cb2-be6b-9f1706e21607",
+    "type": "video",
+    "flow_key": "videoMotion",
+    "status": "processing",
+    "user_id": "777964c7-2284-4e00-b504-f1bb215a2bec",
+    "input_config": {
+      "topic": "a man selling dish washing liquid door to door and crying",
+      "voiceId": "yjJ45q8TVCrtMhEKurxY",
+      "captions": {
+        "preset": "bold-stroke",
+        "timing": "word",
+        "enabled": true,
+        "position": "bottom"
+      },
+      "duration": "30-60",
+      "language": "English (US)",
+      "imageStyle": "Cinematic film still, high dynamic range, detailed textures, 8k resolution",
+      "imageProvider": "gemini",
+      "imageAspectRatio": "9:16"
+    },
+    "blob_storage_id": null,
+    "error_message": null,
+    "created_at": "2026-02-06T08:37:30.283Z",
+    "updated_at": "2026-02-06T11:14:36.514Z",
+    "completed_at": null,
+    "script": "He walked door to door, a weight of hope on his shoulders. Each house, a potential lifeline, a chance to keep afloat. The door creaked open, her face a mask of polite disinterest. A tear escaped, a silent testament to his fading dreams. He swallowed hard, forcing a smile, the sale meant everything. The bottle mirrored his pain, a symbol of broken promises. The door shut, another rejection, another blow to his spirit. He walked on, defeated, the soap heavy in his weary hand. The street stretched before him, a long road of hope and despair."
+  }
+]
+
+--- Media Steps ---
+[
+  {
+    "id": "8c21c7f7-0b9e-4792-b5a6-8e4cfbe00a7e",
+    "media_id": "794f6017-13dc-4cb2-be6b-9f1706e21607",
+    "step": "audio",
+    "status": "success",
+    "depends_on": [
+      "script"
+    ],
+    "blob_storage_id": "users/777964c7-2284-4e00-b504-f1bb215a2bec/media/794f6017-13dc-4cb2-be6b-9f1706e21607/audio/audio/51235ba9-f6fe-419a-94e3-61118c1f24d8.mp3",
+    "retry_count": 0,
+    "error_message": null,
+    "started_at": "2026-02-06T08:37:42.491Z",
+    "completed_at": "2026-02-06T08:38:01.809Z",
+    "created_at": "2026-02-06T08:37:30.784Z",
+    "updated_at": "2026-02-06T08:38:01.882Z"
+  },
+  {
+    "id": "ff31348f-5780-4588-a5da-9a6a3a717f03",
+    "media_id": "794f6017-13dc-4cb2-be6b-9f1706e21607",
+    "step": "render",
+    "status": "processing",
+    "depends_on": [
+      "images",
+      "captions"
+    ],
+    "blob_storage_id": null,
+    "retry_count": 1,
+    "error_message": null,
+    "started_at": "2026-02-06T11:14:36.716Z",
+    "completed_at": null,
+    "created_at": "2026-02-06T08:37:30.784Z",
+    "updated_at": "2026-02-06T11:14:36.775Z"
+  },
+  {
+    "id": "d8efe7e7-641f-45af-b60a-ada4606bd960",
+    "media_id": "794f6017-13dc-4cb2-be6b-9f1706e21607",
+    "step": "intent",
+    "status": "success",
+    "depends_on": [],
+    "blob_storage_id": "users/777964c7-2284-4e00-b504-f1bb215a2bec/media/794f6017-13dc-4cb2-be6b-9f1706e21607/intent/intent/intent.json",
+    "retry_count": 0,
+    "error_message": null,
+    "started_at": "2026-02-06T08:37:31.848Z",
+    "completed_at": "2026-02-06T08:37:33.343Z",
+    "created_at": "2026-02-06T08:37:30.784Z",
+    "updated_at": "2026-02-06T08:37:33.416Z"
+  },
+  {
+    "id": "344ea098-19b3-4179-9486-9d6b0f3baef2",
+    "media_id": "794f6017-13dc-4cb2-be6b-9f1706e21607",
+    "step": "captions",
+    "status": "success",
+    "depends_on": [
+      "audio"
+    ],
+    "blob_storage_id": "users/777964c7-2284-4e00-b504-f1bb215a2bec/media/794f6017-13dc-4cb2-be6b-9f1706e21607/caption/captions/captions.json",
+    "retry_count": 0,
+    "error_message": null,
+    "started_at": "2026-02-06T08:38:02.121Z",
+    "completed_at": "2026-02-06T08:38:07.699Z",
+    "created_at": "2026-02-06T08:37:30.784Z",
+    "updated_at": "2026-02-06T08:38:07.772Z"
+  },
+  {
+    "id": "798b9458-0f79-4445-b3ed-bcaf1598a496",
+    "media_id": "794f6017-13dc-4cb2-be6b-9f1706e21607",
+    "step": "script",
+    "status": "success",
+    "depends_on": [
+      "intent"
+    ],
+    "blob_storage_id": "users/777964c7-2284-4e00-b504-f1bb215a2bec/media/794f6017-13dc-4cb2-be6b-9f1706e21607/script/script/script.json",
+    "retry_count": 0,
+    "error_message": null,
+    "started_at": "2026-02-06T08:37:33.654Z",
+    "completed_at": "2026-02-06T08:37:42.178Z",
+    "created_at": "2026-02-06T08:37:30.784Z",
+    "updated_at": "2026-02-06T08:37:42.251Z"
+  },
+  {
+    "id": "ad4cc259-ea98-472e-8f28-623cb4a76683",
+    "media_id": "794f6017-13dc-4cb2-be6b-9f1706e21607",
+    "step": "images",
+    "status": "success",
+    "depends_on": [
+      "script"
+    ],
+    "blob_storage_id": [
+      "users/777964c7-2284-4e00-b504-f1bb215a2bec/media/794f6017-13dc-4cb2-be6b-9f1706e21607/image/images/01b070d6-898d-41ed-ae0b-4b29068668ff.jpg",
+      "users/777964c7-2284-4e00-b504-f1bb215a2bec/media/794f6017-13dc-4cb2-be6b-9f1706e21607/image/images/7280702a-0194-4696-bdf9-5424357fa3b4.jpg",
+      "users/777964c7-2284-4e00-b504-f1bb215a2bec/media/794f6017-13dc-4cb2-be6b-9f1706e21607/image/images/a00162d8-1c1a-4814-b5dc-c613d00100e2.jpg",
+      "users/777964c7-2284-4e00-b504-f1bb215a2bec/media/794f6017-13dc-4cb2-be6b-9f1706e21607/image/images/544cff03-0d11-4c99-b4ec-0e05e57626e1.jpg"
+    ],
+    "retry_count": 0,
+    "error_message": null,
+    "started_at": "2026-02-06T08:37:42.491Z",
+    "completed_at": "2026-02-06T08:37:59.404Z",
+    "created_at": "2026-02-06T08:37:30.784Z",
+    "updated_at": "2026-02-06T08:37:59.480Z"
+  }
+]

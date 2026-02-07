@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { Media } from './entities/media.entity';
 import { MediaStep, StepStatus } from './entities/media-step.entity';
 import { MediaAsset } from './entities/media-asset.entity';
-import { MediaStatus, MediaAssetType, CREDIT_COSTS } from './media.constants';
+import { MediaStatus, MediaAssetType } from './media.constants';
 import { CreditsService } from '../credits/credits.service';
 import { IStorageService } from '../storage/interfaces/storage.interface';
 import { IVideoRenderer } from '../render/interfaces/video-renderer.interface';
@@ -18,7 +18,6 @@ import { BackgroundMusic } from './entities/background-music.entity';
 @Injectable()
 export class MediaOrchestratorService {
   private readonly logger = new Logger(MediaOrchestratorService.name);
-  private static isJobActive = false; // Production lock for memory stability
 
   constructor(
     @InjectRepository(Media)
@@ -36,16 +35,9 @@ export class MediaOrchestratorService {
     private readonly renderQueueService: RenderQueueService,
     @InjectRepository(BackgroundMusic)
     private musicRepository: Repository<BackgroundMusic>,
-  ) {}
+  ) { }
 
   async processMedia(mediaId: string): Promise<void> {
-    if (MediaOrchestratorService.isJobActive) {
-      this.logger.warn(
-        `Another media job is active. Skipping for now to preserve 512MB RAM: ${mediaId}`,
-      );
-      return;
-    }
-
     const media = await this.mediaRepository.findOne({
       where: { id: mediaId },
       relations: ['steps', 'assets'],
@@ -61,7 +53,6 @@ export class MediaOrchestratorService {
       return;
     }
 
-    MediaOrchestratorService.isJobActive = true;
     try {
       await this.mediaRepository.update(mediaId, { status: MediaStatus.PROCESSING });
       await this.runFlow(mediaId);
@@ -75,8 +66,6 @@ export class MediaOrchestratorService {
         status: MediaStatus.FAILED,
         error_message: error.message || 'Unknown orchestration error',
       });
-    } finally {
-      MediaOrchestratorService.isJobActive = false;
     }
   }
 

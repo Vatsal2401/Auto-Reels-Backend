@@ -4,13 +4,13 @@ import 'dotenv/config';
 async function inspect() {
   const connection = process.env.REDIS_HOST
     ? {
-        host: process.env.REDIS_HOST,
-        port: parseInt(process.env.REDIS_PORT || '6379'),
-        password: process.env.REDIS_PASSWORD,
-      }
+      host: process.env.REDIS_HOST,
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+      password: process.env.REDIS_PASSWORD,
+    }
     : {
-        url: process.env.REDIS_URL,
-      };
+      url: process.env.REDIS_URL,
+    };
 
   if (!connection['host'] && !connection['url']) {
     console.error('Redis configuration missing (REDIS_HOST or REDIS_URL)');
@@ -23,6 +23,12 @@ async function inspect() {
 
   const counts = await q.getJobCounts();
   console.log('Queue Status (render-tasks):', counts);
+
+  const active = await q.getActive();
+  console.log(
+    `Active jobs (${active.length}):`,
+    active.map((j) => ({ id: j.id, name: j.name, data: j.data?.mediaId })),
+  );
 
   const waiting = await q.getWaiting();
   console.log(
@@ -39,7 +45,7 @@ async function inspect() {
   const failed = await q.getFailed();
   console.log(
     `Failed jobs (${failed.length}):`,
-    failed.map((j) => ({ id: j.id, reason: j.failedReason })),
+    failed.map((j) => ({ id: j.id, reason: j.failedReason, data: j.data?.mediaId })),
   );
 
   await q.close();
