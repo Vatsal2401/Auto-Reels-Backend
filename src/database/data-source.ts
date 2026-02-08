@@ -8,6 +8,9 @@ import { MediaStep } from '../media/entities/media-step.entity';
 import { BackgroundMusic } from '../media/entities/background-music.entity';
 import { MediaAsset } from '../media/entities/media-asset.entity';
 import { User } from '../auth/entities/user.entity';
+import { CreditPlan } from '../payment/entities/credit-plan.entity';
+import { Payment } from '../payment/entities/payment.entity';
+import { CreditTransaction } from '../credits/entities/credit-transaction.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -17,7 +20,16 @@ export const AppDataSource = new DataSource({
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_DATABASE || 'ai_reels',
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-  entities: [Media, MediaStep, MediaAsset, User, BackgroundMusic],
+  entities: [
+    Media,
+    MediaStep,
+    MediaAsset,
+    User,
+    BackgroundMusic,
+    CreditPlan,
+    Payment,
+    CreditTransaction,
+  ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,
 });

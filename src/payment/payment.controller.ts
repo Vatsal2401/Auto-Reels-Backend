@@ -13,8 +13,8 @@ export class PaymentController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard)
   @Post('create-order')
-  async createOrder(@CurrentUser() user: any, @Body() body: { amount: number; credits: number }) {
-    return this.paymentService.createOrder(body.amount, body.credits, user.userId);
+  async createOrder(@CurrentUser() user: any, @Body() body: { planId: string }) {
+    return this.paymentService.createOrder(body.planId, user.userId, user.country);
   }
 
   @ApiOperation({ summary: 'Verify Razorpay payment signature' })

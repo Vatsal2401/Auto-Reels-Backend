@@ -63,6 +63,9 @@ export class User {
   @Column({ type: 'boolean', default: false })
   is_premium: boolean;
 
+  @Column({ type: 'varchar', length: 2, nullable: true })
+  country: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 

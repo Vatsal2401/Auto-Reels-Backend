@@ -87,6 +87,7 @@ export class AuthController {
       credits_balance: balance,
       is_premium: userEntity?.is_premium || false,
       email_verified: userEntity?.email_verified || false,
+      country: userEntity?.country || null,
     };
   }
 
