@@ -8,7 +8,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-echo -e "${GREEN}🚀 Starting AI Reels Backend in Development Mode${NC}"
+echo -e "${GREEN}🚀 Starting Auto Reels Backend in Development Mode${NC}"
 echo ""
 
 # Check if .env exists

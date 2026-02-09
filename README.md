@@ -1,4 +1,4 @@
-# AI Reels Backend
+# Auto Reels Backend
 
 Production-grade backend for AI-generated faceless reels platform built with NestJS, PostgreSQL, and FFmpeg.
 
@@ -27,6 +27,7 @@ This will check prerequisites, install dependencies, set up the `.env` file, sta
 
 - **Monolithic Service**: `VideoGenerationService` orchestrates the entire flow (Script -> Image -> Video -> Audio/Caption -> Render) asynchronously in the background.
 - **Idempotency**: Each step checks for existing artifacts to prevent duplicate generation and credit wastage.
+© 2024 Auto Reels. All rights reserved.
 - **SOLID Principles**: Extensible design with interfaces for AI providers, storage, and rendering.
 
 ### System Flow
@@ -57,7 +58,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_USERNAME=postgres
 DB_PASSWORD=postgres
-DB_DATABASE=ai_reels
+DB_DATABASE=auto_reels
 
 # API Keys
 OPENAI_API_KEY=sk-...

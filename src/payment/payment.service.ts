@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { User } from '../auth/entities/user.entity';
 import { CreditPlan } from './entities/credit-plan.entity';
 import { Payment, PaymentStatus } from './entities/payment.entity';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class PaymentService {
@@ -24,6 +25,7 @@ export class PaymentService {
     private creditPlanRepository: Repository<CreditPlan>,
     @InjectRepository(Payment)
     private paymentRepository: Repository<Payment>,
+    private eventEmitter: EventEmitter2,
   ) {
     this.razorpay = new Razorpay({
       key_id: this.configService.get<string>('RAZORPAY_KEY_ID'),
@@ -138,6 +140,18 @@ export class PaymentService {
           );
         });
 
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+        // Emit payment success event
+        this.eventEmitter.emit('payment.success', {
+          userId,
+          email: user?.email || 'Unknown',
+          amount: payment.amount,
+          currency: payment.currency,
+          planName: plan?.name || 'Credits',
+          orderId,
+          paymentId,
+        });
+
         return true;
       } catch (error) {
         this.logger.error('Error post-verifying payment', error);
@@ -189,6 +203,21 @@ export class PaymentService {
             manager,
           );
         });
+
+        // Fetch user for email if possible
+        const user = await this.userRepository.findOne({ where: { id: payment.user_id } });
+
+        // Emit payment success event
+        this.eventEmitter.emit('payment.success', {
+          userId: payment.user_id,
+          email: user?.email || 'Unknown',
+          amount: payment.amount,
+          currency: payment.currency,
+          planName: plan?.name || 'Credits',
+          orderId,
+          paymentId,
+        });
+
         this.logger.log(`Processed payment via webhook for order ${orderId}`);
       }
     }

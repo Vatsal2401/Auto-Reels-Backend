@@ -23,10 +23,10 @@ export const VerificationEmail = ({
 }: VerificationEmailProps) => (
   <Html>
     <Head />
-    <Preview>Verify your email for AI Reels</Preview>
+    <Preview>Verify your email for Auto Reels</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Heading style={h1}>Welcome to AI Reels!</Heading>
+        <Heading style={h1}>Welcome to Auto Reels!</Heading>
         <Text style={text}>Hi {userFirstname},</Text>
         <Text style={text}>
           Thank you for signing up. Please click the button below to verify your email address and

@@ -47,7 +47,7 @@ export const RenderCompleteEmail = ({
           </a>
         </Text>
         <Hr style={hr} />
-        <Text style={footer}>AI Reels - Create amazing content in seconds.</Text>
+        <Text style={footer}>Auto Reels - Create amazing content in seconds.</Text>
       </Container>
     </Body>
   </Html>

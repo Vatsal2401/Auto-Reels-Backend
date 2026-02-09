@@ -61,6 +61,57 @@ export class SlackService {
     }
   }
 
+  async sendPaymentNotification(data: {
+    email: string;
+    amount: number;
+    currency: string;
+    planName: string;
+    orderId: string;
+  }) {
+    const webhookUrl = this.configService.get<string>('SLACK_SIGNUP_WEBHOOK');
+    if (!webhookUrl) return;
+
+    const { email, amount, currency, planName, orderId } = data;
+    // Razorpay amounts are usually in paise/cents
+    const formattedAmount = (amount / 100).toFixed(2);
+
+    const payload = {
+      blocks: [
+        {
+          type: 'header',
+          text: {
+            type: 'plain_text',
+            text: '💰 New Payment Received!',
+            emoji: true,
+          },
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*Plan:* ${planName}\n*Amount:* ${formattedAmount} ${currency}\n*User:* ${email}\n*Order ID:* \`${orderId}\``,
+          },
+        },
+        {
+          type: 'context',
+          elements: [
+            {
+              type: 'mrkdwn',
+              text: `Time: ${new Date().toLocaleString()}`,
+            },
+          ],
+        },
+      ],
+    };
+
+    try {
+      await axios.post(webhookUrl, payload);
+      this.logger.log(`Payment notification sent to Slack for ${email}`);
+    } catch (error) {
+      this.logger.error('Failed to send Slack payment notification', error.message);
+    }
+  }
+
   private maskEmail(email: string): string {
     const [name, domain] = email.split('@');
     if (!domain) return email;

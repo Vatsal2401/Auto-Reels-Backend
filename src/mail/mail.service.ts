@@ -5,6 +5,7 @@ import { render } from '@react-email/render';
 import * as React from 'react';
 import VerificationEmail from './templates/verification';
 import RenderCompleteEmail from './templates/render-complete';
+import PaymentSuccessEmail from './templates/payment-success';
 
 @Injectable()
 export class MailService {
@@ -19,7 +20,7 @@ export class MailService {
     }
     const apiKey = this.configService.get<string>('RESEND_API_KEY');
     this.fromEmail =
-      this.configService.get<string>('SMTP_FROM') || 'AI Reels <onboarding@resend.dev>';
+      this.configService.get<string>('SMTP_FROM') || 'Auto Reels <onboarding@resend.dev>';
 
     if (!apiKey) {
       this.logger.error('RESEND_API_KEY is not defined');
@@ -44,7 +45,7 @@ export class MailService {
       const { data, error } = await this.resend.emails.send({
         from: this.fromEmail,
         to: email,
-        subject: 'Verify your email for AI Reels',
+        subject: 'Verify your email for Auto Reels',
         html,
       });
 
@@ -73,7 +74,7 @@ export class MailService {
       const { data, error } = await this.resend.emails.send({
         from: this.fromEmail,
         to: email,
-        subject: 'Your video is ready! - AI Reels',
+        subject: 'Your video is ready! - Auto Reels',
         html,
       });
 
@@ -85,6 +86,44 @@ export class MailService {
       this.logger.log(`Render complete email sent to ${email}. ID: ${data?.id}`);
     } catch (error) {
       this.logger.error(`Error in sendRenderCompleteEmail: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async sendPaymentSuccessEmail(
+    email: string,
+    planName: string,
+    amount: string,
+    currency: string,
+    orderId: string,
+    name?: string,
+  ) {
+    try {
+      const html = await render(
+        React.createElement(PaymentSuccessEmail, {
+          userFirstname: name,
+          planName,
+          amount,
+          currency,
+          orderId,
+        }),
+      );
+
+      const { data, error } = await this.resend.emails.send({
+        from: this.fromEmail,
+        to: email,
+        subject: 'Payment Receipt - Auto Reels',
+        html,
+      });
+
+      if (error) {
+        this.logger.error(`Failed to send payment success email to ${email}:`, error);
+        throw error;
+      }
+
+      this.logger.log(`Payment success email sent to ${email}. ID: ${data?.id}`);
+    } catch (error) {
+      this.logger.error(`Error in sendPaymentSuccessEmail: ${error.message}`);
       throw error;
     }
   }

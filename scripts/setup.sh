@@ -2,7 +2,7 @@
 
 set -e
 
-echo "🚀 AI Reels Backend - Local Setup Script"
+echo "🚀 Auto Reels Backend - Local Setup Script"
 echo "=========================================="
 echo ""
 
@@ -71,7 +71,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_USERNAME=postgres
 DB_PASSWORD=postgres
-DB_DATABASE=ai_reels
+DB_DATABASE=auto_reels
 JWT_SECRET=$(openssl rand -hex 32)
 EOF
     fi

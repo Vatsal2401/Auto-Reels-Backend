@@ -87,7 +87,7 @@ async function bootstrap() {
   // Swagger API Documentation (only in non-production)
   if (!isProduction) {
     const config = new DocumentBuilder()
-      .setTitle('AI Reels API')
+      .setTitle('Auto Reels API')
       .setDescription('API documentation for AI-generated faceless reels platform')
       .setVersion('1.0')
       .addBearerAuth(
