@@ -14,6 +14,7 @@ import { SignInDto } from './dto/signin.dto';
 import { CreditsService } from '../credits/credits.service';
 import { MailService } from '../mail/mail.service';
 import { v4 as uuidv4 } from 'uuid';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class AuthService {
@@ -23,6 +24,7 @@ export class AuthService {
     private jwtService: JwtService,
     private creditsService: CreditsService,
     private mailService: MailService,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   async signUp(dto: SignUpDto) {
@@ -68,6 +70,13 @@ export class AuthService {
 
       // Send verification email (outside transaction ideally, but fine here for now)
       this.mailService.sendVerificationEmail(savedUser.email, verificationToken);
+
+      // Emit signup event for notifications
+      this.eventEmitter.emit('user.signup', {
+        email: savedUser.email,
+        country: savedUser.country,
+        method: 'email',
+      });
 
       const tokens = await this.generateTokens(savedUser);
 
@@ -181,6 +190,13 @@ export class AuthService {
 
       // Initialize free credits for new OAuth user
       await this.creditsService.initializeUserCredits(user.id);
+
+      // Emit signup event for notifications
+      this.eventEmitter.emit('user.signup', {
+        email: user.email,
+        country: null, // OAuth providers don't always give country immediately
+        method: provider.toLowerCase(),
+      });
     }
 
     return user;

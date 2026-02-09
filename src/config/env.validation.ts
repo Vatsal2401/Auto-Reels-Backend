@@ -165,6 +165,10 @@ export class EnvironmentVariables {
   @ValidateNested()
   @Type(() => OAuthConfig)
   oauth: OAuthConfig;
+
+  @IsOptional()
+  @IsString()
+  SLACK_SIGNUP_WEBHOOK?: string;
 }
 
 export function validate(config: Record<string, unknown>) {

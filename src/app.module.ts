@@ -14,9 +14,13 @@ import { CreditsModule } from './credits/credits.module';
 import { HealthModule } from './health/health.module';
 import { PaymentModule } from './payment/payment.module';
 import { MediaModule } from './media/media.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
+    EventEmitterModule.forRoot(),
+    NotificationsModule,
     ServeStaticModule.forRoot({
       rootPath: process.env.LOCAL_STORAGE_PATH || join(process.cwd(), 'storage'),
       serveRoot: '/storage',
