@@ -9,6 +9,7 @@ import { CreditsService } from '../credits/credits.service';
 import { IStorageService } from '../storage/interfaces/storage.interface';
 import { IVideoRenderer } from '../render/interfaces/video-renderer.interface';
 import { RenderQueueService } from '../render/render-queue.service';
+import { RemotionQueueService } from '../render/remotion-queue.service';
 import { AiProviderFactory } from '../ai/ai-provider.factory';
 import { ScriptJSON } from '../ai/interfaces/script-generator.interface';
 import { GeminiTTSProvider } from '../ai/providers/gemini-tts.provider';
@@ -33,6 +34,7 @@ export class MediaOrchestratorService {
     @Inject('IStorageService') private storageService: IStorageService,
     @Inject('IVideoRenderer') private videoRenderer: IVideoRenderer,
     private readonly renderQueueService: RenderQueueService,
+    private readonly remotionQueueService: RemotionQueueService,
     @InjectRepository(BackgroundMusic)
     private musicRepository: Repository<BackgroundMusic>,
   ) {}
@@ -479,11 +481,13 @@ export class MediaOrchestratorService {
       }
     }
 
-    // PRODUCTION CHANGE: Delegate to worker queue
-    await this.renderQueueService.queueRenderJob({
+    const durationCategory = media.input_config?.duration ?? '30-60';
+    const step = await this.stepRepository.findOne({
+      where: { media_id: media.id, step: 'render' },
+    });
+    const payload = {
       mediaId: media.id,
-      stepId: (await this.stepRepository.findOne({ where: { media_id: media.id, step: 'render' } }))
-        .id,
+      stepId: step.id,
       userId: media.user_id,
       assets: {
         audio: audioAsset.blob_storage_id,
@@ -498,7 +502,7 @@ export class MediaOrchestratorService {
           fast_mode: true,
           smart_micro_scenes: true,
           captions: media.input_config?.captions,
-          musicVolume: typeof musicConfig?.volume === 'number' ? musicConfig.volume : 0.2, // Pass original 0-1 float
+          musicVolume: typeof musicConfig?.volume === 'number' ? musicConfig.volume : 0.2,
           width:
             media.input_config?.aspectRatio === '1:1'
               ? 1080
@@ -513,7 +517,15 @@ export class MediaOrchestratorService {
                 : 1280,
         },
       },
-    });
+    };
+
+    const useRemotionForShort =
+      process.env.REMOTION_QUEUE_ENABLED !== 'false' && durationCategory === '30-60';
+    if (useRemotionForShort) {
+      await this.remotionQueueService.queueRemotionJob(payload);
+    } else {
+      await this.renderQueueService.queueRenderJob(payload);
+    }
 
     return null; // Will be updated by worker on completion
   }

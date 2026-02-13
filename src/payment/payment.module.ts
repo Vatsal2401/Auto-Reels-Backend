@@ -14,4 +14,4 @@ import { Module } from '@nestjs/common';
   controllers: [PaymentController, PricingController],
   providers: [PaymentService, PricingService],
 })
-export class PaymentModule { }
+export class PaymentModule {}
