@@ -102,3 +102,15 @@ export const CREDIT_COSTS: Record<string, number> = {
   '90-120': 3,
   default: 1,
 };
+
+/** Steps reset when rerendering from script (deterministic order). Used only for rerender, not retry. */
+export const RERENDER_STEPS_FROM_SCRIPT = [
+  'script',
+  'audio',
+  'captions',
+  'images',
+  'render',
+] as const;
+
+/** Steps reset when rerendering from render only. */
+export const RERENDER_STEPS_FROM_RENDER = ['render'] as const;

@@ -37,6 +37,30 @@ export class MediaOrchestratorService {
     private musicRepository: Repository<BackgroundMusic>,
   ) {}
 
+  /**
+   * Get the latest non-obsolete asset of a type (by created_at). Used to avoid using stale assets after rerender.
+   */
+  private async getLatestAsset(mediaId: string, type: MediaAssetType): Promise<MediaAsset | null> {
+    const assets = await this.assetRepository.find({
+      where: { media_id: mediaId, type },
+      order: { created_at: 'DESC' },
+      take: 50,
+    });
+    const active = assets.find((a) => !(a.metadata && (a.metadata as any).obsolete === true));
+    return active ?? null;
+  }
+
+  /**
+   * Get all latest non-obsolete assets of a type (e.g. all current images).
+   */
+  private async getLatestAssets(mediaId: string, type: MediaAssetType): Promise<MediaAsset[]> {
+    const assets = await this.assetRepository.find({
+      where: { media_id: mediaId, type },
+      order: { created_at: 'DESC' },
+    });
+    return assets.filter((a) => !(a.metadata && (a.metadata as any).obsolete === true));
+  }
+
   async processMedia(mediaId: string): Promise<void> {
     const media = await this.mediaRepository.findOne({
       where: { id: mediaId },
@@ -180,18 +204,41 @@ export class MediaOrchestratorService {
   }
 
   private async handleScriptStep(media: Media): Promise<string> {
-    const intentAsset = await this.assetRepository.findOne({
-      where: { media_id: media.id, type: MediaAssetType.INTENT },
-    });
+    const config = media.input_config || {};
+    const durationMap: Record<string, number> = { '30-60': 45, '60-90': 75, '90-120': 105 };
+
+    // If script is persisted (e.g. from editor), skip AI generation and create script asset from it
+    const persistedScript = (media.script || '').trim();
+    const persistedScriptJson = config.script_json as ScriptJSON | undefined;
+    if (persistedScript || (persistedScriptJson && persistedScriptJson.scenes?.length)) {
+      const scriptJSON: ScriptJSON =
+        persistedScriptJson && persistedScriptJson.scenes?.length
+          ? persistedScriptJson
+          : this.scriptTextToMinimalScriptJson(persistedScript, durationMap[config.duration] || 45);
+      const scriptText = persistedScript || scriptJSON.scenes.map((s) => s.audio_text).join(' ');
+
+      const blobId = await this.storageService.upload({
+        userId: media.user_id,
+        mediaId: media.id,
+        type: 'script',
+        step: 'script',
+        buffer: Buffer.from(JSON.stringify({ text: scriptText, json: scriptJSON })),
+        fileName: 'script.json',
+      });
+
+      await this.mediaRepository.update(media.id, { script: scriptText });
+      await this.addAsset(media.id, MediaAssetType.SCRIPT, blobId, {
+        duration: scriptJSON.total_duration,
+        text: scriptText,
+      });
+      return blobId;
+    }
+
+    const intentAsset = await this.getLatestAsset(media.id, MediaAssetType.INTENT);
     const intentData = intentAsset ? (intentAsset.metadata as any) : null;
 
     const provider = process.env.GEMINI_API_KEY ? 'gemini' : 'mock';
     const scriptProvider = this.aiFactory.getScriptGenerator(provider);
-
-    const config = media.input_config || {};
-    const durationMap: Record<string, number> = { '30-60': 45, '60-90': 75, '90-120': 105 };
-
-    // Use interpreted script prompt if available
     const topic = intentData?.script_prompt || config.topic || 'Inspiration';
 
     const scriptJSON = await scriptProvider.generateScriptJSON({
@@ -199,7 +246,7 @@ export class MediaOrchestratorService {
       language: config.language || 'English (US)',
       targetDurationSeconds: durationMap[config.duration] || 45,
       audioPrompt: intentData?.audio_prompt,
-      visualStyle: config.imageStyle || 'Cinematic', // Pass user selection
+      visualStyle: config.imageStyle || 'Cinematic',
     } as any);
 
     const scriptText = scriptJSON.scenes.map((s) => s.audio_text).join(' ');
@@ -213,15 +260,12 @@ export class MediaOrchestratorService {
       fileName: 'script.json',
     });
 
-    // Update media with the script text for easy access
     await this.mediaRepository.update(media.id, { script: scriptText });
-
     await this.addAsset(media.id, MediaAssetType.SCRIPT, blobId, {
       duration: scriptJSON.total_duration,
       text: scriptText,
     });
 
-    // UNIFIED STEP: Back-propagate generated style metadata to the INTENT asset
     if (intentAsset && scriptJSON.visual_style) {
       const updatedIntent = {
         ...intentData,
@@ -229,11 +273,7 @@ export class MediaOrchestratorService {
         audio_prompt: scriptJSON.audio_mood,
         caption_prompt: scriptJSON.caption_style,
       };
-
-      // 1. Update Asset Metadata in DB
       await this.assetRepository.update(intentAsset.id, { metadata: updatedIntent });
-
-      // 2. Update Blob Content (Optional, but good for consistency)
       await this.storageService.upload({
         userId: media.user_id,
         mediaId: media.id,
@@ -247,15 +287,29 @@ export class MediaOrchestratorService {
     return blobId;
   }
 
+  /** Convert plain script text to minimal ScriptJSON for pipeline compatibility. */
+  private scriptTextToMinimalScriptJson(text: string, totalDuration: number): ScriptJSON {
+    const durationPerScene = Math.max(5, Math.floor(totalDuration / 1));
+    return {
+      scenes: [
+        {
+          scene_number: 1,
+          description: text,
+          image_prompt: text,
+          duration: durationPerScene,
+          audio_text: text,
+        },
+      ],
+      total_duration: totalDuration,
+      topic: 'Editor',
+    };
+  }
+
   private async handleAudioStep(media: Media): Promise<string> {
-    const scriptAsset = await this.assetRepository.findOne({
-      where: { media_id: media.id, type: MediaAssetType.SCRIPT },
-    });
+    const scriptAsset = await this.getLatestAsset(media.id, MediaAssetType.SCRIPT);
     if (!scriptAsset) throw new Error('Script asset missing');
 
-    const intentAsset = await this.assetRepository.findOne({
-      where: { media_id: media.id, type: MediaAssetType.INTENT },
-    });
+    const intentAsset = await this.getLatestAsset(media.id, MediaAssetType.INTENT);
     const intentData = intentAsset ? (intentAsset.metadata as any) : null;
 
     const scriptData = JSON.parse(
@@ -320,12 +374,8 @@ export class MediaOrchestratorService {
   }
 
   private async handleCaptionsStep(media: Media): Promise<string> {
-    const audioAsset = await this.assetRepository.findOne({
-      where: { media_id: media.id, type: MediaAssetType.AUDIO },
-    });
-    const scriptAsset = await this.assetRepository.findOne({
-      where: { media_id: media.id, type: MediaAssetType.SCRIPT },
-    });
+    const audioAsset = await this.getLatestAsset(media.id, MediaAssetType.AUDIO);
+    const scriptAsset = await this.getLatestAsset(media.id, MediaAssetType.SCRIPT);
     if (!audioAsset || !scriptAsset) throw new Error('Audio or script asset missing');
 
     const audioBuffer = await this.storageService.download(audioAsset.blob_storage_id);
@@ -333,9 +383,7 @@ export class MediaOrchestratorService {
       (await this.storageService.download(scriptAsset.blob_storage_id)).toString(),
     );
 
-    const intentAsset = await this.assetRepository.findOne({
-      where: { media_id: media.id, type: MediaAssetType.INTENT },
-    });
+    const intentAsset = await this.getLatestAsset(media.id, MediaAssetType.INTENT);
     const intentData = intentAsset ? (intentAsset.metadata as any) : null;
 
     // --- CAPTIONS TOGGLE ---
@@ -382,19 +430,13 @@ export class MediaOrchestratorService {
   }
 
   private async handleImagesStep(media: Media): Promise<string[]> {
-    const scriptAsset = await this.assetRepository.findOne({
-      where: { media_id: media.id, type: MediaAssetType.SCRIPT },
-    });
+    const scriptAsset = await this.getLatestAsset(media.id, MediaAssetType.SCRIPT);
     if (!scriptAsset) throw new Error('Script asset missing');
-
-    const scriptData = JSON.parse(
+    const _scriptData = JSON.parse(
       (await this.storageService.download(scriptAsset.blob_storage_id)).toString(),
-    );
-    const scriptJson: ScriptJSON = scriptData.json;
+    ) as { json?: ScriptJSON };
 
-    const intentAsset = await this.assetRepository.findOne({
-      where: { media_id: media.id, type: MediaAssetType.INTENT },
-    });
+    const intentAsset = await this.getLatestAsset(media.id, MediaAssetType.INTENT);
     const intentData = intentAsset ? (intentAsset.metadata as any) : null;
 
     const imageProvider = this.aiFactory.getImageGenerator(
@@ -449,24 +491,16 @@ export class MediaOrchestratorService {
   }
 
   private async handleRenderStep(media: Media): Promise<string> {
-    // PRODUCTION CHANGE: Delegate to worker queue
-    const audioAsset = await this.assetRepository.findOne({
-      where: { media_id: media.id, type: MediaAssetType.AUDIO },
-    });
-    const captionAsset = await this.assetRepository.findOne({
-      where: { media_id: media.id, type: MediaAssetType.CAPTION },
-    });
-    const imageAssets = await this.assetRepository.find({
-      where: { media_id: media.id, type: MediaAssetType.IMAGE },
-    });
+    // Use latest non-obsolete assets (deterministic after rerender)
+    const audioAsset = await this.getLatestAsset(media.id, MediaAssetType.AUDIO);
+    const captionAsset = await this.getLatestAsset(media.id, MediaAssetType.CAPTION);
+    const imageAssets = await this.getLatestAssets(media.id, MediaAssetType.IMAGE);
 
     if (!audioAsset || !captionAsset || imageAssets.length === 0) {
       throw new Error('Assets missing for rendering');
     }
 
-    const intentAsset = await this.assetRepository.findOne({
-      where: { media_id: media.id, type: MediaAssetType.INTENT },
-    });
+    const intentAsset = await this.getLatestAsset(media.id, MediaAssetType.INTENT);
     const intentData = intentAsset ? (intentAsset.metadata as any) : null;
 
     // Handle Background Music

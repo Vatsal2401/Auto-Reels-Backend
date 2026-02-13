@@ -63,6 +63,12 @@ export class Media {
   @Column({ type: 'timestamp', nullable: true })
   completed_at: Date | null;
 
+  @Column({ type: 'uuid', nullable: true })
+  parent_media_id: string | null;
+
+  @Column({ type: 'int', default: 1 })
+  version: number;
+
   @OneToMany(() => MediaStep, (step: MediaStep) => step.media)
   steps: Relation<MediaStep[]>;
 
