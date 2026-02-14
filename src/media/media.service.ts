@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Inject,
+  Optional,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Media } from './entities/media.entity';
@@ -14,6 +20,7 @@ import {
 import { CreditsService } from '../credits/credits.service';
 import { IStorageService } from '../storage/interfaces/storage.interface';
 import { User } from '../auth/entities/user.entity';
+import { ElevenLabsService } from '../ai/elevenlabs.service';
 
 @Injectable()
 export class MediaService {
@@ -30,6 +37,7 @@ export class MediaService {
     private userRepository: Repository<User>,
     private creditsService: CreditsService,
     @Inject('IStorageService') private storageService: IStorageService,
+    @Optional() private elevenLabsService: ElevenLabsService | null,
   ) {}
 
   async createMedia(dto: any, userId?: string): Promise<Media> {
@@ -70,7 +78,11 @@ export class MediaService {
       }
     }
 
-    // Create Media record
+    // Resolve voiceId from voice type + language when both provided (e.g. "Grounded And Professional" + "Hindi")
+    if (this.elevenLabsService && dto.voiceLabel && dto.language) {
+      dto.voiceId = this.elevenLabsService.getVoiceId(dto.voiceLabel, dto.language);
+    }
+
     const media = this.mediaRepository.create({
       type: dto.type || MediaType.VIDEO,
       flow_key: flowKey,
