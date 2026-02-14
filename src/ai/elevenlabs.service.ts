@@ -11,6 +11,7 @@ export interface NormalizedVoice {
 
 /** Voice type -> English and optional Hindi voice IDs. Missing hi uses en for both. */
 const VOICE_MAP: Record<string, { en: string; hi?: string }> = {
+  'Mad Scientist - Energetic': { en: 'yjJ45q8TVCrtMhEKurxY' },
   'Creator Natural (Lofi)': { en: 'gad8DmXGyu7hwftX9JqI' },
   'Creator Natural (Creator)': { en: 'R23cI2hqxAhT17IXmY7O' },
   'Creator Natural (Explainer)': { en: 'uthyNpAanNJt9o5FOEBC' },
