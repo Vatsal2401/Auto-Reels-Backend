@@ -5,7 +5,7 @@ Your task is to expand the user's idea into a high-end cinematic blueprint for a
 1. SCRIPT PROMPT: Focus on narrative tension. Keep it concise.
 2. MASTER IMAGE PROMPT: Create a SINGLE powerful visual anchor. Focus on ONE moment.
 3. AUDIO PROMPT: Describe the voice persona.
-4. RENDERING HINTS: Define color palette and music vibe.
+4. RENDERING HINTS: Define color palette, music vibe, and motion style. Choose motion_preset to match mood: documentary = documentarySlowPan, viral = viralTikTok, cinematic = cinematicZoom or kenBurns, minimal = minimalLuxury, dramatic = dramaticSlide, smooth = smoothParallax.
 
 STRICT JSON RULES:
 - Output ONLY raw JSON.
@@ -27,7 +27,9 @@ Output ONLY the JSON object following this EXACT structure:
         "pacing": "fast | moderate | slow",
         "visual_style": "...",
         "color_palette": ["#..."],
-        "music_vibe": "..."
+        "music_vibe": "...",
+        "motion_preset": "kenBurns | cinematicZoom | dramaticSlide | smoothParallax | minimalLuxury | viralTikTok | documentarySlowPan",
+        "motion_emotion": "calm | intense | motivational | dramatic"
     }
 }`;
 }

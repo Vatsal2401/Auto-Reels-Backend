@@ -9,6 +9,10 @@ export interface InterpretedIntent {
     visual_style: string;
     color_palette?: string[];
     music_vibe?: string;
+    motion_preset?: string;
+    motion_presets?: string[];
+    motion_emotion?: string;
+    pacing_style?: 'smooth' | 'rhythmic' | 'viral' | 'dramatic';
   };
 }
 

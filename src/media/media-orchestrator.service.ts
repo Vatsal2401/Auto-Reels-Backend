@@ -499,9 +499,16 @@ export class MediaOrchestratorService {
         preset: 'superfast',
         rendering_hints: {
           ...intentData?.rendering_hints,
+          ...(!intentData?.rendering_hints?.motion_preset &&
+            (!Array.isArray(intentData?.rendering_hints?.motion_presets) ||
+              intentData.rendering_hints.motion_presets.length === 0) && {
+              motion_preset: 'kenBurns',
+            }),
           fast_mode: true,
           smart_micro_scenes: true,
           captions: media.input_config?.captions,
+          pacing_style:
+            media.input_config?.pacing_style ?? intentData?.rendering_hints?.pacing_style,
           musicVolume: typeof musicConfig?.volume === 'number' ? musicConfig.volume : 0.2,
           width:
             media.input_config?.aspectRatio === '1:1'
