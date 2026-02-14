@@ -60,8 +60,9 @@ export class MediaController {
   }
 
   @Get(':id/editor')
-  async getEditorPayload(@Param('id') id: string) {
-    return await this.mediaService.getEditorPayload(id);
+  @UseGuards(JwtAuthGuard)
+  async getEditorPayload(@Param('id') id: string, @Request() req: any) {
+    return await this.mediaService.getEditorPayload(id, req.user.userId);
   }
 
   @Get(':id')

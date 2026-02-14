@@ -22,6 +22,7 @@ import {
 import { CreditsService } from '../credits/credits.service';
 import { IStorageService } from '../storage/interfaces/storage.interface';
 import { User } from '../auth/entities/user.entity';
+import { MusicService } from './music.service';
 
 /** Operation names for guard error messages */
 const GUARD_OPERATIONS = {
@@ -44,6 +45,7 @@ export class MediaService {
     private userRepository: Repository<User>,
     private creditsService: CreditsService,
     @Inject('IStorageService') private storageService: IStorageService,
+    private musicService: MusicService,
   ) {}
 
   async createMedia(dto: any, userId?: string): Promise<Media> {
@@ -155,7 +157,7 @@ export class MediaService {
   async duplicateMedia(id: string, userId: string): Promise<Media> {
     const source = await this.mediaRepository.findOne({
       where: { id },
-      relations: ['steps'],
+      relations: ['steps', 'assets'],
     });
     if (!source) {
       throw new NotFoundException(`Media ID ${id} not found`);
@@ -189,6 +191,22 @@ export class MediaService {
       }),
     );
     await this.stepRepository.save(steps);
+
+    // Copy assets (images, audio, captions) so the editor has existing assets to show and use
+    const activeAssets = (source.assets || []).filter(
+      (a) => !(a.metadata && (a.metadata as any).obsolete === true),
+    );
+    if (activeAssets.length > 0) {
+      const newAssets = activeAssets.map((a) =>
+        this.assetRepository.create({
+          media_id: saved.id,
+          type: a.type,
+          blob_storage_id: a.blob_storage_id,
+          metadata: a.metadata ? { ...a.metadata } : null,
+        }),
+      );
+      await this.assetRepository.save(newAssets);
+    }
 
     return saved;
   }
@@ -252,8 +270,12 @@ export class MediaService {
 
   /**
    * Normalized payload for the editor (stable contract). Requires media with assets.
+   * When userId is provided, returns payload only if the media belongs to that user.
    */
-  async getEditorPayload(id: string): Promise<{
+  async getEditorPayload(
+    id: string,
+    userId?: string,
+  ): Promise<{
     id: string;
     title: string;
     duration: string;
@@ -265,11 +287,35 @@ export class MediaService {
     status: string;
     final_url?: string;
   }> {
-    const raw = await this.getMedia(id);
+    const media = await this.mediaRepository.findOne({
+      where: { id },
+      relations: ['steps', 'assets'],
+    });
+    if (!media) {
+      throw new NotFoundException(`Media with ID ${id} not found`);
+    }
+    if (userId != null && media.user_id !== userId) {
+      throw new NotFoundException(`Media with ID ${id} not found`);
+    }
+    const raw = await this.transformMedia(media);
     const config = raw.input_config || {};
     const byType = raw.assets_by_type || {};
     const first = (arr: any[]) => (Array.isArray(arr) && arr.length ? arr[0] : null);
     const urls = (arr: any[]) => (Array.isArray(arr) ? arr.map((a) => a.url).filter(Boolean) : []);
+
+    // Resolve a fresh signed URL for background music so the editor can play it (stored URL may have expired)
+    let inputConfig: Record<string, any> = config;
+    if (config.music?.id) {
+      try {
+        const musicEntity = await this.musicService.findById(config.music.id);
+        if (musicEntity) {
+          const freshMusicUrl = await this.musicService.getMusicUrl(musicEntity.blob_storage_id);
+          inputConfig = { ...config, music: { ...config.music, url: freshMusicUrl } };
+        }
+      } catch {
+        // Keep existing config if resolution fails (e.g. music deleted)
+      }
+    }
 
     return {
       id: raw.id,
@@ -279,7 +325,7 @@ export class MediaService {
       audioUrl: first(byType.audio)?.url ?? null,
       captionUrl: first(byType.caption)?.url ?? null,
       imageUrls: urls(byType.image || []),
-      inputConfig: config,
+      inputConfig,
       status: raw.status,
       final_url: raw.final_url,
     };
