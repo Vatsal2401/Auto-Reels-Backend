@@ -1,3 +1,12 @@
+function getHindiScriptInstruction(language: string): string {
+  if (!/hindi|hi|हिंदी/i.test(language)) return '';
+  return `
+SCRIPT WRITING (for Hindi only):
+- When language is Hindi, write the ENTIRE script in ROMANIZED form only: use Latin/English letters to write Hindi words (e.g. "Dekho yeh bandar, pyaar ka rang chadha hai!").
+- Do NOT use Devanagari script. No Hindi characters (no द, न, य, etc.). Every word must be in A-Z, a-z only.
+- Example correct: "Aaj toh Valentine's Day hai, kya naachega yeh?" | Example wrong: "आज तो वैलेंटाइन डे है"`;
+}
+
 export function getScriptGenerationPrompt(
   topic: string,
   duration: number,
@@ -6,6 +15,7 @@ export function getScriptGenerationPrompt(
   visualStyle: string = 'Cinematic',
 ): string {
   const audioStyleSection = audioStyle ? `\nNARRATION STYLE: ${audioStyle}.` : '';
+  const hindiInstruction = getHindiScriptInstruction(language);
 
   // Calculate strict word counts
   // For 45s, natural pacing is ~95-100 words.
@@ -15,7 +25,7 @@ export function getScriptGenerationPrompt(
   return `You are a professional social media scriptwriter.
 Create a ${duration}-second video script about: "${topic}".
 THEME: ${visualStyle}.
-LANGUAGE: ${language}.${audioStyleSection}
+LANGUAGE: ${language}.${audioStyleSection}${hindiInstruction}
 
 STRICT DURATION CONTROL (LIFE-OR-DEATH):
 1. **TOTAL WORD LIMIT**: The ENTIRE script (sum of all scenes) MUST be between ${targetWords} and ${absoluteMaxWords} words.
@@ -28,6 +38,10 @@ JSON FORMATTING:
 - Output ONLY valid JSON.
 - NO comments. NO markdown.
 
+IMAGE RULES (for each scene's image_prompt):
+- Describe ONE single full-frame visual per scene. No grids, no collages, no split screens.
+- Do NOT describe any text, captions, words, or overlays on the image. Image must be text-free.
+
 Structure:
 {
   "topic": "${topic}",
@@ -37,9 +51,9 @@ Structure:
     {
       "scene_number": 1,
       "description": "...",
-      "image_prompt": "...",
+      "image_prompt": "Single visual only, no text on image",
       "duration": 5,
-      "audio_text": "Exactly 10-12 words in ${language}."
+      "audio_text": "Exactly 10-12 words in ${language}${/hindi|hi/i.test(language) ? ', Romanized only (Latin letters, no Devanagari)' : ''}."
     }
   ]
 }`;
@@ -51,24 +65,25 @@ export function getSimpleScriptPrompt(topic: string): string {
 
 export function getOpenAIScriptSystemPrompt(duration: string | number, language: string): string {
   const numDuration = Number(duration) || 30;
-  const targetWords = Math.floor(numDuration * 1.8);
   const maxWords = Math.floor(numDuration * 2.1);
+  const hindiInstruction = getHindiScriptInstruction(language);
 
   return `You are a viral script writer.
 Create a ${numDuration}-second Reel script.
-LANGUAGE: ${language}.
+LANGUAGE: ${language}.${hindiInstruction}
 
 STRICT CONSTRAINTS:
 - TOTAL WORDS MUST NOT EXCEED ${maxWords}.
 - Each 5s scene = 10-12 words.
 - If you write too much, the audio will fail.
 
+IMAGE RULES: Each image_prompt = one single full-frame visual. No grids, no text/captions on the image.
 {
   "scenes": [
     {
       "scene_number": 1,
       "description": "...",
-      "image_prompt": "...",
+      "image_prompt": "Single visual, text-free",
       "duration": 5,
       "audio_text": "10-12 words narration"
     }
