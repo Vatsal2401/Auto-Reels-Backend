@@ -19,7 +19,9 @@ import {
 } from './media.constants';
 import { CreditsService } from '../credits/credits.service';
 import { IStorageService } from '../storage/interfaces/storage.interface';
+import { StorageResolverService } from '../storage/storage-resolver.service';
 import { User } from '../auth/entities/user.entity';
+import { BackgroundMusic } from './entities/background-music.entity';
 import { ElevenLabsService } from '../ai/elevenlabs.service';
 
 @Injectable()
@@ -35,8 +37,11 @@ export class MediaService {
     private assetRepository: Repository<MediaAsset>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(BackgroundMusic)
+    private musicRepository: Repository<BackgroundMusic>,
     private creditsService: CreditsService,
     @Inject('IStorageService') private storageService: IStorageService,
+    @Optional() private storageResolver: StorageResolverService | null,
     @Optional() private elevenLabsService: ElevenLabsService | null,
   ) {}
 
@@ -78,6 +83,7 @@ export class MediaService {
       }
     }
 
+    const defaultBackend = (process.env.DEFAULT_STORAGE_BACKEND || 's3') as 'supabase' | 's3';
     // Resolve voiceId from voice type + language when both provided (e.g. "Grounded And Professional" + "Hindi")
     if (this.elevenLabsService && dto.voiceLabel && dto.language) {
       dto.voiceId = this.elevenLabsService.getVoiceId(dto.voiceLabel, dto.language);
@@ -89,6 +95,7 @@ export class MediaService {
       status: MediaStatus.PENDING,
       user_id: userId || null,
       input_config: dto,
+      blob_storage_backend: defaultBackend,
     });
 
     const savedMedia = await this.mediaRepository.save(media);
@@ -109,7 +116,7 @@ export class MediaService {
     return savedMedia;
   }
 
-  async getMedia(id: string): Promise<any> {
+  async getMedia(id: string, options?: { expiresIn?: number }): Promise<any> {
     const media = await this.mediaRepository.findOne({
       where: { id },
       relations: ['steps', 'assets'],
@@ -119,7 +126,8 @@ export class MediaService {
       throw new NotFoundException(`Media with ID ${id} not found`);
     }
 
-    return await this.transformMedia(media);
+    const expiresIn = options?.expiresIn ?? 3600;
+    return await this.transformMedia(media, expiresIn);
   }
 
   async getUserMedia(userId: string): Promise<any[]> {
@@ -129,7 +137,7 @@ export class MediaService {
       relations: ['steps'],
     });
 
-    return await Promise.all(mediaList.map((m) => this.transformMedia(m)));
+    return await Promise.all(mediaList.map((m) => this.transformMedia(m, 3600)));
   }
 
   async retryMedia(id: string): Promise<Media> {
@@ -158,24 +166,56 @@ export class MediaService {
     return await this.mediaRepository.save(media);
   }
 
-  private async transformMedia(media: Media): Promise<any> {
-    const result: any = { ...media };
+  private async getSignedUrlForMedia(
+    objectId: string,
+    backend: 'supabase' | 's3' | null,
+    expiresIn: number = 3600,
+  ): Promise<string> {
+    if (this.storageResolver) {
+      const b = backend ?? 'supabase';
+      return this.storageResolver.getSignedUrl(b, objectId, expiresIn);
+    }
+    return this.storageService.getSignedUrl(objectId, expiresIn);
+  }
 
-    // Dynamic URL generation for blob_storage_id
+  private async transformMedia(media: Media, expiresIn: number = 3600): Promise<any> {
+    const result: any = { ...media };
+    const backend = media.blob_storage_backend ?? 'supabase';
+
     if (media.blob_storage_id) {
-      result.final_url = await this.storageService.getSignedUrl(media.blob_storage_id);
+      result.final_url = await this.getSignedUrlForMedia(media.blob_storage_id, backend, expiresIn);
     }
 
-    // Map assets by type
     result.assets_by_type = {};
     if (media.assets) {
       for (const asset of media.assets) {
         if (!result.assets_by_type[asset.type]) result.assets_by_type[asset.type] = [];
-        const signedUrl = await this.storageService.getSignedUrl(asset.blob_storage_id);
+        const signedUrl = await this.getSignedUrlForMedia(
+          asset.blob_storage_id,
+          backend,
+          expiresIn,
+        );
         result.assets_by_type[asset.type].push({
           ...asset,
           url: signedUrl,
         });
+      }
+    }
+
+    // Fresh signed URL for background music so it does not expire during long renders
+    const musicConfig = media.input_config?.music;
+    if (musicConfig?.id) {
+      const musicEntity = await this.musicRepository.findOne({ where: { id: musicConfig.id } });
+      if (musicEntity?.blob_storage_id) {
+        const musicUrl = await this.getSignedUrlForMedia(
+          musicEntity.blob_storage_id,
+          backend,
+          expiresIn,
+        );
+        result.input_config = {
+          ...(result.input_config || {}),
+          music: { ...musicConfig, url: musicUrl },
+        };
       }
     }
 

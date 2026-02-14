@@ -48,6 +48,10 @@ export class Media {
   @Column({ type: 'text', nullable: true })
   blob_storage_id: string | null;
 
+  /** Where this media's blobs live: 'supabase' (legacy) or 's3'. Null = supabase. */
+  @Column({ type: 'text', nullable: true })
+  blob_storage_backend: 'supabase' | 's3' | null;
+
   @Column({ type: 'text', nullable: true })
   script: string | null;
 

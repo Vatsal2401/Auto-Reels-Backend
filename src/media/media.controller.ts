@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Param,
+  Query,
   Body,
   Patch,
   UseGuards,
@@ -38,8 +39,12 @@ export class MediaController {
   }
 
   @Get(':id')
-  async getMedia(@Param('id') id: string) {
-    return await this.mediaService.getMedia(id);
+  async getMedia(@Param('id') id: string, @Query('expiresIn') expiresIn?: string) {
+    const options =
+      expiresIn != null
+        ? { expiresIn: Math.min(86400, Math.max(60, parseInt(expiresIn, 10) || 3600)) }
+        : undefined;
+    return await this.mediaService.getMedia(id, options);
   }
 
   @Get('user/me')

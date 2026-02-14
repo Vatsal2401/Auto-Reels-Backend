@@ -29,6 +29,7 @@
     "setup": "bash scripts/setup.sh",
     "dev": "bash scripts/dev.sh",
     "seed": "ts-node scripts/seed.ts",
+    "copy-music-to-s3": "ts-node -r dotenv/config scripts/copy-music-supabase-to-s3.ts",
     "db:reset": "npm run migration:revert && npm run migration:run && npm run seed",
     "infra:up": "cd docker && docker-compose -f docker-compose.dev.yml up -d postgres && cd ..",
     "infra:down": "cd docker && docker-compose -f docker-compose.dev.yml down && cd ..",
