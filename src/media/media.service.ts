@@ -22,6 +22,7 @@ import { IStorageService } from '../storage/interfaces/storage.interface';
 import { StorageResolverService } from '../storage/storage-resolver.service';
 import { User } from '../auth/entities/user.entity';
 import { BackgroundMusic } from './entities/background-music.entity';
+import { ElevenLabsService } from '../ai/elevenlabs.service';
 
 @Injectable()
 export class MediaService {
@@ -41,6 +42,7 @@ export class MediaService {
     private creditsService: CreditsService,
     @Inject('IStorageService') private storageService: IStorageService,
     @Optional() private storageResolver: StorageResolverService | null,
+    @Optional() private elevenLabsService: ElevenLabsService | null,
   ) {}
 
   async createMedia(dto: any, userId?: string): Promise<Media> {
@@ -82,6 +84,10 @@ export class MediaService {
     }
 
     const defaultBackend = (process.env.DEFAULT_STORAGE_BACKEND || 's3') as 'supabase' | 's3';
+    // Resolve voiceId from voice type + language when both provided (e.g. "Grounded And Professional" + "Hindi")
+    if (this.elevenLabsService && dto.voiceLabel && dto.language) {
+      dto.voiceId = this.elevenLabsService.getVoiceId(dto.voiceLabel, dto.language);
+    }
 
     const media = this.mediaRepository.create({
       type: dto.type || MediaType.VIDEO,

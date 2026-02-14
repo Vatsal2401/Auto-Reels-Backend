@@ -9,6 +9,21 @@ export interface NormalizedVoice {
   description?: string;
 }
 
+/** Voice type -> English and optional Hindi voice IDs. Missing hi uses en for both. */
+const VOICE_MAP: Record<string, { en: string; hi?: string }> = {
+  'Creator Natural (Lofi)': { en: 'gad8DmXGyu7hwftX9JqI' },
+  'Creator Natural (Creator)': { en: 'R23cI2hqxAhT17IXmY7O' },
+  'Creator Natural (Explainer)': { en: 'uthyNpAanNJt9o5FOEBC' },
+  'Viral Energetic': { en: 'BZ7QSotEmGyFMP8nbbhC', hi: 'URgDTjqBVr48zeu6FETI' },
+  'Story / Podcast': { en: 'NZX3G5Vcbc9iwbdtIdDE', hi: 'nZ5WsS2E2UAALki8m2V6' },
+  'Soft / Aesthetic': { en: 'Y4SxZRpAUjgjFSmjHhym', hi: 'Lhkfd0eq2F87bgx4Aozc' },
+  'Authority / Explainer': { en: 'AvUYKSeryCcU2BHSM8x7', hi: 'tA6LGZpsqStKtSaGiXND' },
+  Sad: { en: 'wVOQaU8CfoRJqCWsxoLv' },
+  'Soft Romantic': { en: 'HECTtlQhQlGs92mhlNnU', hi: '1zUSi8LeHs9M2mV8X6YS' },
+  'Grounded And Professional': { en: 'aMSt68OGf4xUZAnLpTU8' },
+  'Old Rich': { en: 'qNkzaJoHLLdpvgh5tISm' },
+};
+
 @Injectable()
 export class ElevenLabsService {
   private readonly logger = new Logger(ElevenLabsService.name);
@@ -20,36 +35,30 @@ export class ElevenLabsService {
     });
   }
 
+  /**
+   * Returns static voice list by type. No API fetch.
+   * Each type has one row per language (English / Hindi). Use meta to filter by language.
+   */
   async getVoices(): Promise<NormalizedVoice[]> {
-    try {
-      const { voices } = await this.client.voices.getAll();
-
-      const normalizedVoices = voices.map((v) => ({
-        value: v.voiceId,
-        label: v.name || 'Unnamed Voice',
-        meta: `${v.labels?.accent || 'Global'} ${v.labels?.gender || 'Neural'}`,
-        description: v.labels?.description || '',
-      }));
-
-      // FEATURED VOICE: Mad Scientist (Dr. Von)
-      // ID: yjJ45q8TVCrtMhEKurxY
-      // This is a shared voice. If not in user's library, we force it here.
-      // NOTE: Using this might fail if the user is on a Free Tier.
-      const madScientistId = 'yjJ45q8TVCrtMhEKurxY';
-      if (!normalizedVoices.find((v) => v.value === madScientistId)) {
-        normalizedVoices.unshift({
-          value: madScientistId,
-          label: 'Dr. Von (Mad Scientist)',
-          meta: 'American Male Neural',
-          description: 'Quirky, energetic, mad scientist voice. (Requires Creator Tier)',
-        });
-      }
-
-      return normalizedVoices;
-    } catch (error) {
-      this.logger.error('Failed to fetch voices from ElevenLabs SDK', error);
-      throw error;
+    const list: NormalizedVoice[] = [];
+    for (const [type, ids] of Object.entries(VOICE_MAP)) {
+      const enId = ids.en;
+      const hiId = ids.hi ?? ids.en;
+      list.push({ value: enId, label: type, meta: 'English' });
+      list.push({ value: hiId, label: type, meta: 'Hindi' });
     }
+    return list;
+  }
+
+  /**
+   * Resolve voice ID for a given type and language. Use when user selects type + language (e.g. Hindi).
+   * Returns Hindi ID when language is Hindi and type has Hindi; otherwise English ID.
+   */
+  getVoiceId(voiceType: string, language: string): string {
+    const entry = VOICE_MAP[voiceType];
+    if (!entry) return VOICE_MAP['Grounded And Professional'].en;
+    const isHindi = /hindi|hi|हिंदी/i.test(language);
+    return isHindi && entry.hi ? entry.hi : entry.en;
   }
 
   async generatePreview(voiceId: string, language: string): Promise<Buffer> {
@@ -70,7 +79,7 @@ export class ElevenLabsService {
       const cachedBuffer = await this.storageService.download(cacheKey);
       this.logger.log(`Cache HIT for voice ${voiceId} (key: ${cacheKey})`);
       return cachedBuffer;
-    } catch (e) {
+    } catch (_e) {
       this.logger.log(`Cache MISS for voice ${voiceId}. Calling API...`);
     }
 
@@ -137,6 +146,7 @@ export class ElevenLabsService {
   private getModelForLanguage(language: string): string {
     const mapping: Record<string, string> = {
       'English (US)': 'eleven_multilingual_v2',
+      Hindi: 'eleven_multilingual_v2',
       Spanish: 'eleven_multilingual_v2',
       French: 'eleven_multilingual_v2',
       German: 'eleven_multilingual_v2',
