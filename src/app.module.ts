@@ -16,6 +16,7 @@ import { PaymentModule } from './payment/payment.module';
 import { MediaModule } from './media/media.module';
 import { ProjectsModule } from './projects/projects.module';
 import { KineticTypographyModule } from './kinetic-typography/kinetic-typography.module';
+import { ShowcaseModule } from './showcase/showcase.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { NotificationsModule } from './notifications/notifications.module';
 
@@ -44,6 +45,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     MediaModule,
     ProjectsModule,
     KineticTypographyModule,
+    ShowcaseModule,
     AIModule,
     StorageModule,
     RenderModule,
