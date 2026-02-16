@@ -30,12 +30,7 @@ export class CreditsController {
 
   @Get('me')
   async getCreditInfo(@CurrentUser() user: any) {
-    const balance = await this.creditsService.getBalance(user.userId);
-    // Note: is_premium will be fetched from user entity in a real implementation
-    return {
-      balance,
-      is_premium: false, // TODO: Fetch from user entity
-    };
+    return this.creditsService.getCreditInfo(user.userId);
   }
 
   @Get('history')

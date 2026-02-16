@@ -25,6 +25,21 @@ export class CreditsService {
     return user.credits_balance;
   }
 
+  async getCreditInfo(userId: string): Promise<{ balance: number; is_premium: boolean }> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return {
+      balance: user.credits_balance,
+      is_premium: user.is_premium ?? false,
+    };
+  }
+
   async hasEnoughCredits(userId: string, amount: number): Promise<boolean> {
     const balance = await this.getBalance(userId);
     return balance >= amount;

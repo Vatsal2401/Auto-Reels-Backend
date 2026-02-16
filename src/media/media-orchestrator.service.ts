@@ -15,6 +15,8 @@ import { ScriptJSON } from '../ai/interfaces/script-generator.interface';
 import { GeminiTTSProvider } from '../ai/providers/gemini-tts.provider';
 import { OpenAITTSProvider } from '../ai/providers/openai-tts.provider';
 import { BackgroundMusic } from './entities/background-music.entity';
+import { User } from '../auth/entities/user.entity';
+import { getWatermarkConfig } from '../render/watermark.util';
 
 @Injectable()
 export class MediaOrchestratorService {
@@ -27,6 +29,8 @@ export class MediaOrchestratorService {
     private stepRepository: Repository<MediaStep>,
     @InjectRepository(MediaAsset)
     private assetRepository: Repository<MediaAsset>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
     private aiFactory: AiProviderFactory,
     private readonly creditsService: CreditsService,
     private readonly geminiTTS: GeminiTTSProvider,
@@ -485,6 +489,9 @@ export class MediaOrchestratorService {
     const step = await this.stepRepository.findOne({
       where: { media_id: media.id, step: 'render' },
     });
+
+    const user = await this.userRepository.findOne({ where: { id: media.user_id } });
+
     const payload = {
       mediaId: media.id,
       stepId: step.id,
@@ -524,6 +531,7 @@ export class MediaOrchestratorService {
                 : 1280,
         },
       },
+      monetization: getWatermarkConfig(user?.is_premium ?? false),
     };
 
     const useRemotionForShort =

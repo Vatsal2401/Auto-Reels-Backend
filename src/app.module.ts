@@ -14,6 +14,8 @@ import { CreditsModule } from './credits/credits.module';
 import { HealthModule } from './health/health.module';
 import { PaymentModule } from './payment/payment.module';
 import { MediaModule } from './media/media.module';
+import { ProjectsModule } from './projects/projects.module';
+import { KineticTypographyModule } from './kinetic-typography/kinetic-typography.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { NotificationsModule } from './notifications/notifications.module';
 
@@ -40,6 +42,8 @@ import { NotificationsModule } from './notifications/notifications.module';
     DatabaseModule,
     VideoModule,
     MediaModule,
+    ProjectsModule,
+    KineticTypographyModule,
     AIModule,
     StorageModule,
     RenderModule,

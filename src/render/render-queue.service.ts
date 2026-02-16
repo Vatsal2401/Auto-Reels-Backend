@@ -2,6 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
 
+/** Watermark config derived from user subscription at render time. Not controllable by frontend. */
+export interface WatermarkConfig {
+  enabled: boolean;
+  type: 'text' | 'image';
+  value?: string;
+}
+
 export interface RenderJobPayload {
   mediaId: string;
   stepId: string;
@@ -15,6 +22,10 @@ export interface RenderJobPayload {
   options: {
     preset: string;
     rendering_hints?: any;
+  };
+  /** Set by backend from user plan: FREE = watermark on, PRO = off. Worker must pass to Remotion/FFmpeg. */
+  monetization?: {
+    watermark: WatermarkConfig;
   };
 }
 

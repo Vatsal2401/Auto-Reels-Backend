@@ -13,15 +13,15 @@ import { RenderModule } from '../render/render.module';
 import { AuthModule } from '../auth/auth.module';
 import { User } from '../auth/entities/user.entity';
 import { MailModule } from '../mail/mail.module';
-
+import { ProjectsModule } from '../projects/projects.module';
 import { BackgroundMusic } from './entities/background-music.entity';
-
 import { MusicService } from './music.service';
 import { MusicController } from './music.controller';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Media, MediaStep, MediaAsset, BackgroundMusic, User]),
+    ProjectsModule,
     CreditsModule,
     StorageModule,
     AIModule,

@@ -42,6 +42,9 @@ export class Media {
   @JoinColumn({ name: 'user_id' })
   user: User | null;
 
+  @Column({ type: 'uuid', nullable: true })
+  project_id: string | null;
+
   @Column({ type: 'jsonb', nullable: true })
   input_config: Record<string, any> | null;
 

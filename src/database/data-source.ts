@@ -11,6 +11,7 @@ import { User } from '../auth/entities/user.entity';
 import { CreditPlan } from '../payment/entities/credit-plan.entity';
 import { Payment } from '../payment/entities/payment.entity';
 import { CreditTransaction } from '../credits/entities/credit-transaction.entity';
+import { Project } from '../projects/entities/project.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -29,6 +30,7 @@ export const AppDataSource = new DataSource({
     CreditPlan,
     Payment,
     CreditTransaction,
+    Project,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,

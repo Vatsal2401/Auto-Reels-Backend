@@ -23,6 +23,7 @@ import { StorageResolverService } from '../storage/storage-resolver.service';
 import { User } from '../auth/entities/user.entity';
 import { BackgroundMusic } from './entities/background-music.entity';
 import { ElevenLabsService } from '../ai/elevenlabs.service';
+import { ProjectsService } from '../projects/projects.service';
 
 @Injectable()
 export class MediaService {
@@ -43,6 +44,7 @@ export class MediaService {
     @Inject('IStorageService') private storageService: IStorageService,
     @Optional() private storageResolver: StorageResolverService | null,
     @Optional() private elevenLabsService: ElevenLabsService | null,
+    private projectsService: ProjectsService,
   ) {}
 
   async createMedia(dto: any, userId?: string): Promise<Media> {
@@ -89,16 +91,31 @@ export class MediaService {
       dto.voiceId = this.elevenLabsService.getVoiceId(dto.voiceLabel, dto.language);
     }
 
+    // Create a Project for this reel (tool_type=reel) so it appears in Projects list
+    const project = await this.projectsService.create(
+      'reel',
+      {
+        topic: dto.topic,
+        duration: dto.duration,
+        flowKey,
+        credit_cost: creditCost,
+      },
+      userId || null,
+    );
+
     const media = this.mediaRepository.create({
       type: dto.type || MediaType.VIDEO,
       flow_key: flowKey,
       status: MediaStatus.PENDING,
       user_id: userId || null,
+      project_id: project.id,
       input_config: dto,
       blob_storage_backend: defaultBackend,
     });
 
     const savedMedia = await this.mediaRepository.save(media);
+
+    await this.projectsService.setMetadata(project.id, { media_id: savedMedia.id });
 
     // Create Steps based on flow
     const steps = flow.steps.map((stepName) => {
