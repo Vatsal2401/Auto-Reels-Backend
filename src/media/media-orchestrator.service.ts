@@ -514,6 +514,7 @@ export class MediaOrchestratorService {
           fast_mode: true,
           smart_micro_scenes: true,
           captions: media.input_config?.captions,
+          language: media.input_config?.language,
           pacing_style:
             media.input_config?.pacing_style ?? intentData?.rendering_hints?.pacing_style,
           musicVolume: typeof musicConfig?.volume === 'number' ? musicConfig.volume : 0.2,

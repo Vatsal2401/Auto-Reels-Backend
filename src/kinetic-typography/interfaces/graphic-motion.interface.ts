@@ -46,11 +46,7 @@ export type LayoutType =
   | 'graphic-accent';
 
 /** Structured template types (Canva-style). Each has distinct hierarchy and layout. */
-export type TemplateType =
-  | 'title-card'
-  | 'quote-card'
-  | 'feature-highlight'
-  | 'impact-full-bleed';
+export type TemplateType = 'title-card' | 'quote-card' | 'feature-highlight' | 'impact-full-bleed';
 
 /** Style preset applied consistently across the whole video. */
 export type TemplateStyle = 'minimal' | 'bold' | 'corporate';

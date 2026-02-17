@@ -38,12 +38,12 @@ export class SceneRhythmEngineService {
   ): SceneRhythm[] {
     const fps = options.fps ?? FPS;
     const projectId = options.projectId ?? '';
-    const targetFramesPerScene = options.targetSecondsPerScene != null
-      ? Math.round(options.targetSecondsPerScene * fps)
-      : null;
-    const minHoldFrames = options.minHoldSeconds != null
-      ? Math.round(options.minHoldSeconds * fps)
-      : MIN_HOLD_FRAMES;
+    const targetFramesPerScene =
+      options.targetSecondsPerScene != null
+        ? Math.round(options.targetSecondsPerScene * fps)
+        : null;
+    const minHoldFrames =
+      options.minHoldSeconds != null ? Math.round(options.minHoldSeconds * fps) : MIN_HOLD_FRAMES;
 
     const totalScenes = enhancedScenes.length;
     return enhancedScenes.map((scene, sceneIndex) => {

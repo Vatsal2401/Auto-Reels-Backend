@@ -58,7 +58,10 @@ export class ScenePlannerService {
         const response = result.response;
         const content = response.text();
         if (content) {
-          const raw = content.replace(/```json/g, '').replace(/```/g, '').trim();
+          const raw = content
+            .replace(/```json/g, '')
+            .replace(/```/g, '')
+            .trim();
           const parsed = JSON.parse(raw) as Record<string, unknown>;
           const scenes = Array.isArray(parsed.scenes)
             ? (parsed.scenes as ScenePlanScene[]).map((s) => ({
@@ -70,9 +73,14 @@ export class ScenePlannerService {
                   | ScenePlanScene['visualTreatment']
                   | undefined,
                 label: s?.label != null ? String(s.label).trim() || undefined : undefined,
-                subHeadline: s?.subHeadline != null ? String(s.subHeadline).trim() || undefined : undefined,
-                supportingText: s?.supportingText != null ? String(s.supportingText).trim() || undefined : undefined,
-                authorLine: s?.authorLine != null ? String(s.authorLine).trim() || undefined : undefined,
+                subHeadline:
+                  s?.subHeadline != null ? String(s.subHeadline).trim() || undefined : undefined,
+                supportingText:
+                  s?.supportingText != null
+                    ? String(s.supportingText).trim() || undefined
+                    : undefined,
+                authorLine:
+                  s?.authorLine != null ? String(s.authorLine).trim() || undefined : undefined,
                 suggestedTemplateType: this.normalizeTemplateType(s?.suggestedTemplateType),
                 headlineEmphasis: this.normalizeHeadlineEmphasis(s?.headlineEmphasis),
               }))
@@ -82,7 +90,8 @@ export class ScenePlannerService {
               videoStyle: String(parsed.videoStyle ?? 'premium-saas'),
               globalTone: String(parsed.globalTone ?? 'confident'),
               preferredSceneLength:
-                typeof parsed.preferredSceneLength === 'string' || typeof parsed.preferredSceneLength === 'number'
+                typeof parsed.preferredSceneLength === 'string' ||
+                typeof parsed.preferredSceneLength === 'number'
                   ? parsed.preferredSceneLength
                   : undefined,
               scenes,

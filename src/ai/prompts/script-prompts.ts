@@ -2,9 +2,10 @@ function getHindiScriptInstruction(language: string): string {
   if (!/hindi|hi|हिंदी/i.test(language)) return '';
   return `
 SCRIPT WRITING (for Hindi only):
-- When language is Hindi, write the ENTIRE script in ROMANIZED form only: use Latin/English letters to write Hindi words (e.g. "Dekho yeh bandar, pyaar ka rang chadha hai!").
-- Do NOT use Devanagari script. No Hindi characters (no द, न, य, etc.). Every word must be in A-Z, a-z only.
-- Example correct: "Aaj toh Valentine's Day hai, kya naachega yeh?" | Example wrong: "आज तो वैलेंटाइन डे है"`;
+- When language is Hindi, write the ENTIRE script in HINDI (Devanagari script) ONLY.
+- Use ONLY Devanagari characters (e.g. आ, ऐ, क, ख, न, म, य, र, ल, व, ह, etc.). NO Romanized/Latin letters. NO English words.
+- Every word must be in proper Hindi (Devanagari). Example correct: "देखो यह बंदर, प्यार का रंग चढ़ा है!" | Example wrong: "Dekho yeh bandar" or mixing English.
+- Output script 100% in Hindi so that captions and TTS can display and speak proper Hindi.`;
 }
 
 export function getScriptGenerationPrompt(
@@ -53,7 +54,7 @@ Structure:
       "description": "...",
       "image_prompt": "Single visual only, no text on image",
       "duration": 5,
-      "audio_text": "Exactly 10-12 words in ${language}${/hindi|hi/i.test(language) ? ', Romanized only (Latin letters, no Devanagari)' : ''}."
+      "audio_text": "Exactly 10-12 words in ${language}${/hindi|hi|हिंदी/i.test(language) ? ', in Hindi (Devanagari script only; no English words)' : ''}."
     }
   ]
 }`;
@@ -67,6 +68,9 @@ export function getOpenAIScriptSystemPrompt(duration: string | number, language:
   const numDuration = Number(duration) || 30;
   const maxWords = Math.floor(numDuration * 2.1);
   const hindiInstruction = getHindiScriptInstruction(language);
+  const audioTextHint = /hindi|hi|हिंदी/i.test(language)
+    ? '10-12 words in Hindi (Devanagari only; no English)'
+    : '10-12 words narration';
 
   return `You are a viral script writer.
 Create a ${numDuration}-second Reel script.
@@ -85,7 +89,7 @@ IMAGE RULES: Each image_prompt = one single full-frame visual. No grids, no text
       "description": "...",
       "image_prompt": "Single visual, text-free",
       "duration": 5,
-      "audio_text": "10-12 words narration"
+      "audio_text": "${audioTextHint}"
     }
   ],
   "total_duration": ${numDuration},

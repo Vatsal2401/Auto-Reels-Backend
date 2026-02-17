@@ -8,10 +8,7 @@ import { ShowcaseController } from './showcase.controller';
 import { ShowcaseService } from './showcase.service';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Showcase, Media, Project]),
-    StorageModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Showcase, Media, Project]), StorageModule],
   controllers: [ShowcaseController],
   providers: [ShowcaseService],
   exports: [ShowcaseService],

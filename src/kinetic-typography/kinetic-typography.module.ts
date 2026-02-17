@@ -15,11 +15,7 @@ import { TransitionManagerService } from './services/transition-manager.service'
 import { TemplateEngineService } from './services/template-engine.service';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([User]),
-    RenderModule,
-    forwardRef(() => MediaModule),
-  ],
+  imports: [TypeOrmModule.forFeature([User]), RenderModule, forwardRef(() => MediaModule)],
   providers: [
     ScriptProcessorService,
     DurationAllocatorService,

@@ -18,10 +18,7 @@ export class TemplateEngineService {
    * Assign templateType per scene. No consecutive repetition; deterministic.
    * Each template has distinct typography hierarchy and layout structure.
    */
-  assignTemplates(
-    enhancedScenes: EnhancedScene[],
-    motionConfigs: MotionConfig[],
-  ): TemplateType[] {
+  assignTemplates(enhancedScenes: EnhancedScene[], motionConfigs: MotionConfig[]): TemplateType[] {
     let previous: TemplateType | null = null;
     return enhancedScenes.map((scene, i) => {
       const template = this.chooseTemplate(scene, motionConfigs[i]!, i, previous);
