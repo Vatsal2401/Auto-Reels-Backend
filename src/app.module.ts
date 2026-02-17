@@ -17,6 +17,7 @@ import { MediaModule } from './media/media.module';
 import { ProjectsModule } from './projects/projects.module';
 import { KineticTypographyModule } from './kinetic-typography/kinetic-typography.module';
 import { ShowcaseModule } from './showcase/showcase.module';
+import { VideoToolsModule } from './video-tools/video-tools.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { NotificationsModule } from './notifications/notifications.module';
 
@@ -46,6 +47,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     ProjectsModule,
     KineticTypographyModule,
     ShowcaseModule,
+    VideoToolsModule,
     AIModule,
     StorageModule,
     RenderModule,

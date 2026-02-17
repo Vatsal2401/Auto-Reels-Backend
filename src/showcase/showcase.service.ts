@@ -3,23 +3,29 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Media } from '../media/entities/media.entity';
 import { Project } from '../projects/entities/project.entity';
-import { Showcase } from './entities/showcase.entity';
+import { ShowcaseItem, ShowcaseItemType } from './entities/showcase-item.entity';
 import { IStorageService } from '../storage/interfaces/storage.interface';
 
 const SHOWCASE_SIGNED_URL_EXPIRES = 3600; // 1 hour
 const DEFAULT_TEXT_TO_IMAGE_URL = 'https://placehold.co/400x600/1a1a2e/6366f1?text=Text+to+Image';
 
+export interface ShowcaseItemResponse {
+  id: string;
+  type: ShowcaseItemType;
+  url: string | null;
+  mediaId?: string;
+  projectId?: string;
+}
+
 export interface ShowcaseResponse {
-  reel: { mediaId: string; url: string | null };
-  graphicMotion: { projectId: string; url: string | null };
-  textToImage: { url: string };
+  items: ShowcaseItemResponse[];
 }
 
 @Injectable()
 export class ShowcaseService {
   constructor(
-    @InjectRepository(Showcase)
-    private readonly showcaseRepository: Repository<Showcase>,
+    @InjectRepository(ShowcaseItem)
+    private readonly showcaseItemRepository: Repository<ShowcaseItem>,
     @InjectRepository(Media)
     private readonly mediaRepository: Repository<Media>,
     @InjectRepository(Project)
@@ -28,56 +34,127 @@ export class ShowcaseService {
     private readonly storageService: IStorageService,
   ) {}
 
-  async getShowcase(): Promise<ShowcaseResponse> {
-    const config = await this.showcaseRepository.findOne({
-      where: {},
-      order: { created_at: 'ASC' },
-    });
-
-    const mediaId = config?.reel_media_id ?? null;
-    const projectId = config?.graphic_motion_project_id ?? null;
-    const reelClipBlobId = config?.reel_clip_blob_id?.trim() || null;
-    const graphicMotionClipBlobId = config?.graphic_motion_clip_blob_id?.trim() || null;
-    const imageUrl = config?.text_to_image_url?.trim() || DEFAULT_TEXT_TO_IMAGE_URL;
-
-    // Only show stored clips (1–2s). Never use full video in showcase.
-    let reelUrl: string | null = null;
-    if (reelClipBlobId) {
-      try {
-        reelUrl = await this.storageService.getSignedUrl(
-          reelClipBlobId,
-          SHOWCASE_SIGNED_URL_EXPIRES,
-        );
-      } catch {
-        reelUrl = null;
-      }
+  /** Showcase always uses clip URL only (no fallback to full media video). */
+  private async resolveReelUrl(clipBlobId: string | null): Promise<string | null> {
+    if (!clipBlobId?.trim()) return null;
+    try {
+      return await this.storageService.getSignedUrl(
+        clipBlobId.trim(),
+        SHOWCASE_SIGNED_URL_EXPIRES,
+      );
+    } catch {
+      return null;
     }
-
-    let graphicMotionUrl: string | null = null;
-    if (graphicMotionClipBlobId) {
-      try {
-        graphicMotionUrl = await this.storageService.getSignedUrl(
-          graphicMotionClipBlobId,
-          SHOWCASE_SIGNED_URL_EXPIRES,
-        );
-      } catch {
-        graphicMotionUrl = null;
-      }
-    }
-
-    return {
-      reel: { mediaId: mediaId ?? '', url: reelUrl },
-      graphicMotion: { projectId: projectId ?? '', url: graphicMotionUrl },
-      textToImage: { url: imageUrl },
-    };
   }
 
-  /**
-   * Upload a 1–2s clip to S3 (showcase path) and set it on the showcase row.
-   * Path: users/system/media/showcase/clip/reel.mp4 or graphic-motion.mp4
-   */
-  async uploadClip(type: 'reel' | 'graphic_motion', buffer: Buffer): Promise<{ blobId: string }> {
-    const fileName = type === 'reel' ? 'reel.mp4' : 'graphic-motion.mp4';
+  /** Showcase always uses clip URL only (no fallback to full project video). */
+  private async resolveGraphicMotionUrl(clipBlobId: string | null): Promise<string | null> {
+    if (!clipBlobId?.trim()) return null;
+    try {
+      return await this.storageService.getSignedUrl(
+        clipBlobId.trim(),
+        SHOWCASE_SIGNED_URL_EXPIRES,
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  async getShowcase(): Promise<ShowcaseResponse> {
+    const rows = await this.showcaseItemRepository.find({
+      order: { sort_order: 'ASC' },
+    });
+
+    const items: ShowcaseItemResponse[] = await Promise.all(
+      rows.map(async (row) => {
+        let url: string | null = null;
+        if (row.type === 'reel') {
+          url = await this.resolveReelUrl(row.clip_blob_id ?? null);
+          return {
+            id: row.id,
+            type: row.type,
+            url,
+            mediaId: row.media_id ?? undefined,
+          };
+        }
+        if (row.type === 'graphic_motion') {
+          url = await this.resolveGraphicMotionUrl(row.clip_blob_id ?? null);
+          return {
+            id: row.id,
+            type: row.type,
+            url,
+            projectId: row.project_id ?? undefined,
+          };
+        }
+        url = row.image_url?.trim() || DEFAULT_TEXT_TO_IMAGE_URL;
+        return {
+          id: row.id,
+          type: row.type,
+          url,
+        };
+      }),
+    );
+
+    return { items };
+  }
+
+  async createItem(dto: {
+    type: ShowcaseItemType;
+    mediaId?: string | null;
+    projectId?: string | null;
+    imageUrl?: string | null;
+    sortOrder?: number;
+  }): Promise<ShowcaseItem> {
+    const maxOrder = await this.showcaseItemRepository
+      .createQueryBuilder('s')
+      .select('COALESCE(MAX(s.sort_order), -1)', 'max')
+      .getRawOne<{ max: number }>();
+    const sort_order = dto.sortOrder ?? (maxOrder?.max ?? -1) + 1;
+
+    const item = this.showcaseItemRepository.create({
+      type: dto.type,
+      sort_order,
+      media_id: dto.type === 'reel' ? (dto.mediaId || null) : null,
+      project_id: dto.type === 'graphic_motion' ? (dto.projectId || null) : null,
+      image_url: dto.type === 'text_to_image' ? (dto.imageUrl || null) : null,
+    });
+    return this.showcaseItemRepository.save(item);
+  }
+
+  async updateItem(
+    id: string,
+    dto: {
+      type?: ShowcaseItemType;
+      mediaId?: string | null;
+      projectId?: string | null;
+      imageUrl?: string | null;
+      clipBlobId?: string | null;
+      sortOrder?: number;
+    },
+  ): Promise<ShowcaseItem> {
+    const item = await this.showcaseItemRepository.findOne({ where: { id } });
+    if (!item) throw new NotFoundException('Showcase item not found');
+    if (dto.type !== undefined) item.type = dto.type;
+    if (dto.sortOrder !== undefined) item.sort_order = dto.sortOrder;
+    if (dto.mediaId !== undefined) item.media_id = dto.mediaId || null;
+    if (dto.projectId !== undefined) item.project_id = dto.projectId || null;
+    if (dto.imageUrl !== undefined) item.image_url = dto.imageUrl || null;
+    if (dto.clipBlobId !== undefined) item.clip_blob_id = dto.clipBlobId || null;
+    return this.showcaseItemRepository.save(item);
+  }
+
+  async deleteItem(id: string): Promise<void> {
+    const result = await this.showcaseItemRepository.delete(id);
+    if (result.affected === 0) throw new NotFoundException('Showcase item not found');
+  }
+
+  async uploadClipForItem(itemId: string, buffer: Buffer): Promise<{ blobId: string }> {
+    const item = await this.showcaseItemRepository.findOne({ where: { id: itemId } });
+    if (!item) throw new NotFoundException('Showcase item not found');
+    if (item.type !== 'reel' && item.type !== 'graphic_motion') {
+      throw new NotFoundException('Item must be reel or graphic_motion to upload a clip');
+    }
+    const fileName = `${itemId}.mp4`;
     const blobId = await this.storageService.upload({
       userId: 'system',
       mediaId: 'showcase',
@@ -85,45 +162,8 @@ export class ShowcaseService {
       buffer,
       fileName,
     });
-
-    const config = await this.showcaseRepository.findOne({
-      where: {},
-      order: { created_at: 'ASC' },
-    });
-    if (config) {
-      if (type === 'reel') {
-        config.reel_clip_blob_id = blobId;
-      } else {
-        config.graphic_motion_clip_blob_id = blobId;
-      }
-      await this.showcaseRepository.save(config);
-    }
-
+    item.clip_blob_id = blobId;
+    await this.showcaseItemRepository.save(item);
     return { blobId };
-  }
-
-  /** Update showcase row (e.g. set clip blob IDs after external upload). */
-  async update(config: {
-    reel_clip_blob_id?: string | null;
-    graphic_motion_clip_blob_id?: string | null;
-    text_to_image_url?: string | null;
-    reel_media_id?: string | null;
-    graphic_motion_project_id?: string | null;
-  }): Promise<Showcase> {
-    const row = await this.showcaseRepository.findOne({
-      where: {},
-      order: { created_at: 'ASC' },
-    });
-    if (!row) throw new NotFoundException('No showcase row found');
-    if (config.reel_clip_blob_id !== undefined)
-      row.reel_clip_blob_id = config.reel_clip_blob_id || null;
-    if (config.graphic_motion_clip_blob_id !== undefined)
-      row.graphic_motion_clip_blob_id = config.graphic_motion_clip_blob_id || null;
-    if (config.text_to_image_url !== undefined)
-      row.text_to_image_url = config.text_to_image_url || null;
-    if (config.reel_media_id !== undefined) row.reel_media_id = config.reel_media_id || null;
-    if (config.graphic_motion_project_id !== undefined)
-      row.graphic_motion_project_id = config.graphic_motion_project_id || null;
-    return this.showcaseRepository.save(row);
   }
 }

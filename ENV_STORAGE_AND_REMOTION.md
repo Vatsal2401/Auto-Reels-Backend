@@ -107,3 +107,30 @@ DEFAULT_STORAGE_BACKEND=s3
 ```
 
 Worker for dual storage: same S3 vars + `CURRENT_BLOB_STORAGE=s3` (+ Remotion vars if using Remotion for 30–60s).
+
+---
+
+## S3 CORS for presigned browser uploads (Video Tools)
+
+When the frontend uploads directly to S3 using a presigned PUT URL (e.g. Video Resizer / Compressor), the **S3 bucket must have CORS configured**. Otherwise the browser blocks the request or S3 returns 403.
+
+**Where to set:** AWS Console → S3 → your bucket (`S3_BUCKET_NAME`) → Permissions → Cross-origin resource sharing (CORS).
+
+**Example CORS configuration** (allow your app origin and PUT with `Content-Type`):
+
+```json
+[
+  {
+    "AllowedHeaders": ["*"],
+    "AllowedMethods": ["GET", "PUT", "HEAD"],
+    "AllowedOrigins": ["http://localhost:3001", "https://your-app-domain.com"],
+    "ExposeHeaders": ["ETag"]
+  }
+]
+```
+
+- For local dev, include `http://localhost:3001` (or the port your frontend uses).
+- For production, replace with your real frontend origin(s). Avoid `"*"` for `AllowedOrigins` in production if you care about restricting origins.
+- `PUT` and `AllowedHeaders` (e.g. `Content-Type`) are required for presigned PUT uploads.
+
+If the presigned PUT fails in the browser, check the Network tab: response status 403 with an XML body often indicates CORS (or signature mismatch). Fix CORS first, then re-test.

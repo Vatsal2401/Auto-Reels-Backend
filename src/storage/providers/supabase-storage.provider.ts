@@ -25,6 +25,7 @@ export class SupabaseStorageProvider implements IStorageService {
         secretAccessKey: process.env.SUPABASE_STORAGE_SECRET_ACCESS_KEY || '',
       },
       forcePathStyle: true,
+      requestChecksumCalculation: 'WHEN_REQUIRED', // Presigned PUT URLs must not require checksum headers (browser uploads)
     });
     this.bucketName = process.env.SUPABASE_STORAGE_BUCKET_NAME || 'ai-reels-storage';
   }
@@ -100,12 +101,29 @@ export class SupabaseStorageProvider implements IStorageService {
     return await getSignedUrl(this.s3Client, command, { expiresIn });
   }
 
+  async getPresignedPutUrl(
+    params: { userId: string; mediaId: string; type: string; fileName: string },
+    expiresIn: number = 900,
+    contentType: string = 'video/mp4',
+  ): Promise<{ uploadUrl: string; objectId: string }> {
+    const safeUserId = params.userId && params.userId !== 'null' ? params.userId : 'anonymous';
+    const key = `users/${safeUserId}/media/${params.mediaId}/${params.type}/${params.fileName}`;
+    const command = new PutObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+      ContentType: contentType,
+    });
+    const uploadUrl = await getSignedUrl(this.s3Client, command, { expiresIn });
+    return { uploadUrl, objectId: key };
+  }
+
   private getExtensionForType(type: string): string {
     const map: Record<string, string> = {
       audio: '.mp3',
       caption: '.srt',
       image: '.jpg',
       video: '.mp4',
+      clip: '.mp4',
       script: '.json',
     };
     return map[type] ?? '';
@@ -117,6 +135,7 @@ export class SupabaseStorageProvider implements IStorageService {
       caption: 'text/plain',
       image: 'image/jpeg',
       video: 'video/mp4',
+      clip: 'video/mp4',
       script: 'application/json',
     };
     return map[type] ?? 'application/octet-stream';

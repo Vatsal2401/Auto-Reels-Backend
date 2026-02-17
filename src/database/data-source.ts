@@ -12,7 +12,7 @@ import { CreditPlan } from '../payment/entities/credit-plan.entity';
 import { Payment } from '../payment/entities/payment.entity';
 import { CreditTransaction } from '../credits/entities/credit-transaction.entity';
 import { Project } from '../projects/entities/project.entity';
-import { Showcase } from '../showcase/entities/showcase.entity';
+import { ShowcaseItem } from '../showcase/entities/showcase-item.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -32,7 +32,7 @@ export const AppDataSource = new DataSource({
     Payment,
     CreditTransaction,
     Project,
-    Showcase,
+    ShowcaseItem,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,

@@ -1,13 +1,12 @@
 /**
- * Generate 1–2s clips from showcase reel/media and graphic-motion project,
- * upload them to S3 (showcase path), and update the showcase row.
+ * Generate 2s clips from showcase_item rows (type reel or graphic_motion),
+ * upload to S3 (showcase path per item), and set each row's clip_blob_id.
  *
  * Prerequisites:
  * - Backend .env with DB_* or DATABASE_URL and S3 (or Supabase storage) vars
  * - ffmpeg installed: ffmpeg -i in.mp4 -t 2 -c copy out.mp4
  *
  * Run from backend: npm run upload-showcase-clips
- * Or: npx ts-node -r dotenv/config scripts/upload-showcase-clips.ts
  */
 
 import * as dotenv from 'dotenv';
@@ -55,9 +54,9 @@ function getDatabaseUrl(): string | undefined {
   return `postgresql://${enc(user)}:${enc(password)}@${host}:${port}/${database}`;
 }
 
-function createS3Client(): { client: S3Client; bucket: string } {
-  const storageType = process.env.CURRENT_BLOB_STORAGE || 's3';
-  if (storageType === 'supabase') {
+function createS3Client(storageType?: 's3' | 'supabase'): { client: S3Client; bucket: string } {
+  const type = storageType ?? (process.env.CURRENT_BLOB_STORAGE as 's3' | 'supabase') ?? 's3';
+  if (type === 'supabase') {
     const endpoint = process.env.SUPABASE_STORAGE_ENDPOINT;
     const region = process.env.SUPABASE_STORAGE_REGION || 'us-east-1';
     const bucket = process.env.SUPABASE_STORAGE_BUCKET_NAME || 'ai-reels-storage';
@@ -132,8 +131,6 @@ function extractClip(inputPath: string, outputPath: string, durationSec = 2): Pr
 }
 
 const CLIP_DURATION_SEC = 2;
-const SHOWCASE_REEL_KEY = 'users/system/media/showcase/clip/reel.mp4';
-const SHOWCASE_GRAPHIC_MOTION_KEY = 'users/system/media/showcase/clip/graphic-motion.mp4';
 
 async function main() {
   const dbUrl = getDatabaseUrl();
@@ -142,79 +139,88 @@ async function main() {
     process.exit(1);
   }
 
-  const { client, bucket } = createS3Client();
+  const uploadTarget = (process.env.CURRENT_BLOB_STORAGE as 's3' | 'supabase') || 's3';
+  const { client: uploadClient, bucket: uploadBucket } = createS3Client(uploadTarget);
   const pool = new Pool({ connectionString: dbUrl });
 
   const workDir = join(tmpdir(), 'showcase-clips-' + Date.now());
   mkdirSync(workDir, { recursive: true });
 
   try {
-    const showcaseRes = await pool.query(
-      'SELECT id, reel_media_id, graphic_motion_project_id FROM showcase ORDER BY created_at ASC LIMIT 1',
+    const itemsRes = await pool.query(
+      `SELECT id, type, media_id, project_id FROM showcase_item
+       WHERE type IN ('reel', 'graphic_motion') ORDER BY sort_order ASC`,
     );
-    if (showcaseRes.rows.length === 0) {
-      console.error('No showcase row found. Run migration and seed first.');
-      process.exit(1);
-    }
-    const showcase = showcaseRes.rows[0];
-    const showcaseId = showcase.id;
-
-    if (showcase.reel_media_id) {
-      const mediaRes = await pool.query(
-        'SELECT blob_storage_id FROM media WHERE id = $1',
-        [showcase.reel_media_id],
-      );
-      const blobKey = mediaRes.rows[0]?.blob_storage_id;
-      if (blobKey) {
-        console.log('Downloading reel full video...');
-        const buf = await downloadFromS3(client, bucket, blobKey);
-        const fullPath = join(workDir, 'reel-full.mp4');
-        writeFileSync(fullPath, buf);
-        const clipPath = join(workDir, 'reel-clip.mp4');
-        console.log('Extracting 2s reel clip (ffmpeg)...');
-        await extractClip(fullPath, clipPath, CLIP_DURATION_SEC);
-        const clipBuf = readFileSync(clipPath);
-        console.log('Uploading reel clip to S3...');
-        await uploadToS3(client, bucket, SHOWCASE_REEL_KEY, clipBuf);
-        await pool.query(
-          'UPDATE showcase SET reel_clip_blob_id = $1, updated_at = NOW() WHERE id = $2',
-          [SHOWCASE_REEL_KEY, showcaseId],
-        );
-        console.log('Reel showcase clip uploaded:', SHOWCASE_REEL_KEY);
-      } else {
-        console.warn('Reel media has no blob_storage_id, skipping reel clip.');
-      }
-    } else {
-      console.warn('No reel_media_id in showcase, skipping reel clip.');
+    if (itemsRes.rows.length === 0) {
+      console.log('No reel or graphic_motion showcase_item rows found.');
+      return;
     }
 
-    if (showcase.graphic_motion_project_id) {
-      const projRes = await pool.query(
-        'SELECT output_url FROM projects WHERE id = $1',
-        [showcase.graphic_motion_project_id],
-      );
-      const blobKey = projRes.rows[0]?.output_url;
-      if (blobKey) {
-        console.log('Downloading graphic motion full video...');
-        const buf = await downloadFromS3(client, bucket, blobKey);
-        const fullPath = join(workDir, 'gm-full.mp4');
+    for (const item of itemsRes.rows) {
+      const itemId = item.id;
+      const type = item.type;
+      let blobKey: string | null = null;
+
+      let downloadClient = uploadClient;
+      let downloadBucket = uploadBucket;
+
+      if (type === 'reel' && item.media_id) {
+        const mediaRes = await pool.query(
+          'SELECT blob_storage_id, blob_storage_backend FROM media WHERE id = $1',
+          [item.media_id],
+        );
+        const mediaRow = mediaRes.rows[0];
+        blobKey = mediaRow?.blob_storage_id ?? null;
+        const backend = mediaRow?.blob_storage_backend as 's3' | 'supabase' | null;
+        if (blobKey && backend === 'supabase') {
+          const supabase = createS3Client('supabase');
+          downloadClient = supabase.client;
+          downloadBucket = supabase.bucket;
+        }
+      } else if (type === 'graphic_motion' && item.project_id) {
+        const projRes = await pool.query(
+          'SELECT output_url FROM projects WHERE id = $1',
+          [item.project_id],
+        );
+        blobKey = projRes.rows[0]?.output_url ?? null;
+      }
+
+      if (!blobKey) {
+        console.warn(`Skip item ${itemId} (${type}): no source video.`);
+        continue;
+      }
+
+      const clipKey = `users/system/media/showcase/clip/${itemId}.mp4`;
+      const fullPath = join(workDir, `${itemId}-full.mp4`);
+      const clipPath = join(workDir, `${itemId}-clip.mp4`);
+
+      try {
+        console.log(`Downloading ${type} full video for item ${itemId}...`);
+        const buf = await downloadFromS3(downloadClient, downloadBucket, blobKey);
         writeFileSync(fullPath, buf);
-        const clipPath = join(workDir, 'gm-clip.mp4');
-        console.log('Extracting 2s graphic motion clip (ffmpeg)...');
+        console.log('Extracting 2s clip (ffmpeg)...');
         await extractClip(fullPath, clipPath, CLIP_DURATION_SEC);
         const clipBuf = readFileSync(clipPath);
-        console.log('Uploading graphic motion clip to S3...');
-        await uploadToS3(client, bucket, SHOWCASE_GRAPHIC_MOTION_KEY, clipBuf);
+        console.log(`Uploading clip to ${uploadTarget}...`);
+        await uploadToS3(uploadClient, uploadBucket, clipKey, clipBuf);
         await pool.query(
-          'UPDATE showcase SET graphic_motion_clip_blob_id = $1, updated_at = NOW() WHERE id = $2',
-          [SHOWCASE_GRAPHIC_MOTION_KEY, showcaseId],
+          'UPDATE showcase_item SET clip_blob_id = $1, updated_at = NOW() WHERE id = $2',
+          [clipKey, itemId],
         );
-        console.log('Graphic motion showcase clip uploaded:', SHOWCASE_GRAPHIC_MOTION_KEY);
-      } else {
-        console.warn('Graphic motion project has no output_url, skipping.');
+        console.log('Clip uploaded:', clipKey);
+      } catch (err: any) {
+        const isNoSuchKey =
+          err?.Code === 'NoSuchKey' ||
+          err?.name === 'NoSuchKey' ||
+          (typeof err?.message === 'string' && err.message.includes('does not exist'));
+        if (isNoSuchKey) {
+          console.warn(
+            `Skip item ${itemId}: source video not found in S3 (key: ${blobKey}). Upload the media video first or fix blob_storage_id.`,
+          );
+        } else {
+          throw err;
+        }
       }
-    } else {
-      console.warn('No graphic_motion_project_id in showcase, skipping.');
     }
 
     console.log('Done. GET /showcase will now return these clip URLs.');

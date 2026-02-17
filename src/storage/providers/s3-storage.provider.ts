@@ -31,6 +31,7 @@ export class S3StorageProvider implements IStorageService {
           secretAccessKey: process.env.SUPABASE_STORAGE_SECRET_ACCESS_KEY || '',
         },
         forcePathStyle: true, // Often required for S3-compatible endpoints
+        requestChecksumCalculation: 'WHEN_REQUIRED', // Presigned PUT URLs must not require checksum headers (browser uploads)
       });
 
       this.bucketName = process.env.SUPABASE_STORAGE_BUCKET_NAME || 'ai-reels-storage';
@@ -43,6 +44,7 @@ export class S3StorageProvider implements IStorageService {
           accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
           secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
         },
+        requestChecksumCalculation: 'WHEN_REQUIRED', // Presigned PUT URLs must not require checksum headers (browser uploads)
       });
       this.bucketName = process.env.S3_BUCKET_NAME || 'ai-reels-storage';
     }
@@ -144,6 +146,22 @@ export class S3StorageProvider implements IStorageService {
     return await getSignedUrl(this.s3Client, command, { expiresIn });
   }
 
+  async getPresignedPutUrl(
+    params: { userId: string; mediaId: string; type: string; fileName: string },
+    expiresIn: number = 900,
+    contentType: string = 'video/mp4',
+  ): Promise<{ uploadUrl: string; objectId: string }> {
+    const safeUserId = params.userId && params.userId !== 'null' ? params.userId : 'anonymous';
+    const key = `users/${safeUserId}/media/${params.mediaId}/${params.type}/${params.fileName}`;
+    const command = new PutObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+      ContentType: contentType,
+    });
+    const uploadUrl = await getSignedUrl(this.s3Client, command, { expiresIn });
+    return { uploadUrl, objectId: key };
+  }
+
   private getExtensionForType(type: string): string {
     switch (type) {
       case 'audio':
@@ -153,6 +171,8 @@ export class S3StorageProvider implements IStorageService {
       case 'image':
         return '.jpg';
       case 'video':
+      case 'video-tools':
+      case 'clip':
         return '.mp4';
       case 'script':
         return '.json';
@@ -170,6 +190,8 @@ export class S3StorageProvider implements IStorageService {
       case 'image':
         return 'image/jpeg';
       case 'video':
+      case 'video-tools':
+      case 'clip':
         return 'video/mp4';
       case 'script':
         return 'application/json';

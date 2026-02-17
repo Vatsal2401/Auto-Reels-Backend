@@ -44,4 +44,14 @@ export interface IStorageService {
     expiresIn?: number,
     options?: { promptDownload?: boolean; filename?: string },
   ): Promise<string>;
+
+  /**
+   * Generates a presigned PUT URL for direct client upload to the given key.
+   * Returns the URL; the key (objectId) is the same as built from params.
+   */
+  getPresignedPutUrl(
+    params: { userId: string; mediaId: string; type: string; fileName: string },
+    expiresIn?: number,
+    contentType?: string,
+  ): Promise<{ uploadUrl: string; objectId: string }>;
 }

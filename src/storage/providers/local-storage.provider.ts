@@ -95,6 +95,16 @@ export class LocalStorageProvider implements IStorageService {
     return `${baseUrl}/storage/${cleanId}`;
   }
 
+  async getPresignedPutUrl(
+    _params: { userId: string; mediaId: string; type: string; fileName: string },
+    _expiresIn?: number,
+    _contentType?: string,
+  ): Promise<{ uploadUrl: string; objectId: string }> {
+    throw new Error(
+      'Direct upload (presigned URL) is not supported with local storage. Use multipart upload or switch to S3/Supabase.',
+    );
+  }
+
   private getStoragePath(
     userId: string,
     mediaId: string,
@@ -139,6 +149,7 @@ export class LocalStorageProvider implements IStorageService {
       case 'image':
         return '.jpg';
       case 'video':
+      case 'clip':
         return '.mp4';
       case 'script':
         return '.json';

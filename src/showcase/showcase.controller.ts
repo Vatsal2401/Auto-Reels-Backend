@@ -1,8 +1,9 @@
 import {
   Controller,
   Get,
-  Patch,
   Post,
+  Patch,
+  Delete,
   Body,
   Param,
   UseInterceptors,
@@ -11,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ShowcaseService, ShowcaseResponse } from './showcase.service';
+import { ShowcaseItem } from './entities/showcase-item.entity';
 
 /** File from multipart upload (FileInterceptor). We only use buffer. */
 type UploadedFileType = { buffer?: Buffer } | undefined;
@@ -24,29 +26,50 @@ export class ShowcaseController {
     return this.showcaseService.getShowcase();
   }
 
-  @Patch()
-  async updateShowcase(
+  @Post('items')
+  async createItem(
     @Body()
     body: {
-      reel_clip_blob_id?: string | null;
-      graphic_motion_clip_blob_id?: string | null;
-      text_to_image_url?: string | null;
-      reel_media_id?: string | null;
-      graphic_motion_project_id?: string | null;
+      type: 'reel' | 'graphic_motion' | 'text_to_image';
+      mediaId?: string | null;
+      projectId?: string | null;
+      imageUrl?: string | null;
+      sortOrder?: number;
     },
-  ) {
-    return this.showcaseService.update(body);
+  ): Promise<ShowcaseItem> {
+    return this.showcaseService.createItem(body);
   }
 
-  @Post('clips/:type')
+  @Patch('items/:id')
+  async updateItem(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      type?: 'reel' | 'graphic_motion' | 'text_to_image';
+      mediaId?: string | null;
+      projectId?: string | null;
+      imageUrl?: string | null;
+      clipBlobId?: string | null;
+      sortOrder?: number;
+    },
+  ): Promise<ShowcaseItem> {
+    return this.showcaseService.updateItem(id, body);
+  }
+
+  @Delete('items/:id')
+  async deleteItem(@Param('id') id: string): Promise<void> {
+    return this.showcaseService.deleteItem(id);
+  }
+
+  @Post('items/:id/clip')
   @UseInterceptors(FileInterceptor('file'))
-  async uploadClip(@Param('type') type: string, @UploadedFile() file: UploadedFileType) {
-    if (type !== 'reel' && type !== 'graphic_motion') {
-      throw new BadRequestException('type must be "reel" or "graphic_motion"');
-    }
+  async uploadClipForItem(
+    @Param('id') id: string,
+    @UploadedFile() file: UploadedFileType,
+  ): Promise<{ blobId: string }> {
     if (!file?.buffer) {
       throw new BadRequestException('File is required');
     }
-    return this.showcaseService.uploadClip(type as 'reel' | 'graphic_motion', file.buffer);
+    return this.showcaseService.uploadClipForItem(id, file.buffer);
   }
 }
