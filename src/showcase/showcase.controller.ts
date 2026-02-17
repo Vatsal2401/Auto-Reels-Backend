@@ -12,6 +12,9 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ShowcaseService, ShowcaseResponse } from './showcase.service';
 
+/** File from multipart upload (FileInterceptor). We only use buffer. */
+type UploadedFileType = { buffer?: Buffer } | undefined;
+
 @Controller('showcase')
 export class ShowcaseController {
   constructor(private readonly showcaseService: ShowcaseService) {}
@@ -37,7 +40,7 @@ export class ShowcaseController {
 
   @Post('clips/:type')
   @UseInterceptors(FileInterceptor('file'))
-  async uploadClip(@Param('type') type: string, @UploadedFile() file: Express.Multer.File) {
+  async uploadClip(@Param('type') type: string, @UploadedFile() file: UploadedFileType) {
     if (type !== 'reel' && type !== 'graphic_motion') {
       throw new BadRequestException('type must be "reel" or "graphic_motion"');
     }
