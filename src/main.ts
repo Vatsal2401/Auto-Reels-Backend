@@ -5,6 +5,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { AdminModule } from './admin/admin.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import helmet from 'helmet';
@@ -112,6 +113,26 @@ async function bootstrap() {
     });
 
     logger.log(`📖 Swagger docs available at: http://localhost:${port}/api-docs`);
+
+    // Admin Swagger
+    const adminConfig = new DocumentBuilder()
+      .setTitle('Admin Panel API')
+      .setDescription('Admin panel API for AutoReels SaaS')
+      .setVersion('1.0')
+      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'Admin-JWT')
+      .build();
+
+    const adminDocument = SwaggerModule.createDocument(app, adminConfig, {
+      include: [AdminModule],
+    });
+
+    SwaggerModule.setup('admin/docs', app, adminDocument, {
+      swaggerOptions: {
+        persistAuthorization: true,
+      },
+    });
+
+    logger.log(`📖 Admin Swagger docs available at: http://localhost:${port}/admin/docs`);
   }
 
   // Graceful shutdown

@@ -13,6 +13,8 @@ import { Payment } from '../payment/entities/payment.entity';
 import { CreditTransaction } from '../credits/entities/credit-transaction.entity';
 import { Project } from '../projects/entities/project.entity';
 import { ShowcaseItem } from '../showcase/entities/showcase-item.entity';
+import { AdminUser } from '../admin/entities/admin-user.entity';
+import { AdminImpersonationLog } from '../admin/entities/admin-impersonation-log.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -33,6 +35,8 @@ export const AppDataSource = new DataSource({
     CreditTransaction,
     Project,
     ShowcaseItem,
+    AdminUser,
+    AdminImpersonationLog,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,

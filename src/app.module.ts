@@ -18,8 +18,10 @@ import { ProjectsModule } from './projects/projects.module';
 import { KineticTypographyModule } from './kinetic-typography/kinetic-typography.module';
 import { ShowcaseModule } from './showcase/showcase.module';
 import { VideoToolsModule } from './video-tools/video-tools.module';
+import { TextToImageModule } from './text-to-image/text-to-image.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { NotificationsModule } from './notifications/notifications.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -48,6 +50,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     KineticTypographyModule,
     ShowcaseModule,
     VideoToolsModule,
+    TextToImageModule,
     AIModule,
     StorageModule,
     RenderModule,
@@ -55,6 +58,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     CreditsModule,
     HealthModule,
     PaymentModule,
+    AdminModule,
   ],
   providers: [
     {

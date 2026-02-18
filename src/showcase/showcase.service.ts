@@ -38,10 +38,7 @@ export class ShowcaseService {
   private async resolveReelUrl(clipBlobId: string | null): Promise<string | null> {
     if (!clipBlobId?.trim()) return null;
     try {
-      return await this.storageService.getSignedUrl(
-        clipBlobId.trim(),
-        SHOWCASE_SIGNED_URL_EXPIRES,
-      );
+      return await this.storageService.getSignedUrl(clipBlobId.trim(), SHOWCASE_SIGNED_URL_EXPIRES);
     } catch {
       return null;
     }
@@ -51,10 +48,7 @@ export class ShowcaseService {
   private async resolveGraphicMotionUrl(clipBlobId: string | null): Promise<string | null> {
     if (!clipBlobId?.trim()) return null;
     try {
-      return await this.storageService.getSignedUrl(
-        clipBlobId.trim(),
-        SHOWCASE_SIGNED_URL_EXPIRES,
-      );
+      return await this.storageService.getSignedUrl(clipBlobId.trim(), SHOWCASE_SIGNED_URL_EXPIRES);
     } catch {
       return null;
     }
@@ -114,9 +108,9 @@ export class ShowcaseService {
     const item = this.showcaseItemRepository.create({
       type: dto.type,
       sort_order,
-      media_id: dto.type === 'reel' ? (dto.mediaId || null) : null,
-      project_id: dto.type === 'graphic_motion' ? (dto.projectId || null) : null,
-      image_url: dto.type === 'text_to_image' ? (dto.imageUrl || null) : null,
+      media_id: dto.type === 'reel' ? dto.mediaId || null : null,
+      project_id: dto.type === 'graphic_motion' ? dto.projectId || null : null,
+      image_url: dto.type === 'text_to_image' ? dto.imageUrl || null : null,
     });
     return this.showcaseItemRepository.save(item);
   }

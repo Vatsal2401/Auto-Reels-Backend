@@ -71,16 +71,11 @@ export class VideoToolsQueueService {
 
   async addJob(payload: VideoToolsJobPayload): Promise<string> {
     if (!this.queue) {
-      throw new Error(
-        'Video tools queue not configured (missing Redis connection)',
-      );
+      throw new Error('Video tools queue not configured (missing Redis connection)');
     }
-    const attempts =
-      this.configService.get<number>('VIDEO_TOOLS_JOB_ATTEMPTS') ??
-      DEFAULT_ATTEMPTS;
+    const attempts = this.configService.get<number>('VIDEO_TOOLS_JOB_ATTEMPTS') ?? DEFAULT_ATTEMPTS;
     const backoffDelay =
-      this.configService.get<number>('VIDEO_TOOLS_JOB_BACKOFF_MS') ??
-      DEFAULT_BACKOFF_DELAY_MS;
+      this.configService.get<number>('VIDEO_TOOLS_JOB_BACKOFF_MS') ?? DEFAULT_BACKOFF_DELAY_MS;
 
     const job = await this.queue.add(payload.toolType, payload, {
       attempts,
@@ -89,9 +84,7 @@ export class VideoToolsQueueService {
       removeOnFail: false,
     });
 
-    this.logger.log(
-      `Queued video-tools job: ${job.id} for project: ${payload.projectId}`,
-    );
+    this.logger.log(`Queued video-tools job: ${job.id} for project: ${payload.projectId}`);
     return job.id as string;
   }
 
