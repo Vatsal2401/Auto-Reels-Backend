@@ -171,6 +171,24 @@ export class AdminUsersService {
     return { userId, newBalance, delta };
   }
 
+  async getStats() {
+    const [usersResult, premiumResult, projectsResult, creditsResult] = await Promise.all([
+      this.dataSource.query(`SELECT COUNT(*)::int as count FROM users`),
+      this.dataSource.query(`SELECT COUNT(*)::int as count FROM users WHERE is_premium = true`),
+      this.dataSource.query(`SELECT COUNT(*)::int as count FROM projects`),
+      this.dataSource.query(
+        `SELECT COALESCE(SUM(ABS(amount)), 0)::int as total FROM credit_transactions WHERE amount < 0`,
+      ),
+    ]);
+
+    return {
+      totalUsers: usersResult[0].count,
+      premiumUsers: premiumResult[0].count,
+      totalProjects: projectsResult[0].count,
+      totalCreditsUsed: creditsResult[0].total,
+    };
+  }
+
   async impersonateUser(userId: string, adminId: string, ipAddress: string | null) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {

@@ -8,6 +8,7 @@ import { CreditTransaction } from '../../credits/entities/credit-transaction.ent
 import { AdminImpersonationLog } from '../entities/admin-impersonation-log.entity';
 import { CreditsModule } from '../../credits/credits.module';
 import { AdminUsersController } from './admin-users.controller';
+import { AdminStatsController } from './admin-stats.controller';
 import { AdminUsersService } from './admin-users.service';
 
 @Module({
@@ -17,7 +18,7 @@ import { AdminUsersService } from './admin-users.service';
     ConfigModule,
     CreditsModule,
   ],
-  controllers: [AdminUsersController],
+  controllers: [AdminUsersController, AdminStatsController],
   providers: [AdminUsersService],
 })
 export class AdminUsersModule {}
