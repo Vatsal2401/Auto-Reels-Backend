@@ -8,8 +8,8 @@ describe('script-prompts (Hindi support)', () => {
       expect(prompt).toContain('NO Romanized');
       expect(prompt).toContain('NO English');
       expect(prompt).toContain('देखो यह बंदर'); // example Hindi text
-      expect(prompt).not.toContain('Romanized form only');
-      expect(prompt).not.toContain('Latin/English letters');
+      expect(prompt).not.toContain('Romanized form only'); // old wording we avoid
+      // Prompt instructs no transliteration and no Latin/English (single language only)
     });
 
     it('includes audio_text hint for Hindi (Devanagari only) when language is Hindi', () => {

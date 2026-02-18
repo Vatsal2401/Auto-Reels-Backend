@@ -4,8 +4,16 @@ function getHindiScriptInstruction(language: string): string {
 SCRIPT WRITING (for Hindi only):
 - When language is Hindi, write the ENTIRE script in HINDI (Devanagari script) ONLY.
 - Use ONLY Devanagari characters (e.g. आ, ऐ, क, ख, न, म, य, र, ल, व, ह, etc.). NO Romanized/Latin letters. NO English words.
-- Every word must be in proper Hindi (Devanagari). Example correct: "देखो यह बंदर, प्यार का रंग चढ़ा है!" | Example wrong: "Dekho yeh bandar" or mixing English.
-- Output script 100% in Hindi so that captions and TTS can display and speak proper Hindi.`;
+- Do NOT add transliteration in parentheses (e.g. wrong: "ऊँची इमारत (Unchi imarat)"). Write ONLY the Hindi line: "ऊँची इमारत".
+- Every word must be in proper Hindi (Devanagari). Example correct: "देखो यह बंदर, प्यार का रंग चढ़ा है!" | Example wrong: "Dekho yeh bandar" or mixing English. NO Romanized form. NO Latin/English letters.
+- One language only: output 100% in Hindi so captions and TTS display and speak proper Hindi. No mixed scripts.`;
+}
+
+/** Instruction for any language: single language only, no transliteration. */
+function getSingleLanguageInstruction(language: string): string {
+  if (/hindi|hi|हिंदी/i.test(language)) return ''; // covered by getHindiScriptInstruction
+  return `
+- Output script in the chosen language ONLY. Do NOT add transliteration in parentheses. Do NOT mix two scripts (e.g. native script + Roman/English in brackets). One language only.`;
 }
 
 export function getScriptGenerationPrompt(
@@ -23,10 +31,11 @@ export function getScriptGenerationPrompt(
   const targetWords = Math.floor(duration * 1.8);
   const absoluteMaxWords = Math.floor(duration * 2.1);
 
+  const singleLangInstruction = getSingleLanguageInstruction(language);
   return `You are a professional social media scriptwriter.
 Create a ${duration}-second video script about: "${topic}".
 THEME: ${visualStyle}.
-LANGUAGE: ${language}.${audioStyleSection}${hindiInstruction}
+LANGUAGE: ${language}. Output in ONE language only; do not add transliteration in parentheses or mix two scripts.${audioStyleSection}${hindiInstruction}${singleLangInstruction}
 
 STRICT DURATION CONTROL (LIFE-OR-DEATH):
 1. **TOTAL WORD LIMIT**: The ENTIRE script (sum of all scenes) MUST be between ${targetWords} and ${absoluteMaxWords} words.
@@ -74,7 +83,7 @@ export function getOpenAIScriptSystemPrompt(duration: string | number, language:
 
   return `You are a viral script writer.
 Create a ${numDuration}-second Reel script.
-LANGUAGE: ${language}.${hindiInstruction}
+LANGUAGE: ${language}. Output in ONE language only; no transliteration in parentheses, no mixed scripts.${hindiInstruction}
 
 STRICT CONSTRAINTS:
 - TOTAL WORDS MUST NOT EXCEED ${maxWords}.

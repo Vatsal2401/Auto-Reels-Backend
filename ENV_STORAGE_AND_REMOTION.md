@@ -112,25 +112,37 @@ Worker for dual storage: same S3 vars + `CURRENT_BLOB_STORAGE=s3` (+ Remotion va
 
 ## S3 CORS for presigned browser uploads (Video Tools)
 
-When the frontend uploads directly to S3 using a presigned PUT URL (e.g. Video Resizer / Compressor), the **S3 bucket must have CORS configured**. Otherwise the browser blocks the request or S3 returns 403.
+When the frontend uploads directly to S3 using a presigned PUT URL (e.g. Video Resizer / Compressor), the **S3 bucket must have CORS configured**. Otherwise the browser’s OPTIONS preflight gets 403 and you see “Failed to fetch” in production.
 
-**Where to set:** AWS Console → S3 → your bucket (`S3_BUCKET_NAME`) → Permissions → Cross-origin resource sharing (CORS).
+### Steps to add CORS in AWS (bucket `auto-reels` / production)
 
-**Example CORS configuration** (allow your app origin and PUT with `Content-Type`):
+1. **Open AWS Console** → **S3** → select your bucket (e.g. `auto-reels`, or whatever `S3_BUCKET_NAME` is).
+2. Open the **Permissions** tab.
+3. Scroll to **Cross-origin resource sharing (CORS)** and click **Edit**.
+4. Paste the configuration below (adjust origins if needed), then **Save changes**.
+
+**CORS configuration** (local + production for autoreels.in):
 
 ```json
 [
   {
     "AllowedHeaders": ["*"],
     "AllowedMethods": ["GET", "PUT", "HEAD"],
-    "AllowedOrigins": ["http://localhost:3001", "https://your-app-domain.com"],
+    "AllowedOrigins": [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "https://autoreels.in",
+      "https://www.autoreels.in"
+    ],
     "ExposeHeaders": ["ETag"]
   }
 ]
 ```
 
-- For local dev, include `http://localhost:3001` (or the port your frontend uses).
-- For production, replace with your real frontend origin(s). Avoid `"*"` for `AllowedOrigins` in production if you care about restricting origins.
-- `PUT` and `AllowedHeaders` (e.g. `Content-Type`) are required for presigned PUT uploads.
+- **AllowedOrigins:** Add every origin that loads your app (exact scheme + host, no trailing slash). Above includes localhost and production.
+- **AllowedMethods:** `PUT` is required for presigned uploads; `GET`/`HEAD` are useful for reading objects.
+- **AllowedHeaders:** `["*"]` allows `Content-Type` and other headers the browser sends with the PUT.
 
-If the presigned PUT fails in the browser, check the Network tab: response status 403 with an XML body often indicates CORS (or signature mismatch). Fix CORS first, then re-test.
+5. **Retry** the Video Resizer or Compressor on https://autoreels.in; the OPTIONS request should return 200 and the PUT should succeed.
+
+If you still see 403, check the Network tab: the failing request (OPTIONS or PUT) and the response XML will indicate whether it’s CORS or something else (e.g. bucket policy).
