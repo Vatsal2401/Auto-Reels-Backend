@@ -49,8 +49,10 @@ JSON FORMATTING:
 - NO comments. NO markdown.
 
 IMAGE RULES (for each scene's image_prompt):
-- Describe ONE single full-frame visual per scene. No grids, no collages, no split screens.
-- Do NOT describe any text, captions, words, or overlays on the image. Image must be text-free.
+- Describe what the CAMERA PHYSICALLY CAPTURES: people, faces, environments, objects, actions, lighting.
+- Do NOT describe the topic title, numbered lists, or concept names as visual elements.
+- Example WRONG: "infographic showing 5 psychology tips" → Example RIGHT: "close-up of a smiling person making confident eye contact in warm light"
+- No grids, no collages, no split screens. No text, captions, words, or overlays in the image.
 
 Structure:
 {
@@ -90,7 +92,7 @@ STRICT CONSTRAINTS:
 - Each 5s scene = 10-12 words.
 - If you write too much, the audio will fail.
 
-IMAGE RULES: Each image_prompt = one single full-frame visual. No grids, no text/captions on the image.
+IMAGE RULES: Each image_prompt = one single full-frame physical scene (person, place, object, action, lighting). Do NOT describe the topic title, numbered list, or concept name as a visual element. No grids, no text/captions on the image.
 {
   "scenes": [
     {

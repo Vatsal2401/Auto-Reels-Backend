@@ -1,19 +1,21 @@
 export function getImageGenerationPrompt(prompt: string, style: string = ''): string {
-  // 1. DYNAMIC QUALITY BOOSTERS
-  const enhancers = '8k resolution, cinematic lighting, dramatic shadows, sharp focus, masterpiece';
+  const qualityTags = 'sharp focus, 8k resolution, cinematic lighting, dramatic shadows, masterpiece, photorealistic';
 
-  // 2. ANTI-COLLAGE/ANTI-GRID/NO-TEXT (Strictly for single high-quality outputs)
-  const structuralConstraints =
-    'SINGLE PHOTOGRAPH. ONE full-frame image only. NO grids. NO split screens. NO collages. NO text on image. NO words, letters, captions, or titles in the image. NO storyboards. NO 2x2 or multi-panel. ONE UNIFIED COMPOSITION ONLY. Text-free visual.';
+  // Natural-language prohibition works better than caps-lock negatives
+  const noTextPrefix =
+    'Pure photograph with absolutely no text, words, letters, numbers, captions, titles, ' +
+    'watermarks, or typography anywhere in the image. Single full-frame composition only — ' +
+    'no grids, no collages, no split screens, no panels.';
 
-  // 3. ARTISTIC REFINEMENT
-  let finalPrompt = prompt;
+  // Repeat prohibition at end — models attend to both ends of the prompt
+  const noTextSuffix =
+    'IMPORTANT: The image must contain zero text, zero words, zero letters, zero numbers. ' +
+    'No title overlay. No caption. No graphic text element of any kind. Pure visual only.';
+
+  let subjectPrompt = prompt;
   if (style && style !== 'auto') {
-    // We anchor the style at the BEGINNING so the AI doesn't deviate
-    finalPrompt = `An image in ${style} aesthetic. ${prompt}.`;
+    subjectPrompt = `${style} style photography — ${prompt}`;
   }
 
-  // 4. FINAL ASSEMBLE
-  // We place constraints first so the AI knows the rules before the content
-  return `${structuralConstraints} ${finalPrompt}. ${enhancers}.`;
+  return `${noTextPrefix} ${subjectPrompt}. ${qualityTags}. ${noTextSuffix}`;
 }

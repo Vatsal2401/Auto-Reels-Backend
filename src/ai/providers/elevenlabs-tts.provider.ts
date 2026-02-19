@@ -5,7 +5,7 @@ import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
 @Injectable()
 export class ElevenLabsTTSProvider implements ITextToSpeech {
   private readonly logger = new Logger(ElevenLabsTTSProvider.name);
-  private readonly client: ElevenLabsClient;
+  private readonly client: ElevenLabsClient | null = null;
   // Default Voice ID (Rachel)
   private readonly defaultVoiceId = '21m00Tcm4TlvDq8ikWAM';
 
@@ -13,12 +13,13 @@ export class ElevenLabsTTSProvider implements ITextToSpeech {
     const apiKey = process.env.ELEVENLABS_API_KEY;
     if (!apiKey) {
       this.logger.warn('ELEVENLABS_API_KEY not found');
+    } else {
+      this.client = new ElevenLabsClient({ apiKey });
     }
-    this.client = new ElevenLabsClient({ apiKey });
   }
 
   async textToSpeech(optionsOrText: AudioOptions | string): Promise<Buffer> {
-    if (!process.env.ELEVENLABS_API_KEY) {
+    if (!this.client) {
       throw new Error('ElevenLabs API Key is missing');
     }
 
@@ -58,7 +59,7 @@ export class ElevenLabsTTSProvider implements ITextToSpeech {
     }
 
     try {
-      const audioStream = await this.client.textToSpeech.convert(voiceId, {
+      const audioStream = await this.client!.textToSpeech.convert(voiceId, {
         text: text,
         modelId: 'eleven_multilingual_v2',
         outputFormat: 'mp3_44100_128',

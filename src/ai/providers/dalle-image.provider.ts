@@ -46,7 +46,7 @@ export class DalleImageProvider implements IImageGenerator {
       prompt: prompt,
       n: 1,
       size: size,
-      quality: 'standard',
+      quality: 'hd',
       response_format: 'url',
     });
 

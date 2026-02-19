@@ -7,7 +7,7 @@ STRICT VISUAL RULES (MUST FOLLOW):
 - NO text on images. Do not suggest captions, titles, words, or text overlays on the visuals. Images must be text-free. Captions are added separately by the app.
 
 1. SCRIPT PROMPT: Focus on narrative tension. Keep it concise.
-2. MASTER IMAGE PROMPT: Describe a SINGLE powerful visual for one moment. One composition only. Do not mention text, captions, or overlays on the image.
+2. MASTER IMAGE PROMPT: Describe a SINGLE powerful physical scene — what the camera captures (person, location, object, action, lighting mood). One composition only. Do NOT describe the topic title, a numbered list, or any concept name as a visual element. No text, captions, or overlays.
 3. AUDIO PROMPT: Describe the voice persona.
 4. RENDERING HINTS: Define color palette, music vibe, and motion style. Choose motion_preset to match mood: documentary = documentarySlowPan, viral = viralTikTok, cinematic = cinematicZoom or kenBurns, minimal = minimalLuxury, dramatic = dramaticSlide, smooth = smoothParallax.
 
