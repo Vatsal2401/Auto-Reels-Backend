@@ -33,9 +33,11 @@ export class AdminUsersService {
   ) {}
 
   async listUsers(dto: ListUsersDto) {
+    console.log('[DEBUG] listUsers dto:', JSON.stringify(dto));
     const { page = 1, limit = 20, search } = dto;
     const offset = (page - 1) * limit;
     const searchParam = search ? `%${search}%` : '%';
+    console.log('[DEBUG] listUsers resolved:', { page, limit, search, searchParam, offset });
 
     const [results, countResult] = await Promise.all([
       this.dataSource.query(
