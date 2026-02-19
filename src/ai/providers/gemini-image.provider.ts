@@ -38,9 +38,6 @@ export class GeminiImageProvider implements IImageGenerator {
 
     try {
       const modelId = 'imagen-4.0-generate-001';
-      const negativePrompt =
-        'text, words, letters, numbers, captions, titles, watermarks, typography, fonts, subtitles, labels, overlays, collage, grid, split screen';
-
       let response = await this.client.models.generateImages({
         model: modelId,
         prompt: prompt,
@@ -48,7 +45,6 @@ export class GeminiImageProvider implements IImageGenerator {
           numberOfImages: Math.min(options.count, 4),
           aspectRatio: aspectRatio,
           outputMimeType: 'image/jpeg',
-          negativePrompt: negativePrompt,
         },
       });
 
@@ -67,7 +63,6 @@ export class GeminiImageProvider implements IImageGenerator {
             numberOfImages: Math.min(options.count, 4),
             aspectRatio: aspectRatio,
             outputMimeType: 'image/jpeg',
-            negativePrompt: negativePrompt,
           },
         });
 

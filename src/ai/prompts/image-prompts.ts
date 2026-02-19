@@ -1,21 +1,19 @@
 export function getImageGenerationPrompt(prompt: string, style: string = ''): string {
-  const qualityTags = 'sharp focus, 8k resolution, cinematic lighting, dramatic shadows, masterpiece, photorealistic';
+  // Framing as a real camera capture pushes models into photography mode,
+  // away from graphic-design / thumbnail / text-overlay aesthetics.
+  const cameraPrefix = style && style !== 'auto'
+    ? `A single full-frame ${style} photograph taken with a professional DSLR camera, captured in the real world —`
+    : 'A single full-frame photograph taken with a professional DSLR camera, captured in the real world —';
 
-  // Natural-language prohibition works better than caps-lock negatives
-  const noTextPrefix =
-    'Pure photograph with absolutely no text, words, letters, numbers, captions, titles, ' +
-    'watermarks, or typography anywhere in the image. Single full-frame composition only — ' +
-    'no grids, no collages, no split screens, no panels.';
+  const qualityTags =
+    'sharp focus, 8k resolution, cinematic lighting, dramatic shadows, photorealistic, award-winning photography';
 
-  // Repeat prohibition at end — models attend to both ends of the prompt
-  const noTextSuffix =
-    'IMPORTANT: The image must contain zero text, zero words, zero letters, zero numbers. ' +
-    'No title overlay. No caption. No graphic text element of any kind. Pure visual only.';
+  // Closing instruction — repeated at end for stronger signal
+  const closingSuffix =
+    'This is a pure camera photograph. There is no text, no words, no letters, no numbers, ' +
+    'no captions, no titles, no watermarks, no typography, no labels, no overlays, ' +
+    'no infographics, no thumbnails, no graphic design elements anywhere in the image. ' +
+    'Only real-world physical subjects captured by a camera lens.';
 
-  let subjectPrompt = prompt;
-  if (style && style !== 'auto') {
-    subjectPrompt = `${style} style photography — ${prompt}`;
-  }
-
-  return `${noTextPrefix} ${subjectPrompt}. ${qualityTags}. ${noTextSuffix}`;
+  return `${cameraPrefix} ${prompt}. ${qualityTags}. ${closingSuffix}`;
 }
