@@ -128,6 +128,9 @@ export class PaymentService {
           payment.razorpay_payment_id = paymentId;
           await manager.save(payment);
 
+          // Mark user as premium
+          await manager.update(User, userId, { is_premium: true });
+
           // Add Credits
           await this.creditsService.addCredits(
             userId,
@@ -192,6 +195,9 @@ export class PaymentService {
           payment.status = PaymentStatus.PAID;
           payment.razorpay_payment_id = paymentId;
           await manager.save(payment);
+
+          // Mark user as premium
+          await manager.update(User, payment.user_id, { is_premium: true });
 
           await this.creditsService.addCredits(
             payment.user_id,
