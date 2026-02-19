@@ -86,6 +86,7 @@ export class AdminUsersService {
   }
 
   async getUserProjects(userId: string, page = 1, limit = 20, status?: string) {
+    console.log('userId', userId);
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
