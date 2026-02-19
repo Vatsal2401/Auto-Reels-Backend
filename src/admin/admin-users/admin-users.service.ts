@@ -39,19 +39,20 @@ export class AdminUsersService {
 
     const [results, countResult] = await Promise.all([
       this.dataSource.query(
-        `SELECT u.id, u.email, u.credits_balance as "creditsBalance", u.is_premium as "isPremium",
+        `SELECT u.id, u.email, u.name, u.credits_balance as "creditsBalance", u.is_premium as "isPremium",
                 u.created_at as "createdAt", COUNT(p.id)::int as "totalProjects"
          FROM users u
          LEFT JOIN projects p ON p.user_id = u.id
-         WHERE u.email ILIKE $1
+         WHERE u.email ILIKE $1 OR u.name ILIKE $1
          GROUP BY u.id
          ORDER BY u.created_at DESC
          LIMIT $2 OFFSET $3`,
         [searchParam, limit, offset],
       ),
-      this.dataSource.query(`SELECT COUNT(*)::int as count FROM users WHERE email ILIKE $1`, [
-        searchParam,
-      ]),
+      this.dataSource.query(
+        `SELECT COUNT(*)::int as count FROM users WHERE email ILIKE $1 OR name ILIKE $1`,
+        [searchParam],
+      ),
     ]);
 
     return {
