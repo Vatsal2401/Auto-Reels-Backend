@@ -7,12 +7,14 @@ import {
   Body,
   Param,
   UseInterceptors,
+  UseGuards,
   UploadedFile,
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ShowcaseService, ShowcaseResponse } from './showcase.service';
 import { ShowcaseItem } from './entities/showcase-item.entity';
+import { AdminJwtGuard } from '../admin/guards/admin-jwt.guard';
 
 /** File from multipart upload (FileInterceptor). We only use buffer. */
 type UploadedFileType = { buffer?: Buffer } | undefined;
@@ -26,6 +28,7 @@ export class ShowcaseController {
     return this.showcaseService.getShowcase();
   }
 
+  @UseGuards(AdminJwtGuard)
   @Post('items')
   async createItem(
     @Body()
@@ -40,6 +43,7 @@ export class ShowcaseController {
     return this.showcaseService.createItem(body);
   }
 
+  @UseGuards(AdminJwtGuard)
   @Patch('items/:id')
   async updateItem(
     @Param('id') id: string,
@@ -56,11 +60,13 @@ export class ShowcaseController {
     return this.showcaseService.updateItem(id, body);
   }
 
+  @UseGuards(AdminJwtGuard)
   @Delete('items/:id')
   async deleteItem(@Param('id') id: string): Promise<void> {
     return this.showcaseService.deleteItem(id);
   }
 
+  @UseGuards(AdminJwtGuard)
   @Post('items/:id/clip')
   @UseInterceptors(FileInterceptor('file'))
   async uploadClipForItem(
