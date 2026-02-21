@@ -20,6 +20,7 @@ export interface ScriptGenerationOptions {
   language?: string; // Default 'en-US'
   targetDurationSeconds?: number; // derived from '30-60'
   audioPrompt?: string; // Information about voice persona and pacing
+  visualStyle?: string; // e.g. 'Cinematic', 'Minimalist', 'Anime', 'Dark'
 }
 
 export interface IScriptGenerator {

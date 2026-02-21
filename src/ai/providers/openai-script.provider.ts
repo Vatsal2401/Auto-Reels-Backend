@@ -54,6 +54,8 @@ export class OpenAIScriptProvider implements IScriptGenerator {
     let topic: string;
     let language = 'English (US)';
     let duration: string | number = '30-60';
+    let visualStyle = 'Cinematic';
+    let audioStyle = '';
 
     if (typeof optionsOrTopic === 'string') {
       topic = optionsOrTopic;
@@ -63,9 +65,11 @@ export class OpenAIScriptProvider implements IScriptGenerator {
       if (optionsOrTopic.targetDurationSeconds) {
         duration = optionsOrTopic.targetDurationSeconds;
       }
+      visualStyle = optionsOrTopic.visualStyle || 'Cinematic';
+      audioStyle = optionsOrTopic.audioPrompt || '';
     }
 
-    const systemPrompt = getOpenAIScriptSystemPrompt(duration, language);
+    const systemPrompt = getOpenAIScriptSystemPrompt(duration, language, visualStyle, audioStyle);
 
     const response = await this.openai.chat.completions.create({
       model: 'gpt-4o',
@@ -76,7 +80,7 @@ export class OpenAIScriptProvider implements IScriptGenerator {
         },
         {
           role: 'user',
-          content: `Create a structured script for: ${topic}. If a visual style or theme is intended, ensure scene prompts reflect it.`,
+          content: `Create a viral reel script for: "${topic}". Apply ${visualStyle} visual style throughout all scene image prompts.`,
         },
       ],
       temperature: 0.8,

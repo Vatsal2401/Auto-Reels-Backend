@@ -110,11 +110,15 @@ export class VideoGenerationService {
     };
     const targetDuration = durationMap[video.metadata?.duration] || 45;
     const language = video.metadata?.language || 'English (US)';
+    const visualStyle = video.metadata?.imageStyle || 'Cinematic';
+    const audioPrompt = video.metadata?.audioStyle || '';
 
     const scriptJSON = await scriptProvider.generateScriptJSON({
       topic: video.topic,
       language,
       targetDurationSeconds: targetDuration,
+      visualStyle,
+      audioPrompt,
     });
 
     // Construct clean script text from JSON scenes (stateless/pure)

@@ -49,8 +49,7 @@ export class GeminiScriptProvider implements IScriptGenerator {
         duration = optionsOrTopic.targetDurationSeconds;
       }
       audioStyle = optionsOrTopic.audioPrompt || '';
-      // EXTRACT VISUAL STYLE IF PASSED IN
-      visualStyle = (optionsOrTopic as any).visualStyle || 'Cinematic';
+      visualStyle = optionsOrTopic.visualStyle || 'Cinematic';
     }
 
     const prompt = getScriptGenerationPrompt(topic, duration, language, audioStyle, visualStyle);

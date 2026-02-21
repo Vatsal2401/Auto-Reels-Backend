@@ -23,91 +23,202 @@ export function getScriptGenerationPrompt(
   audioStyle: string = '',
   visualStyle: string = 'Cinematic',
 ): string {
-  const audioStyleSection = audioStyle ? `\nNARRATION STYLE: ${audioStyle}.` : '';
-  const hindiInstruction = getHindiScriptInstruction(language);
-
-  // Calculate strict word counts
-  // For 45s, natural pacing is ~95-100 words.
   const targetWords = Math.floor(duration * 1.8);
   const absoluteMaxWords = Math.floor(duration * 2.1);
-
+  const sceneCount = Math.ceil(duration / 5);
+  const hindiInstruction = getHindiScriptInstruction(language);
   const singleLangInstruction = getSingleLanguageInstruction(language);
-  return `You are a professional social media scriptwriter.
-Create a ${duration}-second video script about: "${topic}".
-THEME: ${visualStyle}.
-LANGUAGE: ${language}. Output in ONE language only; do not add transliteration in parentheses or mix two scripts.${audioStyleSection}${hindiInstruction}${singleLangInstruction}
+  const hindiNote = /hindi|hi|हिंदी/i.test(language) ? ', in Devanagari script only' : '';
+  const audioMoodLine = audioStyle ? `\nNARRATION STYLE: ${audioStyle}.` : '';
 
-STRICT DURATION CONTROL (LIFE-OR-DEATH):
-1. **TOTAL WORD LIMIT**: The ENTIRE script (sum of all scenes) MUST be between ${targetWords} and ${absoluteMaxWords} words.
-2. **ABSOLUTE MAXIMUM**: DO NOT, under any circumstances, exceed ${absoluteMaxWords} words. If you write 150+ words, the video will be broken and 2 minutes long. 
-3. **SCENE COUNT**: Provide exactly ${Math.ceil(duration / 5)} scenes.
-4. **WORDS PER SCENE**: Each 5-second scene should have exactly 10-12 words. Simple, punchy sentences only.
-5. **NO HALLUCINATION**: Count your words. If you see more than 2 sentences in a scene, it's too long. Shorten it.
+  // Middle scenes range for narrative arc description
+  const coreEnd = sceneCount - 2 > 1 ? `Scenes 2–${sceneCount - 2}` : 'Scene 2';
+  const peakScene = sceneCount - 1;
+  const ctaScene = sceneCount;
 
-JSON FORMATTING:
-- Output ONLY valid JSON.
-- NO comments. NO markdown.
+  return `You are a world-class viral short-form content scriptwriter for faceless reels.
+You craft scripts that hook viewers in the first 2 seconds, build tension, and leave them thinking.
 
-IMAGE RULES (for each scene's image_prompt):
-- Describe what the CAMERA PHYSICALLY CAPTURES: people, faces, environments, objects, actions, lighting.
-- Do NOT describe the topic title, numbered lists, or concept names as visual elements.
-- Example WRONG: "infographic showing 5 psychology tips" → Example RIGHT: "close-up of a smiling person making confident eye contact in warm light"
-- No grids, no collages, no split screens. No text, captions, words, or overlays in the image.
+TOPIC: "${topic}"
+DURATION: ${duration} seconds | SCENES: ${sceneCount} | WORDS: ${targetWords}–${absoluteMaxWords} total
+VISUAL STYLE: ${visualStyle}
+LANGUAGE: ${language}${audioMoodLine}${hindiInstruction}${singleLangInstruction}
 
-Structure:
+━━━ NARRATIVE STRUCTURE ━━━
+Follow this arc exactly — one clear idea per scene, each exactly 10-12 spoken words:
+
+• Scene 1 — HOOK: Stop the scroll. Open with a shocking fact, bold claim, or curiosity gap.
+  Great hooks: "This ancient trick rewired how the world's top athletes train."
+               "Scientists discovered the real reason you can't focus after lunch."
+               "Most people do this every day — and it's silently draining their energy."
+
+• ${coreEnd} — CORE: One punchy insight or fact per scene. Each scene escalates intrigue.
+  Build tension → make the viewer lean in. Don't resolve too early.
+
+• Scene ${peakScene} — PEAK: The most impactful, surprising, or emotional reveal.
+  This is the payoff scene — the "a-ha" moment.
+
+• Scene ${ctaScene} — CTA: End with a thought-provoking question, bold takeaway, or challenge.
+  Great CTAs: "Now ask yourself — are you living by design or by default?"
+              "Try this for 7 days. Your brain will thank you."
+
+━━━ WRITING RULES ━━━
+✓ Spoken, conversational tone — write exactly how confident people talk on camera
+✓ Active voice, present tense preferred, short punchy sentences
+✓ Use power words: "secret", "hidden", "actually", "real reason", "nobody tells you", "shocking"
+✓ Every sentence must stand alone — no run-ons, no "and then..." chains
+✗ No filler openers: "So", "Well", "Hi guys", "Basically", "In this video", "Today we'll"
+✗ No meta-references: "watch till the end", "don't forget to like", "in this reel"
+✗ No padding — every word must earn its place
+
+━━━ IMAGE PROMPT RULES ━━━
+Each image_prompt = ONE single cinematic frame. Must specify ALL of these:
+  [SUBJECT] + [COMPOSITION] + [LIGHTING] + [MOOD/ATMOSPHERE] + [${visualStyle} aesthetic]
+
+Good: "Extreme close-up of weathered hands gripping a compass, golden hour backlight, ${visualStyle} color grade, shallow depth of field, warm amber tones"
+Bad:  "Person thinking about success with motivational text overlay"
+
+Vary composition across scenes (e.g. close-up → wide establishing → medium portrait → overhead):
+- Use: close-up, extreme close-up, wide shot, medium shot, low-angle, overhead, silhouette
+- Mood: dramatic shadows, soft diffused light, neon glow, golden hour, blue hour, candlelight
+
+NEVER include in image_prompt:
+✗ Text, captions, watermarks, signs with words, logos
+✗ Infographics, charts, numbered lists, bullet points
+✗ Split screens, grids, collages, multiple panels side-by-side
+✗ Abstract floating symbols (e.g. "success symbols", "technology icons")
+✗ The topic name depicted literally as text or concept labels
+
+━━━ AUDIO MOOD — choose the best fit ━━━
+Dramatic Orchestral | Lo-fi Chill | Energetic Electronic | Inspirational Piano
+Dark Cinematic | Upbeat Pop | Ambient Minimal | Epic Motivational | Suspenseful Strings
+
+━━━ CAPTION STYLE — choose one ━━━
+Bold (large impactful text) | Minimal (clean lowercase) | Neon (glowing accent color) | Classic (subtitle style)
+
+━━━ STRICT WORD COUNT ━━━
+• TOTAL across ALL scenes: ${targetWords}–${absoluteMaxWords} words — DO NOT EXCEED
+• Per scene: exactly 10-12 words (one punchy sentence)
+• ${sceneCount} scenes × ~10 words = ~${sceneCount * 10} words ← aim here
+• Count before submitting. If a scene has 2 sentences, it's too long — cut it.
+
+OUTPUT — valid JSON only, no markdown fences, no comments:
 {
   "topic": "${topic}",
-  "audio_mood": "...",
+  "audio_mood": "<chosen mood from list above>",
+  "caption_style": "<Bold | Minimal | Neon | Classic>",
   "total_duration": ${duration},
   "scenes": [
     {
       "scene_number": 1,
-      "description": "...",
-      "image_prompt": "Single visual only, no text on image",
+      "description": "Scene purpose in one line (e.g. 'Hook — shocking stat about sleep deprivation')",
+      "image_prompt": "Detailed single-frame cinematic visual. ${visualStyle} aesthetic. No text. Specific subject, composition, lighting, mood.",
       "duration": 5,
-      "audio_text": "Exactly 10-12 words in ${language}${/hindi|hi|हिंदी/i.test(language) ? ', in Hindi (Devanagari script only; no English words)' : ''}."
+      "audio_text": "Exactly 10-12 spoken words in ${language}${hindiNote}."
     }
   ]
 }`;
 }
 
 export function getSimpleScriptPrompt(topic: string): string {
-  return `Write a 30-second script about ${topic}. MAX 65 words total. JSON only.`;
-}
+  return `You are a viral reel scriptwriter. Write a 30-second faceless reel script about: "${topic}".
 
-export function getOpenAIScriptSystemPrompt(duration: string | number, language: string): string {
-  const numDuration = Number(duration) || 30;
-  const maxWords = Math.floor(numDuration * 2.1);
-  const hindiInstruction = getHindiScriptInstruction(language);
-  const audioTextHint = /hindi|hi|हिंदी/i.test(language)
-    ? '10-12 words in Hindi (Devanagari only; no English)'
-    : '10-12 words narration';
+STRUCTURE: Hook (scene 1) → 4 core insights → CTA (last scene). 6 scenes total.
+WORDS: MAX 65 total. Each scene = ~10 words. Punchy, spoken, active voice.
+IMAGE PROMPTS: Cinematic single frames only — subject + composition + lighting. No text, no infographics.
+AUDIO MOOD: pick from — Dramatic Orchestral, Lo-fi Chill, Energetic Electronic, Inspirational Piano, Dark Cinematic, Epic Motivational
 
-  return `You are a viral script writer.
-Create a ${numDuration}-second Reel script.
-LANGUAGE: ${language}. Output in ONE language only; no transliteration in parentheses, no mixed scripts.${hindiInstruction}
-
-STRICT CONSTRAINTS:
-- TOTAL WORDS MUST NOT EXCEED ${maxWords}.
-- Each 5s scene = 10-12 words.
-- If you write too much, the audio will fail.
-
-IMAGE RULES: Each image_prompt = one single full-frame physical scene (person, place, object, action, lighting). Do NOT describe the topic title, numbered list, or concept name as a visual element. No grids, no text/captions on the image.
+OUTPUT — JSON only:
 {
+  "topic": "${topic}",
+  "audio_mood": "<mood>",
+  "caption_style": "<Bold | Minimal | Neon | Classic>",
+  "total_duration": 30,
   "scenes": [
     {
       "scene_number": 1,
-      "description": "...",
-      "image_prompt": "Single visual, text-free",
+      "description": "Hook — <one line>",
+      "image_prompt": "Cinematic single frame, no text",
       "duration": 5,
-      "audio_text": "${audioTextHint}"
+      "audio_text": "~10 spoken words"
     }
-  ],
+  ]
+}`;
+}
+
+export function getOpenAIScriptSystemPrompt(
+  duration: string | number,
+  language: string,
+  visualStyle: string = 'Cinematic',
+  audioStyle: string = '',
+): string {
+  const numDuration = Number(duration) || 30;
+  const maxWords = Math.floor(numDuration * 2.1);
+  const minWords = Math.floor(numDuration * 1.8);
+  const sceneCount = Math.ceil(numDuration / 5);
+  const hindiInstruction = getHindiScriptInstruction(language);
+  const singleLangInstruction = getSingleLanguageInstruction(language);
+  const hindiNote = /hindi|hi|हिंदी/i.test(language) ? ', Devanagari script only' : '';
+  const audioMoodLine = audioStyle ? `\nNARRATION STYLE: ${audioStyle}.` : '';
+
+  const peakScene = sceneCount - 1;
+  const ctaScene = sceneCount;
+
+  return `You are a viral short-form content scriptwriter for faceless reels.
+Write scripts that hook viewers in 2 seconds, build tension, and drive shares.
+
+LANGUAGE: ${language}. One language only — no transliteration, no mixed scripts.
+VISUAL STYLE: ${visualStyle}${audioMoodLine}${hindiInstruction}${singleLangInstruction}
+
+DURATION: ${numDuration}s | SCENES: ${sceneCount} | WORDS: ${minWords}–${maxWords} (HARD LIMIT)
+
+NARRATIVE ARC (follow strictly):
+• Scene 1: HOOK — shocking fact, bold claim, or curiosity gap. Stop the scroll.
+• Scenes 2–${peakScene - 1}: CORE — one punchy insight per scene, escalate intrigue
+• Scene ${peakScene}: PEAK — most impactful or surprising reveal, the "a-ha" moment
+• Scene ${ctaScene}: CTA — thought-provoking question or bold challenge
+
+WRITING RULES:
+✓ 10-12 words per scene — one punchy spoken sentence
+✓ Conversational tone, active voice, present tense
+✓ Power words: "secret", "hidden", "real reason", "nobody tells you", "shocking"
+✗ No filler: "So", "Well", "Hi guys", "Today", "In this video", "Basically"
+✗ No meta-references: "watch till end", "like and subscribe", "in this reel"
+
+IMAGE PROMPT RULES (per scene):
+- ONE cinematic frame: [subject] + [composition] + [lighting] + [mood] + [${visualStyle} style]
+- Vary compositions: close-up, wide, medium, low-angle, overhead, silhouette
+- NEVER: text, captions, infographics, split screens, abstract symbols, numbered lists
+
+AUDIO MOODS (pick best fit):
+Dramatic Orchestral | Lo-fi Chill | Energetic Electronic | Inspirational Piano
+Dark Cinematic | Upbeat Pop | Ambient Minimal | Epic Motivational | Suspenseful Strings
+
+CAPTION STYLES: Bold | Minimal | Neon | Classic
+
+OUTPUT — JSON only:
+{
+  "topic": "topic name",
+  "audio_mood": "<chosen mood>",
+  "caption_style": "<Bold | Minimal | Neon | Classic>",
   "total_duration": ${numDuration},
-  "topic": "Topic Name"
+  "scenes": [
+    {
+      "scene_number": 1,
+      "description": "Hook — <one-line scene purpose>",
+      "image_prompt": "Single cinematic frame. ${visualStyle} style. No text. Subject + composition + lighting + mood.",
+      "duration": 5,
+      "audio_text": "10-12 spoken words in ${language}${hindiNote}."
+    }
+  ]
 }`;
 }
 
 export function getOpenAISimpleScriptPrompt(topic: string): string {
-  return `Write a 45-second script about ${topic}. ABSOLUTE LIMIT: 90 words. JSON only.`;
+  return `You are a viral reel scriptwriter. Create a 45-second faceless reel about: "${topic}".
+
+STRUCTURE: Hook → core insights → CTA. 9 scenes × ~10 words each.
+ABSOLUTE WORD LIMIT: 90 words total.
+IMAGE PROMPTS: Cinematic single frames — subject, composition, lighting. No text. No infographics.
+OUTPUT: JSON only.`;
 }
