@@ -6,6 +6,7 @@ export enum MediaAssetType {
   VIDEO = 'video',
   AVATAR = 'avatar',
   INTENT = 'intent',
+  STOCK_VIDEO = 'stock_video',
 }
 
 export enum MediaType {
@@ -92,6 +93,17 @@ export const MEDIA_FLOWS: Record<
     dependencies: {
       script: [],
       video: ['script'],
+    },
+  },
+  videoMotionStock: {
+    steps: ['intent', 'script', 'audio', 'captions', 'stockVideos', 'render'],
+    dependencies: {
+      intent: [],
+      script: ['intent'],
+      audio: ['script'],
+      captions: ['audio'],
+      stockVideos: ['script'],
+      render: ['stockVideos', 'captions'],
     },
   },
 };

@@ -52,6 +52,7 @@ const getImageToVideoProvider = () => {
 };
 
 import { ReplicateImageProvider } from './providers/replicate-image.provider';
+import { PexelsStockVideoProvider } from './providers/pexels-stock-video.provider';
 
 @Module({
   imports: [StorageModule],
@@ -80,6 +81,7 @@ import { ReplicateImageProvider } from './providers/replicate-image.provider';
     MockTTSProvider,
     MockImageProvider,
     ReplicateImageProvider,
+    PexelsStockVideoProvider,
 
     // Default Alias Bindings (Kept for backward compat)
     {
@@ -120,6 +122,7 @@ import { ReplicateImageProvider } from './providers/replicate-image.provider';
     GeminiTTSProvider,
     OpenAITTSProvider,
     ElevenLabsService,
+    PexelsStockVideoProvider,
     'IScriptGenerator',
     'ITextToSpeech',
     'ICaptionGenerator',

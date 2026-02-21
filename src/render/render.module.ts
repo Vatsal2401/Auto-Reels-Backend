@@ -3,6 +3,7 @@ import { FFmpegRendererProvider } from './providers/ffmpeg-renderer.provider';
 import { RenderQueueService } from './render-queue.service';
 import { RemotionQueueService } from './remotion-queue.service';
 import { RemotionKineticQueueService } from './remotion-kinetic-queue.service';
+import { StockVideoRemotionQueueService } from './stock-video-remotion-queue.service';
 import { ConfigModule } from '@nestjs/config';
 
 @Module({
@@ -15,12 +16,14 @@ import { ConfigModule } from '@nestjs/config';
     RenderQueueService,
     RemotionQueueService,
     RemotionKineticQueueService,
+    StockVideoRemotionQueueService,
   ],
   exports: [
     'IVideoRenderer',
     RenderQueueService,
     RemotionQueueService,
     RemotionKineticQueueService,
+    StockVideoRemotionQueueService,
   ],
 })
 export class RenderModule {}

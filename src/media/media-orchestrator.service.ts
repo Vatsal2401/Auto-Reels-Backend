@@ -10,10 +10,12 @@ import { IStorageService } from '../storage/interfaces/storage.interface';
 import { IVideoRenderer } from '../render/interfaces/video-renderer.interface';
 import { RenderQueueService } from '../render/render-queue.service';
 import { RemotionQueueService } from '../render/remotion-queue.service';
+import { StockVideoRemotionQueueService } from '../render/stock-video-remotion-queue.service';
 import { AiProviderFactory } from '../ai/ai-provider.factory';
 import { ScriptJSON } from '../ai/interfaces/script-generator.interface';
 import { GeminiTTSProvider } from '../ai/providers/gemini-tts.provider';
 import { OpenAITTSProvider } from '../ai/providers/openai-tts.provider';
+import { PexelsStockVideoProvider } from '../ai/providers/pexels-stock-video.provider';
 import { BackgroundMusic } from './entities/background-music.entity';
 import { User } from '../auth/entities/user.entity';
 import { getWatermarkConfig } from '../render/watermark.util';
@@ -39,6 +41,8 @@ export class MediaOrchestratorService {
     @Inject('IVideoRenderer') private videoRenderer: IVideoRenderer,
     private readonly renderQueueService: RenderQueueService,
     private readonly remotionQueueService: RemotionQueueService,
+    private readonly stockVideoRemotionQueueService: StockVideoRemotionQueueService,
+    private readonly pexelsStockVideoProvider: PexelsStockVideoProvider,
     @InjectRepository(BackgroundMusic)
     private musicRepository: Repository<BackgroundMusic>,
   ) {}
@@ -133,6 +137,9 @@ export class MediaOrchestratorService {
           break;
         case 'images':
           resultBlobIds = await this.handleImagesStep(media);
+          break;
+        case 'stockVideos':
+          resultBlobIds = await this.handleStockVideosStep(media);
           break;
         case 'render':
           resultBlobIds = await this.handleRenderStep(media);
@@ -454,7 +461,56 @@ export class MediaOrchestratorService {
     return blobIds;
   }
 
+  private async handleStockVideosStep(media: Media): Promise<string[]> {
+    const scriptAsset = await this.assetRepository.findOne({
+      where: { media_id: media.id, type: MediaAssetType.SCRIPT },
+    });
+    if (!scriptAsset) throw new Error('Script asset missing for stockVideos step');
+
+    const scriptData = JSON.parse(
+      (await this.storageService.download(scriptAsset.blob_storage_id)).toString(),
+    );
+    const scriptJson: ScriptJSON = scriptData.json;
+
+    if (!scriptJson?.scenes || scriptJson.scenes.length === 0) {
+      throw new Error('No scenes found in script for stockVideos step');
+    }
+
+    const sceneInputs = scriptJson.scenes.map((scene, idx) => ({
+      sceneIndex: idx,
+      query: scene.image_prompt || scene.description || media.input_config?.topic || 'cinematic landscape',
+    }));
+
+    const clips = await this.pexelsStockVideoProvider.fetchClipsForScenes(
+      sceneInputs,
+      media.id,
+      media.user_id,
+    );
+
+    if (clips.length === 0) {
+      throw new Error('stockVideos step: zero clips fetched (all scenes failed including fallbacks)');
+    }
+
+    const blobIds: string[] = [];
+    for (const clip of clips) {
+      const assetType = clip.isFallback ? MediaAssetType.IMAGE : MediaAssetType.STOCK_VIDEO;
+      await this.addAsset(media.id, assetType, clip.blobId, {
+        sceneIndex: clip.sceneIndex,
+        isFallback: clip.isFallback ?? false,
+      });
+      blobIds.push(clip.blobId);
+    }
+
+    return blobIds;
+  }
+
   private async handleRenderStep(media: Media): Promise<string> {
+    const isStockFlow = media.flow_key === 'videoMotionStock';
+
+    if (isStockFlow) {
+      return this.handleStockVideoRenderStep(media);
+    }
+
     // PRODUCTION CHANGE: Delegate to worker queue
     const audioAsset = await this.assetRepository.findOne({
       where: { media_id: media.id, type: MediaAssetType.AUDIO },
@@ -543,6 +599,92 @@ export class MediaOrchestratorService {
       await this.renderQueueService.queueRenderJob(payload);
     }
 
+    return null; // Will be updated by worker on completion
+  }
+
+  private async handleStockVideoRenderStep(media: Media): Promise<string> {
+    const audioAsset = await this.assetRepository.findOne({
+      where: { media_id: media.id, type: MediaAssetType.AUDIO },
+    });
+    const captionAsset = await this.assetRepository.findOne({
+      where: { media_id: media.id, type: MediaAssetType.CAPTION },
+    });
+
+    // Fetch both STOCK_VIDEO and IMAGE (fallback) assets, ordered by sceneIndex metadata
+    const stockVideoAssets = await this.assetRepository.find({
+      where: { media_id: media.id, type: MediaAssetType.STOCK_VIDEO },
+    });
+    const fallbackImageAssets = await this.assetRepository.find({
+      where: { media_id: media.id, type: MediaAssetType.IMAGE },
+    });
+
+    // Merge and sort by sceneIndex
+    const allSceneAssets = [
+      ...stockVideoAssets.map((a) => ({ asset: a, assetType: 'stock_video' })),
+      ...fallbackImageAssets
+        .filter((a) => (a.metadata as any)?.isFallback === true)
+        .map((a) => ({ asset: a, assetType: 'image' })),
+    ].sort((a, b) => {
+      const idxA = (a.asset.metadata as any)?.sceneIndex ?? 0;
+      const idxB = (b.asset.metadata as any)?.sceneIndex ?? 0;
+      return idxA - idxB;
+    });
+
+    if (!audioAsset || !captionAsset || allSceneAssets.length === 0) {
+      throw new Error('Assets missing for stock video rendering');
+    }
+
+    let musicBlobId: string | undefined;
+    const musicConfig = media.input_config?.music;
+    if (musicConfig?.id) {
+      const musicEntity = await this.musicRepository.findOne({ where: { id: musicConfig.id } });
+      if (musicEntity) {
+        musicBlobId = musicEntity.blob_storage_id;
+      }
+    }
+
+    const step = await this.stepRepository.findOne({
+      where: { media_id: media.id, step: 'render' },
+    });
+
+    const user = await this.userRepository.findOne({ where: { id: media.user_id } });
+
+    const payload = {
+      mediaId: media.id,
+      stepId: step.id,
+      userId: media.user_id,
+      assets: {
+        audio: audioAsset.blob_storage_id,
+        caption: captionAsset.blob_storage_id,
+        images: [],
+        music: musicBlobId,
+        stockVideos: allSceneAssets.map((a) => a.asset.blob_storage_id),
+        stockVideoTypes: allSceneAssets.map((a) => a.assetType),
+      },
+      options: {
+        preset: 'superfast',
+        rendering_hints: {
+          captions: media.input_config?.captions,
+          language: media.input_config?.language,
+          musicVolume: typeof musicConfig?.volume === 'number' ? musicConfig.volume : 0.2,
+          width:
+            media.input_config?.aspectRatio === '1:1'
+              ? 1080
+              : media.input_config?.aspectRatio === '16:9'
+                ? 1280
+                : 720,
+          height:
+            media.input_config?.aspectRatio === '1:1'
+              ? 1080
+              : media.input_config?.aspectRatio === '16:9'
+                ? 720
+                : 1280,
+        },
+      },
+      monetization: getWatermarkConfig(user?.is_premium ?? false),
+    };
+
+    await this.stockVideoRemotionQueueService.queueStockVideoJob(payload);
     return null; // Will be updated by worker on completion
   }
 
