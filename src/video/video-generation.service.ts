@@ -276,12 +276,14 @@ export class VideoGenerationService {
 
     this.logger.log(`Generating audio for ${videoId}...`);
 
-    // Get Provider from Factory (default: elevenlabs)
-    const audioProviderName = process.env.ELEVENLABS_API_KEY
-      ? 'elevenlabs'
-      : process.env.OPENAI_API_KEY
-        ? 'openai'
-        : 'mock';
+    // Get Provider from Factory (priority: sarvam > elevenlabs > openai > mock)
+    const audioProviderName = process.env.SARVAM_API_KEY
+      ? 'sarvam'
+      : process.env.ELEVENLABS_API_KEY
+        ? 'elevenlabs'
+        : process.env.OPENAI_API_KEY
+          ? 'openai'
+          : 'mock';
     const audioProvider = this.aiFactory.getTextToSpeech(audioProviderName);
 
     const audioBuffer = await audioProvider.textToSpeech({

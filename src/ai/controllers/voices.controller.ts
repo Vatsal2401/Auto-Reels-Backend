@@ -1,12 +1,15 @@
-import { Controller, Get } from '@nestjs/common';
-import { ElevenLabsService, NormalizedVoice } from '../elevenlabs.service';
+import { Controller, Get, Inject } from '@nestjs/common';
+import { NormalizedVoice } from '../elevenlabs.service';
+import { IVoiceManagementService } from '../interfaces/voice-management.interface';
 
 @Controller('voices')
 export class VoicesController {
-  constructor(private readonly elevenLabsService: ElevenLabsService) {}
+  constructor(
+    @Inject('IVoiceManagementService') private readonly voiceService: IVoiceManagementService,
+  ) {}
 
   @Get()
   async getVoices(): Promise<NormalizedVoice[]> {
-    return this.elevenLabsService.getVoices();
+    return this.voiceService.getVoices();
   }
 }

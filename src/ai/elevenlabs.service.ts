@@ -1,6 +1,7 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
 import { IStorageService } from '../storage/interfaces/storage.interface';
+import { IVoiceManagementService } from './interfaces/voice-management.interface';
 
 export interface NormalizedVoice {
   value: string;
@@ -26,7 +27,7 @@ const VOICE_MAP: Record<string, { en: string; hi?: string }> = {
 };
 
 @Injectable()
-export class ElevenLabsService {
+export class ElevenLabsService implements IVoiceManagementService {
   private readonly logger = new Logger(ElevenLabsService.name);
   private readonly client: ElevenLabsClient;
 

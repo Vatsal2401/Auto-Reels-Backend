@@ -1,15 +1,17 @@
-import { Controller, Post, Body, Res } from '@nestjs/common';
+import { Controller, Post, Body, Res, Inject } from '@nestjs/common';
 import { Response } from 'express';
-import { ElevenLabsService } from '../elevenlabs.service';
+import { IVoiceManagementService } from '../interfaces/voice-management.interface';
 
 @Controller('tts')
 export class TTSController {
-  constructor(private readonly elevenLabsService: ElevenLabsService) {}
+  constructor(
+    @Inject('IVoiceManagementService') private readonly voiceService: IVoiceManagementService,
+  ) {}
 
   @Post('preview')
   async generatePreview(@Body() body: { voiceId: string; language: string }, @Res() res: Response) {
     try {
-      const audioBuffer = await this.elevenLabsService.generatePreview(body.voiceId, body.language);
+      const audioBuffer = await this.voiceService.generatePreview(body.voiceId, body.language);
 
       res.set({
         'Content-Type': 'audio/mpeg',

@@ -277,12 +277,22 @@ export class MediaOrchestratorService {
     }
 
     const audioProvider = this.aiFactory.getTextToSpeech(
-      process.env.ELEVENLABS_API_KEY ? 'elevenlabs' : 'openai',
+      process.env.SARVAM_API_KEY
+        ? 'sarvam'
+        : process.env.ELEVENLABS_API_KEY
+          ? 'elevenlabs'
+          : 'openai',
     );
 
-    // Primary: ElevenLabs
-    this.logger.log(`Generating audio for media ${media.id} using ElevenLabs...`);
+    // Primary: Sarvam > ElevenLabs > OpenAI
+    this.logger.log(`Generating audio for media ${media.id}...`);
     let audioBuffer: Buffer;
+
+    const primaryProviderName = process.env.SARVAM_API_KEY
+      ? 'Sarvam'
+      : process.env.ELEVENLABS_API_KEY
+        ? 'ElevenLabs'
+        : 'OpenAI';
 
     try {
       audioBuffer = await audioProvider.textToSpeech({
@@ -293,7 +303,7 @@ export class MediaOrchestratorService {
       });
     } catch (error) {
       this.logger.warn(`Secondary Provider Fallback Enabled for Media ${media.id}`);
-      this.logger.error(`ElevenLabs Failed: ${error.message}`);
+      this.logger.error(`${primaryProviderName} TTS Failed: ${error.message}`);
 
       // Fallback 1: Gemini TTS (Google Journey Voices)
       try {

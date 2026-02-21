@@ -19,6 +19,7 @@ import { GeminiScriptProvider } from './providers/gemini-script.provider';
 import { GeminiImageProvider } from './providers/gemini-image.provider';
 import { GeminiVideoProvider } from './providers/gemini-video.provider';
 import { ElevenLabsTTSProvider } from './providers/elevenlabs-tts.provider';
+import { SarvamTTSProvider } from './providers/sarvam-tts.provider';
 import { MockTTSProvider } from './providers/mock-tts.provider';
 import { MockImageProvider } from './providers/mock-image.provider';
 import { ReplicateImageProvider } from './providers/replicate-image.provider';
@@ -53,6 +54,8 @@ export class AiProviderFactory {
 
   getTextToSpeech(providerName: string = 'openai'): ITextToSpeech {
     switch (providerName) {
+      case 'sarvam':
+        return this.moduleRef.get(SarvamTTSProvider, { strict: false });
       case 'openai':
         return this.moduleRef.get(OpenAITTSProvider, { strict: false });
       case 'elevenlabs':

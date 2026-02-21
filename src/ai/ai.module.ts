@@ -13,12 +13,14 @@ import { GeminiScriptProvider } from './providers/gemini-script.provider';
 import { GeminiImageProvider } from './providers/gemini-image.provider';
 import { GeminiVideoProvider } from './providers/gemini-video.provider';
 import { ElevenLabsTTSProvider } from './providers/elevenlabs-tts.provider';
+import { SarvamTTSProvider } from './providers/sarvam-tts.provider';
 import { GeminiIntentProvider } from './providers/gemini-intent.provider';
 import { GeminiTTSProvider } from './providers/gemini-tts.provider';
 import { LocalCaptionProvider } from './providers/local-caption.provider';
 import { KaraokeCaptionProvider } from './providers/karaoke-caption.provider';
 import { AssSubtitleProvider } from './providers/ass-subtitle.provider';
 import { ElevenLabsService } from './elevenlabs.service';
+import { SarvamService } from './sarvam.service';
 import { VoicesController } from './controllers/voices.controller';
 import { TTSController } from './controllers/tts.controller';
 import { AiProviderFactory } from './ai-provider.factory';
@@ -28,6 +30,7 @@ const hasOpenAIKey = process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.tr
 const hasGeminiKey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim();
 const hasReplicateKey = process.env.REPLICATE_API_TOKEN && process.env.REPLICATE_API_TOKEN.trim();
 const hasElevenLabsKey = process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_API_KEY.trim();
+const hasSarvamKey = process.env.SARVAM_API_KEY && process.env.SARVAM_API_KEY.trim();
 const hasHuggingFaceKey = process.env.HUGGINGFACE_API_KEY && process.env.HUGGINGFACE_API_KEY.trim();
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
@@ -59,6 +62,7 @@ import { ReplicateImageProvider } from './providers/replicate-image.provider';
   providers: [
     AiProviderFactory,
     ElevenLabsService,
+    SarvamService,
     // Concrete Providers
     GeminiIntentProvider,
     OpenAIScriptProvider,
@@ -66,6 +70,7 @@ import { ReplicateImageProvider } from './providers/replicate-image.provider';
     OpenAITTSProvider,
     OpenAITTSProvider,
     ElevenLabsTTSProvider,
+    SarvamTTSProvider,
     GeminiTTSProvider,
     LocalCaptionProvider,
     KaraokeCaptionProvider,
@@ -92,11 +97,17 @@ import { ReplicateImageProvider } from './providers/replicate-image.provider';
     },
     {
       provide: 'ITextToSpeech',
-      useClass: hasElevenLabsKey
-        ? ElevenLabsTTSProvider
-        : hasOpenAIKey
-          ? OpenAITTSProvider
-          : MockTTSProvider,
+      useClass: hasSarvamKey
+        ? SarvamTTSProvider
+        : hasElevenLabsKey
+          ? ElevenLabsTTSProvider
+          : hasOpenAIKey
+            ? OpenAITTSProvider
+            : MockTTSProvider,
+    },
+    {
+      provide: 'IVoiceManagementService',
+      useClass: hasSarvamKey ? SarvamService : ElevenLabsService,
     },
     {
       provide: 'ICaptionGenerator',
@@ -120,11 +131,14 @@ import { ReplicateImageProvider } from './providers/replicate-image.provider';
     GeminiTTSProvider,
     OpenAITTSProvider,
     ElevenLabsService,
+    SarvamService,
+    SarvamTTSProvider,
     'IScriptGenerator',
     'ITextToSpeech',
     'ICaptionGenerator',
     'IImageGenerator',
     'IImageToVideo',
+    'IVoiceManagementService',
   ],
 })
 export class AIModule {

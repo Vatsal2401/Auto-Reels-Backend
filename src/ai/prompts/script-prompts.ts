@@ -6,14 +6,20 @@ SCRIPT WRITING (for Hindi only):
 - Use ONLY Devanagari characters (e.g. आ, ऐ, क, ख, न, म, य, र, ल, व, ह, etc.). NO Romanized/Latin letters. NO English words.
 - Do NOT add transliteration in parentheses (e.g. wrong: "ऊँची इमारत (Unchi imarat)"). Write ONLY the Hindi line: "ऊँची इमारत".
 - Every word must be in proper Hindi (Devanagari). Example correct: "देखो यह बंदर, प्यार का रंग चढ़ा है!" | Example wrong: "Dekho yeh bandar" or mixing English. NO Romanized form. NO Latin/English letters.
-- One language only: output 100% in Hindi so captions and TTS display and speak proper Hindi. No mixed scripts.`;
+- One language only: output 100% in Hindi so captions and TTS display and speak proper Hindi. No mixed scripts.
+- NUMBERS: Write ALL numbers as Hindi words — NEVER use Arabic numerals (0–9). Examples: "दो हज़ार छब्बीस" not "2026", "पाँच" not "5", "दस करोड़" not "10000000", "पचास प्रतिशत" not "50%". A TTS engine reads digits as "two zero two six" — always spell them out.`;
 }
 
 /** Instruction for any language: single language only, no transliteration. */
 function getSingleLanguageInstruction(language: string): string {
   if (/hindi|hi|हिंदी/i.test(language)) return ''; // covered by getHindiScriptInstruction
+  const numberRule = /bengali|tamil|telugu|gujarati|kannada|malayalam|marathi|punjabi|odia/i.test(
+    language,
+  )
+    ? ` Write ALL numbers as words in ${language} — never use Arabic numerals (0–9) since TTS reads them as English digits.`
+    : '';
   return `
-- Output script in the chosen language ONLY. Do NOT add transliteration in parentheses. Do NOT mix two scripts (e.g. native script + Roman/English in brackets). One language only.`;
+- Output script in the chosen language ONLY. Do NOT add transliteration in parentheses. Do NOT mix two scripts (e.g. native script + Roman/English in brackets). One language only.${numberRule}`;
 }
 
 export function getScriptGenerationPrompt(
