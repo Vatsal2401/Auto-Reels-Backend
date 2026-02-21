@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Patch,
   Body,
   Get,
   UseGuards,
@@ -21,6 +22,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { CreditsService } from '../credits/credits.service';
 import { MailService } from '../mail/mail.service';
+import { extractClientIp, getCountryFromIp } from '../common/utils/geo.util';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -106,10 +108,35 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   async googleCallback(@Req() req: Request, @Res() res: Response) {
-    const { tokens } = req.user as any;
-    // Redirect to frontend with tokens
-    const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/auth/callback?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}`;
+    const { user, tokens } = req.user as any;
+
+    // Auto-detect country from IP for OAuth users who don't have one yet
+    let needsCountry = false;
+    if (!user.country) {
+      const ip = extractClientIp(req);
+      const detectedCountry = getCountryFromIp(ip);
+      if (detectedCountry) {
+        await this.authService.updateUserCountry(user.id, detectedCountry);
+      } else {
+        needsCountry = true; // IP detection failed — frontend will prompt
+      }
+    }
+
+    const base = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/auth/callback`;
+    const redirectUrl = `${base}?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}${needsCountry ? '&needs_country=true' : ''}`;
     res.redirect(redirectUrl);
+  }
+
+  @Patch('me/country')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Update the current user\'s country' })
+  async updateCountry(
+    @CurrentUser() user: any,
+    @Body('country') country: string,
+  ) {
+    await this.authService.updateUserCountry(user.userId, country);
+    return { country };
   }
 
   @Get('microsoft')
@@ -121,9 +148,21 @@ export class AuthController {
   @Get('microsoft/callback')
   @UseGuards(AuthGuard('microsoft'))
   async microsoftCallback(@Req() req: Request, @Res() res: Response) {
-    const { tokens } = req.user as any;
-    // Redirect to frontend with tokens
-    const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/auth/callback?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}`;
+    const { user, tokens } = req.user as any;
+
+    let needsCountry = false;
+    if (!user.country) {
+      const ip = extractClientIp(req);
+      const detectedCountry = getCountryFromIp(ip);
+      if (detectedCountry) {
+        await this.authService.updateUserCountry(user.id, detectedCountry);
+      } else {
+        needsCountry = true;
+      }
+    }
+
+    const base = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/auth/callback`;
+    const redirectUrl = `${base}?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}${needsCountry ? '&needs_country=true' : ''}`;
     res.redirect(redirectUrl);
   }
 }
