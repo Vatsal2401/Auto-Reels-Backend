@@ -206,6 +206,9 @@ export class MediaOrchestratorService {
       targetDurationSeconds: durationMap[config.duration] || 45,
       audioPrompt: intentData?.audio_prompt,
       visualStyle: config.imageStyle || 'Cinematic', // Pass user selection
+      tone: config.tone,
+      hookType: config.hookType,
+      cta: config.cta,
     } as any);
 
     const scriptText = scriptJSON.scenes.map((s) => s.audio_text).join(' ');

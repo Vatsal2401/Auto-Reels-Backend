@@ -15,6 +15,7 @@ import { Project } from '../projects/entities/project.entity';
 import { ShowcaseItem } from '../showcase/entities/showcase-item.entity';
 import { AdminUser } from '../admin/entities/admin-user.entity';
 import { AdminImpersonationLog } from '../admin/entities/admin-impersonation-log.entity';
+import { PseoPage } from '../pseo/entities/pseo-page.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -37,6 +38,7 @@ export const AppDataSource = new DataSource({
     ShowcaseItem,
     AdminUser,
     AdminImpersonationLog,
+    PseoPage,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,

@@ -130,11 +130,8 @@ export class AuthController {
   @Patch('me/country')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Update the current user\'s country' })
-  async updateCountry(
-    @CurrentUser() user: any,
-    @Body('country') country: string,
-  ) {
+  @ApiOperation({ summary: "Update the current user's country" })
+  async updateCountry(@CurrentUser() user: any, @Body('country') country: string) {
     await this.authService.updateUserCountry(user.userId, country);
     return { country };
   }

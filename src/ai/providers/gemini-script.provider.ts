@@ -40,6 +40,10 @@ export class GeminiScriptProvider implements IScriptGenerator {
     let audioStyle = '';
     let visualStyle = 'Cinematic';
 
+    let tone: string | undefined;
+    let hookType: string | undefined;
+    let cta: string | undefined;
+
     if (typeof optionsOrTopic === 'string') {
       topic = optionsOrTopic;
     } else {
@@ -50,9 +54,21 @@ export class GeminiScriptProvider implements IScriptGenerator {
       }
       audioStyle = optionsOrTopic.audioPrompt || '';
       visualStyle = optionsOrTopic.visualStyle || 'Cinematic';
+      tone = optionsOrTopic.tone;
+      hookType = optionsOrTopic.hookType;
+      cta = optionsOrTopic.cta;
     }
 
-    const prompt = getScriptGenerationPrompt(topic, duration, language, audioStyle, visualStyle);
+    const prompt = getScriptGenerationPrompt(
+      topic,
+      duration,
+      language,
+      audioStyle,
+      visualStyle,
+      tone,
+      hookType,
+      cta,
+    );
 
     this.logger.debug(
       `Generating script with topic: ${topic}, duration: ${duration}, style: ${visualStyle}`,

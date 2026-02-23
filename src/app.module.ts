@@ -22,6 +22,7 @@ import { TextToImageModule } from './text-to-image/text-to-image.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AdminModule } from './admin/admin.module';
+import { PseoModule } from './pseo/pseo.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { AdminModule } from './admin/admin.module';
     HealthModule,
     PaymentModule,
     AdminModule,
+    PseoModule,
   ],
   providers: [
     {

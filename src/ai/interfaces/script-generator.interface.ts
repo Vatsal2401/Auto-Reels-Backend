@@ -21,6 +21,9 @@ export interface ScriptGenerationOptions {
   targetDurationSeconds?: number; // derived from '30-60'
   audioPrompt?: string; // Information about voice persona and pacing
   visualStyle?: string; // e.g. 'Cinematic', 'Minimalist', 'Anime', 'Dark'
+  tone?: string; // 'motivational' | 'educational' | 'storytelling' | 'humorous' | 'controversial'
+  hookType?: string; // 'shocking_fact' | 'bold_question' | 'bold_claim' | 'story'
+  cta?: string; // 'follow' | 'comment' | 'link_in_bio' | 'none'
 }
 
 export interface IScriptGenerator {

@@ -22,12 +22,37 @@ function getSingleLanguageInstruction(language: string): string {
 - Output script in the chosen language ONLY. Do NOT add transliteration in parentheses. Do NOT mix two scripts (e.g. native script + Roman/English in brackets). One language only.${numberRule}`;
 }
 
+const toneInstructions: Record<string, string> = {
+  motivational: 'Write in an inspiring, energetic tone that pushes the viewer to take action.',
+  educational: 'Write in a clear, authoritative tone that teaches something valuable.',
+  storytelling: 'Open with a narrative or anecdote. Make the viewer feel part of a story.',
+  humorous: 'Use wit and light humour. Keep it punchy and entertaining.',
+  controversial: 'Start with a counterintuitive or unpopular opinion to spark curiosity.',
+};
+
+const hookInstructions: Record<string, string> = {
+  shocking_fact: 'Scene 1 must open with a surprising statistic or fact that stops the scroll.',
+  bold_question: 'Scene 1 must open with a provocative question the viewer cannot ignore.',
+  bold_claim: 'Scene 1 must open with a bold, confident claim stated as absolute truth.',
+  story: 'Scene 1 must open mid-story — drop the viewer into an interesting moment.',
+};
+
+const ctaInstructions: Record<string, string> = {
+  follow: 'The final scene must end with: "Follow for more content like this."',
+  comment: 'The final scene must end with: "Comment below — what do you think?"',
+  link_in_bio: 'The final scene must end with: "Check the link in bio for more."',
+  none: '',
+};
+
 export function getScriptGenerationPrompt(
   topic: string,
   duration: number,
   language: string,
   audioStyle: string = '',
   visualStyle: string = 'Cinematic',
+  tone?: string,
+  hookType?: string,
+  cta?: string,
 ): string {
   const targetWords = Math.floor(duration * 1.8);
   const absoluteMaxWords = Math.floor(duration * 2.1);
@@ -42,18 +67,28 @@ export function getScriptGenerationPrompt(
   const peakScene = sceneCount - 1;
   const ctaScene = sceneCount;
 
+  const toneBlock = tone && toneInstructions[tone] ? `\nTONE: ${toneInstructions[tone]}` : '';
+  const hookBlock =
+    hookType && hookInstructions[hookType]
+      ? hookInstructions[hookType]
+      : 'Scene 1 must open with a shocking fact, bold claim, or curiosity gap. Stop the scroll.';
+  const ctaBlock =
+    cta && ctaInstructions[cta]
+      ? ctaInstructions[cta]
+      : 'End with a thought-provoking question, bold takeaway, or challenge.';
+
   return `You are a world-class viral short-form content scriptwriter for faceless reels.
 You craft scripts that hook viewers in the first 2 seconds, build tension, and leave them thinking.
 
 TOPIC: "${topic}"
 DURATION: ${duration} seconds | SCENES: ${sceneCount} | WORDS: ${targetWords}–${absoluteMaxWords} total
 VISUAL STYLE: ${visualStyle}
-LANGUAGE: ${language}${audioMoodLine}${hindiInstruction}${singleLangInstruction}
+LANGUAGE: ${language}${audioMoodLine}${toneBlock}${hindiInstruction}${singleLangInstruction}
 
 ━━━ NARRATIVE STRUCTURE ━━━
 Follow this arc exactly — one clear idea per scene, each exactly 10-12 spoken words:
 
-• Scene 1 — HOOK: Stop the scroll. Open with a shocking fact, bold claim, or curiosity gap.
+• Scene 1 — HOOK: ${hookBlock}
   Great hooks: "This ancient trick rewired how the world's top athletes train."
                "Scientists discovered the real reason you can't focus after lunch."
                "Most people do this every day — and it's silently draining their energy."
@@ -64,7 +99,7 @@ Follow this arc exactly — one clear idea per scene, each exactly 10-12 spoken 
 • Scene ${peakScene} — PEAK: The most impactful, surprising, or emotional reveal.
   This is the payoff scene — the "a-ha" moment.
 
-• Scene ${ctaScene} — CTA: End with a thought-provoking question, bold takeaway, or challenge.
+• Scene ${ctaScene} — CTA: ${ctaBlock}
   Great CTAs: "Now ask yourself — are you living by design or by default?"
               "Try this for 7 days. Your brain will thank you."
 
@@ -157,6 +192,9 @@ export function getOpenAIScriptSystemPrompt(
   language: string,
   visualStyle: string = 'Cinematic',
   audioStyle: string = '',
+  tone?: string,
+  hookType?: string,
+  cta?: string,
 ): string {
   const numDuration = Number(duration) || 30;
   const maxWords = Math.floor(numDuration * 2.1);
@@ -170,19 +208,29 @@ export function getOpenAIScriptSystemPrompt(
   const peakScene = sceneCount - 1;
   const ctaScene = sceneCount;
 
+  const toneBlock = tone && toneInstructions[tone] ? `\nTONE: ${toneInstructions[tone]}` : '';
+  const hookBlock =
+    hookType && hookInstructions[hookType]
+      ? hookInstructions[hookType]
+      : 'shocking fact, bold claim, or curiosity gap. Stop the scroll.';
+  const ctaBlock =
+    cta && ctaInstructions[cta]
+      ? ctaInstructions[cta]
+      : 'thought-provoking question or bold challenge';
+
   return `You are a viral short-form content scriptwriter for faceless reels.
 Write scripts that hook viewers in 2 seconds, build tension, and drive shares.
 
 LANGUAGE: ${language}. One language only — no transliteration, no mixed scripts.
-VISUAL STYLE: ${visualStyle}${audioMoodLine}${hindiInstruction}${singleLangInstruction}
+VISUAL STYLE: ${visualStyle}${audioMoodLine}${toneBlock}${hindiInstruction}${singleLangInstruction}
 
 DURATION: ${numDuration}s | SCENES: ${sceneCount} | WORDS: ${minWords}–${maxWords} (HARD LIMIT)
 
 NARRATIVE ARC (follow strictly):
-• Scene 1: HOOK — shocking fact, bold claim, or curiosity gap. Stop the scroll.
+• Scene 1: HOOK — ${hookBlock}
 • Scenes 2–${peakScene - 1}: CORE — one punchy insight per scene, escalate intrigue
 • Scene ${peakScene}: PEAK — most impactful or surprising reveal, the "a-ha" moment
-• Scene ${ctaScene}: CTA — thought-provoking question or bold challenge
+• Scene ${ctaScene}: CTA — ${ctaBlock}
 
 WRITING RULES:
 ✓ 10-12 words per scene — one punchy spoken sentence

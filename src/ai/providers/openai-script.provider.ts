@@ -56,6 +56,9 @@ export class OpenAIScriptProvider implements IScriptGenerator {
     let duration: string | number = '30-60';
     let visualStyle = 'Cinematic';
     let audioStyle = '';
+    let tone: string | undefined;
+    let hookType: string | undefined;
+    let cta: string | undefined;
 
     if (typeof optionsOrTopic === 'string') {
       topic = optionsOrTopic;
@@ -67,9 +70,20 @@ export class OpenAIScriptProvider implements IScriptGenerator {
       }
       visualStyle = optionsOrTopic.visualStyle || 'Cinematic';
       audioStyle = optionsOrTopic.audioPrompt || '';
+      tone = optionsOrTopic.tone;
+      hookType = optionsOrTopic.hookType;
+      cta = optionsOrTopic.cta;
     }
 
-    const systemPrompt = getOpenAIScriptSystemPrompt(duration, language, visualStyle, audioStyle);
+    const systemPrompt = getOpenAIScriptSystemPrompt(
+      duration,
+      language,
+      visualStyle,
+      audioStyle,
+      tone,
+      hookType,
+      cta,
+    );
 
     const response = await this.openai.chat.completions.create({
       model: 'gpt-4o',

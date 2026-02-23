@@ -1,9 +1,10 @@
 export function getImageGenerationPrompt(prompt: string, style: string = ''): string {
   // Framing as a real camera capture pushes models into photography mode,
   // away from graphic-design / thumbnail / text-overlay aesthetics.
-  const cameraPrefix = style && style !== 'auto'
-    ? `A single full-frame ${style} photograph taken with a professional DSLR camera, captured in the real world —`
-    : 'A single full-frame photograph taken with a professional DSLR camera, captured in the real world —';
+  const cameraPrefix =
+    style && style !== 'auto'
+      ? `A single full-frame ${style} photograph taken with a professional DSLR camera, captured in the real world —`
+      : 'A single full-frame photograph taken with a professional DSLR camera, captured in the real world —';
 
   const qualityTags =
     'sharp focus, 8k resolution, cinematic lighting, dramatic shadows, photorealistic, award-winning photography';
