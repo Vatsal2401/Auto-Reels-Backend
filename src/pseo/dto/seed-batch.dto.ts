@@ -1,4 +1,4 @@
-import { IsEnum, IsBoolean, IsOptional, IsInt, Min, Max } from 'class-validator';
+import { IsEnum, IsBoolean, IsOptional, IsInt, Min, Max, IsString, IsArray } from 'class-validator';
 import { PseoPlaybook } from '../entities/pseo-page.entity';
 
 export class SeedPlaybookDto {
@@ -47,6 +47,49 @@ export class UpdateContentDto {
   content: Record<string, any>;
 }
 
+export class UpdateMetadataDto {
+  @IsString()
+  @IsOptional()
+  title?: string;
+
+  @IsString()
+  @IsOptional()
+  meta_description?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  keywords?: string[];
+}
+
+export class UpdateDimensionDto {
+  @IsArray()
+  @IsString({ each: true })
+  values: string[];
+}
+
+export class AddDimensionValueDto {
+  @IsString()
+  value: string;
+}
+
+export class UpdatePlaybookConfigDto {
+  @IsBoolean()
+  @IsOptional()
+  enabled?: boolean;
+
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  @IsOptional()
+  min_quality_score?: number;
+
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  min_word_count?: number;
+}
+
 export class ListPseoDto {
   @IsEnum(PseoPlaybook)
   @IsOptional()
@@ -54,6 +97,10 @@ export class ListPseoDto {
 
   @IsOptional()
   status?: string;
+
+  @IsString()
+  @IsOptional()
+  search?: string;
 
   @IsInt()
   @Min(1)

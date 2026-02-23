@@ -2,19 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PseoPage, PseoPlaybook, PseoPageStatus } from '../entities/pseo-page.entity';
-import {
-  NICHES,
-  TONES,
-  PLATFORMS,
-  PERSONAS,
-  COUNTRIES,
-  COMPETITORS,
-  INTEGRATIONS,
-  LANGUAGES,
-  GLOSSARY_TERMS,
-  TOOL_TYPES,
-  PLANS,
-} from '../config/seed-dimensions';
+import { PseoSeedDimension } from '../entities/pseo-seed-dimension.entity';
 
 export interface SeedResult {
   created: number;
@@ -25,13 +13,19 @@ export interface SeedResult {
 export class PseoSeedService {
   private readonly logger = new Logger(PseoSeedService.name);
 
+  /** 60-second in-memory cache for dimensions to avoid repeated DB reads during bulk seeding */
+  private dimsCache: { data: Record<string, string[]>; expiry: number } | null = null;
+
   constructor(
     @InjectRepository(PseoPage)
     private readonly repo: Repository<PseoPage>,
-  ) { }
+    @InjectRepository(PseoSeedDimension)
+    private readonly dimsRepo: Repository<PseoSeedDimension>,
+  ) {}
 
   async seedPlaybook(playbook: PseoPlaybook, overwrite = false): Promise<SeedResult> {
-    const rows = this.buildRows(playbook);
+    const dims = await this.getDimensions();
+    const rows = this.buildRows(playbook, dims);
     this.logger.log(`Seeding ${playbook}: ${rows.length} rows`);
 
     const result = await this.repo
@@ -48,41 +42,55 @@ export class PseoSeedService {
     return { created, skipped };
   }
 
-  private buildRows(playbook: PseoPlaybook): Partial<PseoPage>[] {
+  async getDimensions(): Promise<Record<string, string[]>> {
+    const now = Date.now();
+    if (this.dimsCache && this.dimsCache.expiry > now) {
+      return this.dimsCache.data;
+    }
+    const rows = await this.dimsRepo.find();
+    const data: Record<string, string[]> = {};
+    for (const row of rows) data[row.name] = row.values;
+    this.dimsCache = { data, expiry: now + 60_000 };
+    return data;
+  }
+
+  private buildRows(playbook: PseoPlaybook, dims: Record<string, string[]>): Partial<PseoPage>[] {
     switch (playbook) {
       case PseoPlaybook.TEMPLATES:
-        return this.buildTemplateRows();
+        return this.buildTemplateRows(dims);
       case PseoPlaybook.CURATION:
-        return this.buildCurationRows();
+        return this.buildCurationRows(dims);
       case PseoPlaybook.CONVERSIONS:
-        return this.buildConversionRows();
+        return this.buildConversionRows(dims);
       case PseoPlaybook.COMPARISONS:
-        return this.buildComparisonRows();
+        return this.buildComparisonRows(dims);
       case PseoPlaybook.EXAMPLES:
-        return this.buildExampleRows();
+        return this.buildExampleRows(dims);
       case PseoPlaybook.LOCATIONS:
-        return this.buildLocationRows();
+        return this.buildLocationRows(dims);
       case PseoPlaybook.PERSONAS:
-        return this.buildPersonaRows();
+        return this.buildPersonaRows(dims);
       case PseoPlaybook.INTEGRATIONS:
-        return this.buildIntegrationRows();
+        return this.buildIntegrationRows(dims);
       case PseoPlaybook.GLOSSARY:
-        return this.buildGlossaryRows();
+        return this.buildGlossaryRows(dims);
       case PseoPlaybook.TRANSLATIONS:
-        return this.buildTranslationRows();
+        return this.buildTranslationRows(dims);
       case PseoPlaybook.DIRECTORY:
-        return this.buildDirectoryRows();
+        return this.buildDirectoryRows(dims);
       case PseoPlaybook.PROFILES:
-        return this.buildProfileRows();
+        return this.buildProfileRows(dims);
       default:
         return [];
     }
   }
 
   // ─── Templates ────────────────────────────────────────────────────────────
-  private buildTemplateRows(): Partial<PseoPage>[] {
+  private buildTemplateRows(dims: Record<string, string[]>): Partial<PseoPage>[] {
+    const niches = dims.niches ?? [];
+    const platforms = dims.platforms ?? [];
     const rows: Partial<PseoPage>[] = [];
-    for (const niche of NICHES) {
+    for (const niche of niches) {
       const slug = `${niche}-reel-templates`;
       rows.push(
         this.makeRow(PseoPlaybook.TEMPLATES, slug, `/tools/${slug}`, {
@@ -97,7 +105,7 @@ export class PseoSeedService {
           seed_params: { niche },
         }),
       );
-      for (const platform of PLATFORMS) {
+      for (const platform of platforms) {
         const s2 = `${niche}-${platform}-reel-templates`;
         rows.push(
           this.makeRow(PseoPlaybook.TEMPLATES, s2, `/tools/${s2}`, {
@@ -118,9 +126,11 @@ export class PseoSeedService {
   }
 
   // ─── Curation ─────────────────────────────────────────────────────────────
-  private buildCurationRows(): Partial<PseoPage>[] {
+  private buildCurationRows(dims: Record<string, string[]>): Partial<PseoPage>[] {
+    const niches = dims.niches ?? [];
+    const tones = dims.tones ?? [];
     const rows: Partial<PseoPage>[] = [];
-    for (const niche of NICHES) {
+    for (const niche of niches) {
       const slug = `${niche}-reel-ideas`;
       rows.push(
         this.makeRow(PseoPlaybook.CURATION, slug, `/ideas/${slug}`, {
@@ -130,7 +140,7 @@ export class PseoSeedService {
           seed_params: { niche },
         }),
       );
-      for (const tone of TONES) {
+      for (const tone of tones) {
         const s2 = `${niche}-${tone}-reel-ideas`;
         rows.push(
           this.makeRow(PseoPlaybook.CURATION, s2, `/ideas/${s2}`, {
@@ -146,9 +156,11 @@ export class PseoSeedService {
   }
 
   // ─── Conversions ──────────────────────────────────────────────────────────
-  private buildConversionRows(): Partial<PseoPage>[] {
+  private buildConversionRows(dims: Record<string, string[]>): Partial<PseoPage>[] {
+    const plans = dims.plans ?? [];
+    const personas = dims.personas ?? [];
     const rows: Partial<PseoPage>[] = [];
-    for (const plan of PLANS) {
+    for (const plan of plans) {
       const slug = `${plan}-plan`;
       rows.push(
         this.makeRow(PseoPlaybook.CONVERSIONS, slug, `/pricing/${slug}`, {
@@ -163,7 +175,7 @@ export class PseoSeedService {
           seed_params: { plan },
         }),
       );
-      for (const persona of PERSONAS.slice(0, 4)) {
+      for (const persona of personas.slice(0, 4)) {
         const s2 = `${plan}-plan-for-${persona}`;
         rows.push(
           this.makeRow(PseoPlaybook.CONVERSIONS, s2, `/pricing/${s2}`, {
@@ -184,7 +196,9 @@ export class PseoSeedService {
   }
 
   // ─── Comparisons ──────────────────────────────────────────────────────────
-  private buildComparisonRows(): Partial<PseoPage>[] {
+  private buildComparisonRows(dims: Record<string, string[]>): Partial<PseoPage>[] {
+    const competitors = dims.competitors ?? [];
+    const personas = dims.personas ?? [];
     const rows: Partial<PseoPage>[] = [];
     rows.push(
       this.makeRow(PseoPlaybook.COMPARISONS, 'vs-index', '/vs', {
@@ -200,7 +214,7 @@ export class PseoSeedService {
         seed_params: {},
       }),
     );
-    for (const competitor of COMPETITORS) {
+    for (const competitor of competitors) {
       const slug = `autoreels-vs-${competitor}`;
       rows.push(
         this.makeRow(PseoPlaybook.COMPARISONS, slug, `/vs/${slug}`, {
@@ -215,7 +229,7 @@ export class PseoSeedService {
           seed_params: { competitor },
         }),
       );
-      for (const persona of PERSONAS) {
+      for (const persona of personas) {
         const s2 = `autoreels-vs-${competitor}-for-${persona}`;
         rows.push(
           this.makeRow(PseoPlaybook.COMPARISONS, s2, `/vs/${s2}`, {
@@ -231,9 +245,11 @@ export class PseoSeedService {
   }
 
   // ─── Examples ─────────────────────────────────────────────────────────────
-  private buildExampleRows(): Partial<PseoPage>[] {
+  private buildExampleRows(dims: Record<string, string[]>): Partial<PseoPage>[] {
+    const niches = dims.niches ?? [];
+    const tones = dims.tones ?? [];
     const rows: Partial<PseoPage>[] = [];
-    for (const niche of NICHES) {
+    for (const niche of niches) {
       const slug = `${niche}-reel-examples`;
       rows.push(
         this.makeRow(PseoPlaybook.EXAMPLES, slug, `/examples/${slug}`, {
@@ -243,7 +259,7 @@ export class PseoSeedService {
           seed_params: { niche },
         }),
       );
-      for (const tone of TONES) {
+      for (const tone of tones) {
         const s2 = `${niche}-${tone}-reel-examples`;
         rows.push(
           this.makeRow(PseoPlaybook.EXAMPLES, s2, `/examples/${s2}`, {
@@ -259,9 +275,11 @@ export class PseoSeedService {
   }
 
   // ─── Locations ────────────────────────────────────────────────────────────
-  private buildLocationRows(): Partial<PseoPage>[] {
+  private buildLocationRows(dims: Record<string, string[]>): Partial<PseoPage>[] {
+    const countries = dims.countries ?? [];
+    const niches = dims.niches ?? [];
     const rows: Partial<PseoPage>[] = [];
-    for (const country of COUNTRIES) {
+    for (const country of countries) {
       rows.push(
         this.makeRow(
           PseoPlaybook.LOCATIONS,
@@ -280,7 +298,7 @@ export class PseoSeedService {
           },
         ),
       );
-      for (const niche of NICHES) {
+      for (const niche of niches) {
         const s2 = `${niche}-reel-creator`;
         rows.push(
           this.makeRow(PseoPlaybook.LOCATIONS, `${country}-${s2}`, `/${country}/${s2}`, {
@@ -296,9 +314,11 @@ export class PseoSeedService {
   }
 
   // ─── Personas ─────────────────────────────────────────────────────────────
-  private buildPersonaRows(): Partial<PseoPage>[] {
+  private buildPersonaRows(dims: Record<string, string[]>): Partial<PseoPage>[] {
+    const personas = dims.personas ?? [];
+    const niches = dims.niches ?? [];
     const rows: Partial<PseoPage>[] = [];
-    for (const persona of PERSONAS) {
+    for (const persona of personas) {
       rows.push(
         this.makeRow(PseoPlaybook.PERSONAS, `for-${persona}`, `/for/${persona}`, {
           title: `AutoReels for ${this.capitalize(persona)} — AI Reel Generator`,
@@ -312,7 +332,7 @@ export class PseoSeedService {
           seed_params: { persona },
         }),
       );
-      for (const niche of NICHES) {
+      for (const niche of niches) {
         const s2 = `for-${persona}-${niche}-reels`;
         rows.push(
           this.makeRow(PseoPlaybook.PERSONAS, s2, `/for/${persona}/${niche}-reels`, {
@@ -328,8 +348,8 @@ export class PseoSeedService {
   }
 
   // ─── Integrations ─────────────────────────────────────────────────────────
-  private buildIntegrationRows(): Partial<PseoPage>[] {
-    const rows: Partial<PseoPage>[] = [];
+  private buildIntegrationRows(dims: Record<string, string[]>): Partial<PseoPage>[] {
+    const integrations = dims.integrations ?? [];
     const useCases = [
       'content-scheduling',
       'auto-publish',
@@ -337,7 +357,8 @@ export class PseoSeedService {
       'team-collaboration',
       'analytics-tracking',
     ];
-    for (const integration of INTEGRATIONS) {
+    const rows: Partial<PseoPage>[] = [];
+    for (const integration of integrations) {
       rows.push(
         this.makeRow(
           PseoPlaybook.INTEGRATIONS,
@@ -377,7 +398,8 @@ export class PseoSeedService {
   }
 
   // ─── Glossary ─────────────────────────────────────────────────────────────
-  private buildGlossaryRows(): Partial<PseoPage>[] {
+  private buildGlossaryRows(dims: Record<string, string[]>): Partial<PseoPage>[] {
+    const glossaryTerms = dims.glossary_terms ?? [];
     const rows: Partial<PseoPage>[] = [];
     rows.push(
       this.makeRow(PseoPlaybook.GLOSSARY, 'glossary-index', '/glossary', {
@@ -393,7 +415,7 @@ export class PseoSeedService {
         seed_params: {},
       }),
     );
-    for (const term of GLOSSARY_TERMS) {
+    for (const term of glossaryTerms) {
       rows.push(
         this.makeRow(PseoPlaybook.GLOSSARY, `glossary-${term}`, `/glossary/${term}`, {
           title: `${this.capitalize(term)} — AI Video Glossary`,
@@ -412,9 +434,11 @@ export class PseoSeedService {
   }
 
   // ─── Translations ─────────────────────────────────────────────────────────
-  private buildTranslationRows(): Partial<PseoPage>[] {
+  private buildTranslationRows(dims: Record<string, string[]>): Partial<PseoPage>[] {
+    const languages = dims.languages ?? [];
+    const niches = dims.niches ?? [];
     const rows: Partial<PseoPage>[] = [];
-    for (const language of LANGUAGES) {
+    for (const language of languages) {
       const slug = `${language}-reels`;
       rows.push(
         this.makeRow(PseoPlaybook.TRANSLATIONS, slug, `/create/${slug}`, {
@@ -429,7 +453,7 @@ export class PseoSeedService {
           seed_params: { language },
         }),
       );
-      for (const niche of NICHES) {
+      for (const niche of niches) {
         const s2 = `${language}-${niche}-reels`;
         rows.push(
           this.makeRow(PseoPlaybook.TRANSLATIONS, s2, `/create/${s2}`, {
@@ -445,9 +469,12 @@ export class PseoSeedService {
   }
 
   // ─── Directory ────────────────────────────────────────────────────────────
-  private buildDirectoryRows(): Partial<PseoPage>[] {
+  private buildDirectoryRows(dims: Record<string, string[]>): Partial<PseoPage>[] {
+    const niches = dims.niches ?? [];
+    const platforms = dims.platforms ?? [];
+    const countries = dims.countries ?? [];
     const rows: Partial<PseoPage>[] = [];
-    for (const niche of NICHES) {
+    for (const niche of niches) {
       const slug = `${niche}-creators`;
       rows.push(
         this.makeRow(PseoPlaybook.DIRECTORY, slug, `/directory/${slug}`, {
@@ -463,8 +490,8 @@ export class PseoSeedService {
         }),
       );
     }
-    for (const platform of PLATFORMS) {
-      for (const country of COUNTRIES.slice(0, 5)) {
+    for (const platform of platforms) {
+      for (const country of countries.slice(0, 5)) {
         const slug = `${platform}-creators-${country}`;
         rows.push(
           this.makeRow(PseoPlaybook.DIRECTORY, slug, `/directory/${slug}`, {
@@ -485,9 +512,11 @@ export class PseoSeedService {
   }
 
   // ─── Profiles ─────────────────────────────────────────────────────────────
-  private buildProfileRows(): Partial<PseoPage>[] {
+  private buildProfileRows(dims: Record<string, string[]>): Partial<PseoPage>[] {
+    const toolTypes = dims.tool_types ?? [];
+    const niches = dims.niches ?? [];
     const rows: Partial<PseoPage>[] = [];
-    for (const toolType of TOOL_TYPES) {
+    for (const toolType of toolTypes) {
       rows.push(
         this.makeRow(PseoPlaybook.PROFILES, toolType, `/tools/${toolType}`, {
           title: `Best ${this.capitalize(toolType)} — AutoReels`,
@@ -501,7 +530,7 @@ export class PseoSeedService {
           seed_params: { tool_type: toolType },
         }),
       );
-      for (const niche of NICHES.slice(0, 4)) {
+      for (const niche of niches.slice(0, 4)) {
         const s2 = `${toolType}-${niche}`;
         rows.push(
           this.makeRow(PseoPlaybook.PROFILES, s2, `/tools/${toolType}/${niche}`, {

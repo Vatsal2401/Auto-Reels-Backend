@@ -180,7 +180,7 @@ export class PseoQueueService implements OnModuleInit, OnModuleDestroy {
     if (!page || page.status !== PseoPageStatus.GENERATED) return;
 
     await this.repo.update(pageId, { status: PseoPageStatus.VALIDATING });
-    const result = this.validatorService.validate(page);
+    const result = await this.validatorService.validate(page);
 
     if (result.passed) {
       await this.repo.update(pageId, {

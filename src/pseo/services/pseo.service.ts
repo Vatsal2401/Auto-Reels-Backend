@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { PseoPage, PseoPageStatus, PseoPlaybook } from '../entities/pseo-page.entity';
-import { ListPseoDto } from '../dto/seed-batch.dto';
+import { ListPseoDto, UpdateMetadataDto } from '../dto/seed-batch.dto';
 
 @Injectable()
 export class PseoService {
@@ -39,6 +39,11 @@ export class PseoService {
       .orderBy('p.created_at', 'DESC');
     if (dto.playbook) qb.andWhere('p.playbook = :playbook', { playbook: dto.playbook });
     if (dto.status) qb.andWhere('p.status = :status', { status: dto.status });
+    if (dto.search) {
+      qb.andWhere('(p.title ILIKE :search OR p.slug ILIKE :search)', {
+        search: `%${dto.search}%`,
+      });
+    }
 
     const [pages, total] = await qb.getManyAndCount();
     return { pages, total };
@@ -102,6 +107,14 @@ export class PseoService {
     return this.repo.save(page);
   }
 
+  async updateMetadata(id: string, dto: UpdateMetadataDto): Promise<PseoPage> {
+    const page = await this.findById(id);
+    if (dto.title !== undefined) page.title = dto.title;
+    if (dto.meta_description !== undefined) page.meta_description = dto.meta_description;
+    if (dto.keywords !== undefined) page.keywords = dto.keywords;
+    return this.repo.save(page);
+  }
+
   async publishPage(id: string): Promise<PseoPage> {
     const page = await this.findById(id);
     if (![PseoPageStatus.GENERATED, PseoPageStatus.VALIDATING].includes(page.status)) {
@@ -114,6 +127,25 @@ export class PseoService {
     const saved = await this.repo.save(page);
     this.triggerIsrRevalidation(page.canonical_path);
     return saved;
+  }
+
+  async unpublishPage(id: string): Promise<PseoPage> {
+    const page = await this.findById(id);
+    if (page.status !== PseoPageStatus.PUBLISHED) {
+      throw new BadRequestException(
+        `Page must be published to unpublish, got: ${page.status}`,
+      );
+    }
+    page.status = PseoPageStatus.GENERATED;
+    const saved = await this.repo.save(page);
+    this.triggerIsrRevalidation(page.canonical_path);
+    return saved;
+  }
+
+  async archivePage(id: string): Promise<PseoPage> {
+    const page = await this.findById(id);
+    page.status = PseoPageStatus.ARCHIVED;
+    return this.repo.save(page);
   }
 
   async bulkPublish(playbook: PseoPlaybook | undefined, minScore: number): Promise<number> {

@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { PseoPage, PseoPlaybook } from '../entities/pseo-page.entity';
+import { PseoPlaybookConfig } from '../entities/pseo-playbook-config.entity';
 
 export interface ValidationResult {
   passed: boolean;
@@ -7,7 +10,8 @@ export interface ValidationResult {
   reasons: string[];
 }
 
-const MIN_WORD_COUNT: Record<PseoPlaybook, number> = {
+/** Fallback thresholds used if DB lookup fails or row is missing */
+const FALLBACK_WORD_COUNT: Record<string, number> = {
   [PseoPlaybook.TEMPLATES]: 600,
   [PseoPlaybook.CURATION]: 600,
   [PseoPlaybook.CONVERSIONS]: 400,
@@ -41,7 +45,19 @@ const REQUIRED_FIELDS: Record<PseoPlaybook, string[]> = {
 export class PseoValidatorService {
   private readonly logger = new Logger(PseoValidatorService.name);
 
-  validate(page: PseoPage): ValidationResult {
+  /** 60-second in-memory cache for playbook configs */
+  private configsCache: Map<string, PseoPlaybookConfig> | null = null;
+  private configsExpiry = 0;
+
+  constructor(
+    @InjectRepository(PseoPlaybookConfig)
+    private readonly configsRepo: Repository<PseoPlaybookConfig>,
+  ) {}
+
+  async validate(page: PseoPage): Promise<ValidationResult> {
+    const configs = await this.getConfigs();
+    const config = configs.get(page.playbook);
+
     const reasons: string[] = [];
     let score = 100;
 
@@ -51,7 +67,7 @@ export class PseoValidatorService {
 
     // 1. Word count check
     const wordCount = this.countWords(page.content);
-    const minWords = MIN_WORD_COUNT[page.playbook] || 300;
+    const minWords = config?.min_word_count ?? FALLBACK_WORD_COUNT[page.playbook] ?? 300;
     if (wordCount < minWords) {
       const penalty = Math.round(((minWords - wordCount) / minWords) * 40);
       score -= penalty;
@@ -86,10 +102,22 @@ export class PseoValidatorService {
     }
 
     score = Math.max(0, score);
-    const passed = score >= 60;
+    const minScore = config?.min_quality_score ?? 60;
+    const passed = score >= minScore;
 
     this.logger.debug(`Validation for ${page.slug}: score=${score}, passed=${passed}`);
     return { passed, score, reasons };
+  }
+
+  private async getConfigs(): Promise<Map<string, PseoPlaybookConfig>> {
+    const now = Date.now();
+    if (this.configsCache && this.configsExpiry > now) {
+      return this.configsCache;
+    }
+    const rows = await this.configsRepo.find();
+    this.configsCache = new Map(rows.map((r) => [r.playbook, r]));
+    this.configsExpiry = now + 60_000;
+    return this.configsCache;
   }
 
   private countWords(content: Record<string, any>): number {
