@@ -28,7 +28,7 @@ export class PseoSeedService {
   constructor(
     @InjectRepository(PseoPage)
     private readonly repo: Repository<PseoPage>,
-  ) {}
+  ) { }
 
   async seedPlaybook(playbook: PseoPlaybook, overwrite = false): Promise<SeedResult> {
     const rows = this.buildRows(playbook);
@@ -186,6 +186,20 @@ export class PseoSeedService {
   // ─── Comparisons ──────────────────────────────────────────────────────────
   private buildComparisonRows(): Partial<PseoPage>[] {
     const rows: Partial<PseoPage>[] = [];
+    rows.push(
+      this.makeRow(PseoPlaybook.COMPARISONS, 'vs-index', '/vs', {
+        title: 'AutoReels vs Competitors — Which AI Video Tool Wins?',
+        meta_description:
+          'Side-by-side comparisons of AutoReels vs top AI video creators. Features, pricing, and verdict for faceless video creators.',
+        keywords: [
+          'AI video comparison',
+          'autoreels vs invideo',
+          'autoreels vs canva',
+          'best ai reel generator',
+        ],
+        seed_params: {},
+      }),
+    );
     for (const competitor of COMPETITORS) {
       const slug = `autoreels-vs-${competitor}`;
       rows.push(
