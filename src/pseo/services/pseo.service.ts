@@ -60,6 +60,23 @@ export class PseoService {
     return { pages: rows, total };
   }
 
+  /** Published page count per playbook — used by sitemap index (public, no auth). */
+  async getPublishedCounts(): Promise<Record<string, number>> {
+    const rows = await this.repo
+      .createQueryBuilder('p')
+      .select('p.playbook', 'playbook')
+      .addSelect('COUNT(*)', 'count')
+      .where('p.status = :status', { status: PseoPageStatus.PUBLISHED })
+      .groupBy('p.playbook')
+      .getRawMany();
+
+    const counts: Record<string, number> = {};
+    for (const row of rows) {
+      counts[row.playbook] = parseInt(row.count, 10);
+    }
+    return counts;
+  }
+
   async getStats(): Promise<Record<string, Record<string, number>>> {
     const rows = await this.repo
       .createQueryBuilder('p')

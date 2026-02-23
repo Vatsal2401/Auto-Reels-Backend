@@ -20,6 +20,15 @@ export class PseoPublicController {
   }
 
   /**
+   * Return published page counts per playbook — used by sitemap index (no auth needed).
+   * GET /pseo/published-counts
+   */
+  @Get('published-counts')
+  async getPublishedCounts() {
+    return this.pseoService.getPublishedCounts();
+  }
+
+  /**
    * Return canonical paths + published_at for sitemap generation.
    * Paginated 1000 per call.
    * GET /pseo/sitemap?playbook=templates&page=1&limit=1000
