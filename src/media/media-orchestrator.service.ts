@@ -548,8 +548,14 @@ export class MediaOrchestratorService {
       monetization: getWatermarkConfig(user?.is_premium ?? false),
     };
 
+    const allowedUserIds = (process.env.REMOTION_ALLOWED_USER_IDS ?? '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean);
     const useRemotionForShort =
-      process.env.REMOTION_QUEUE_ENABLED !== 'false' && durationCategory === '30-60';
+      durationCategory === '30-60' &&
+      (process.env.REMOTION_QUEUE_ENABLED !== 'false' ||
+        allowedUserIds.includes(media.user_id));
     if (useRemotionForShort) {
       await this.remotionQueueService.queueRemotionJob(payload);
     } else {

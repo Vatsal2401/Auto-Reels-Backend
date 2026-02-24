@@ -81,6 +81,7 @@ Worker also needs **AWS credentials** (for Lambda invoke and presign), same as o
 | Variable | Description |
 |----------|-------------|
 | `REMOTION_QUEUE_ENABLED` | Set to `'false'` to send 30–60s jobs to FFmpeg queue instead of Remotion. |
+| `REMOTION_ALLOWED_USER_IDS` | Comma-separated user IDs that always use the Remotion queue, even when `REMOTION_QUEUE_ENABLED=false`. Useful for per-user testing. |
 | `REMOTION_JOB_ATTEMPTS` | Optional; default `3`. |
 | `REMOTION_JOB_BACKOFF_DELAY_MS` | Optional; default `5000`. |
 
