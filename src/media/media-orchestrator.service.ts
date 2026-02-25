@@ -457,18 +457,37 @@ export class MediaOrchestratorService {
       `Reel Fast Mode: Generating strictly ${targetImageCount} images for duration ${durationStr}`,
     );
 
+    // Build per-scene prompts with shared style anchor for visual continuity
+    const scenes = scriptJson?.scenes ?? [];
+    const styleAnchor = [scriptJson?.visual_style, scriptJson?.audio_mood].filter(Boolean).join(', ');
+    const sceneIndices = this.selectSceneIndices(scenes.length, targetImageCount);
+
+    const scenePrompts: string[] =
+      sceneIndices.length > 0
+        ? sceneIndices.map((idx) => {
+            const base = scenes[idx]?.image_prompt || masterPrompt;
+            return styleAnchor ? `${base}. Visual style: ${styleAnchor}` : base;
+          })
+        : Array.from({ length: targetImageCount }, () => masterPrompt);
+
+    this.logger.debug(
+      `Per-scene prompts for media ${media.id}: ${JSON.stringify(scenePrompts)}`,
+    );
+
+    // Generate one image per scene in parallel (same latency as single batched call)
+    const bufferArrays = await Promise.all(
+      scenePrompts.map((prompt) =>
+        imageProvider.generateImages({
+          prompt,
+          style: media.input_config?.imageStyle,
+          aspectRatio: media.input_config?.imageAspectRatio as any,
+          count: 1,
+        }),
+      ),
+    );
+
     const blobIds: string[] = [];
-    const batchSize = 4;
-
-    for (let i = 0; i < targetImageCount; i += batchSize) {
-      const count = Math.min(batchSize, targetImageCount - i);
-      const buffers = await imageProvider.generateImages({
-        prompt: masterPrompt,
-        style: media.input_config?.imageStyle,
-        aspectRatio: media.input_config?.imageAspectRatio as any,
-        count,
-      });
-
+    for (const buffers of bufferArrays) {
       for (const buffer of buffers) {
         const blobId = await this.storageService.upload({
           userId: media.user_id,
@@ -482,6 +501,13 @@ export class MediaOrchestratorService {
       }
     }
     return blobIds;
+  }
+
+  private selectSceneIndices(sceneCount: number, imageCount: number): number[] {
+    if (sceneCount === 0) return [];
+    if (sceneCount <= imageCount) return Array.from({ length: sceneCount }, (_, i) => i);
+    const step = (sceneCount - 1) / (imageCount - 1);
+    return Array.from({ length: imageCount }, (_, i) => Math.round(i * step));
   }
 
   private async handleRenderStep(media: Media): Promise<string> {
