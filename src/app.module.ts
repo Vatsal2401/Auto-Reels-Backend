@@ -24,6 +24,8 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { AdminModule } from './admin/admin.module';
 import { PseoModule } from './pseo/pseo.module';
 import { UserNotificationsModule } from './user-notifications/user-notifications.module';
+import { UserSettingsModule } from './user-settings/user-settings.module';
+import { SocialModule } from './social/social.module';
 
 @Module({
   imports: [
@@ -63,6 +65,8 @@ import { UserNotificationsModule } from './user-notifications/user-notifications
     AdminModule,
     PseoModule,
     UserNotificationsModule,
+    UserSettingsModule,
+    SocialModule,
   ],
   providers: [
     {
