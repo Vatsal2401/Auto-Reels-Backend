@@ -18,6 +18,7 @@ import { AdminImpersonationLog } from '../admin/entities/admin-impersonation-log
 import { PseoPage } from '../pseo/entities/pseo-page.entity';
 import { PseoSeedDimension } from '../pseo/entities/pseo-seed-dimension.entity';
 import { PseoPlaybookConfig } from '../pseo/entities/pseo-playbook-config.entity';
+import { UserNotification } from '../user-notifications/entities/user-notification.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -43,6 +44,7 @@ export const AppDataSource = new DataSource({
     PseoPage,
     PseoSeedDimension,
     PseoPlaybookConfig,
+    UserNotification,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,

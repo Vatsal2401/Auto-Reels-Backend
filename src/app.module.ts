@@ -23,6 +23,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AdminModule } from './admin/admin.module';
 import { PseoModule } from './pseo/pseo.module';
+import { UserNotificationsModule } from './user-notifications/user-notifications.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { PseoModule } from './pseo/pseo.module';
     PaymentModule,
     AdminModule,
     PseoModule,
+    UserNotificationsModule,
   ],
   providers: [
     {
