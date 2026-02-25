@@ -17,6 +17,7 @@ import { OpenAITTSProvider } from '../ai/providers/openai-tts.provider';
 import { BackgroundMusic } from './entities/background-music.entity';
 import { User } from '../auth/entities/user.entity';
 import { getWatermarkConfig } from '../render/watermark.util';
+import { ViralCaptionOptimizerService, ViralCaptionLine } from '../ai/services/viral-caption-optimizer.service';
 
 @Injectable()
 export class MediaOrchestratorService {
@@ -41,6 +42,7 @@ export class MediaOrchestratorService {
     private readonly remotionQueueService: RemotionQueueService,
     @InjectRepository(BackgroundMusic)
     private musicRepository: Repository<BackgroundMusic>,
+    private readonly viralCaptionOptimizer: ViralCaptionOptimizerService,
   ) {}
 
   async processMedia(mediaId: string): Promise<void> {
@@ -362,6 +364,22 @@ export class MediaOrchestratorService {
     // Default to enabled if not specified, for backward compatibility
     const captionsEnabled = captionsConfig.enabled !== false;
 
+    // --- VIRAL CAPTION OPTIMIZER ---
+    let preOptimizedLines: ViralCaptionLine[] | undefined;
+    let hookStrength: number | undefined;
+    if (captionsEnabled) {
+      const optimized = await this.viralCaptionOptimizer.optimize(scriptData.text);
+      if (optimized) {
+        preOptimizedLines = optimized.captions;
+        hookStrength = optimized.hook_strength;
+        this.logger.log(
+          `Viral optimizer: hook_strength=${hookStrength}, lines=${preOptimizedLines.length}`,
+        );
+      } else {
+        this.logger.warn('Viral optimizer failed or returned null — using heuristic splitting');
+      }
+    }
+
     let captionBuffer: Buffer;
 
     if (!captionsEnabled) {
@@ -379,7 +397,7 @@ export class MediaOrchestratorService {
         scriptData.text,
         intentData?.caption_prompt,
         isKaraoke ? 'word' : captionsConfig.timing || 'sentence', // Force word timing for Karaoke
-        captionsConfig,
+        { ...captionsConfig, preOptimizedLines },
       );
     }
 
@@ -393,9 +411,8 @@ export class MediaOrchestratorService {
     });
 
     await this.addAsset(media.id, MediaAssetType.CAPTION, blobId, {
-      // Store config in metadata for Render step to read easily if needed
-      // (though Render step reads input_config usually)
       skipped: !captionsEnabled,
+      hook_strength: hookStrength ?? null,
     });
     return blobId;
   }

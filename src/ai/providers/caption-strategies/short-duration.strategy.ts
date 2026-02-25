@@ -1,4 +1,5 @@
 import { ICaptionStrategy } from './caption-strategy.interface';
+import { ViralCaptionLine } from '../../services/viral-caption-optimizer.service';
 
 export class ShortDurationStrategy implements ICaptionStrategy {
   // Constants for Reel-Native Snappiness
@@ -13,28 +14,37 @@ export class ShortDurationStrategy implements ICaptionStrategy {
     speechSegments: { start: number; end: number }[],
     totalDuration: number,
     timingType: 'sentence' | 'word',
+    preOptimizedLines?: ViralCaptionLine[],
   ): any[] {
-    const tokens = script.replace(/\n+/g, ' ').trim().split(/\s+/);
-    const blocks: string[][] = [];
-    let currentBlock: string[] = [];
+    let blocks: string[][];
 
-    // Pass 1: Break into "thought-like" blocks with punctuation awareness
-    for (const token of tokens) {
-      currentBlock.push(token);
-      const isPunctuation = /[.?!,]$/.test(token);
-      const line = currentBlock.join(' ');
+    if (preOptimizedLines && preOptimizedLines.length > 0) {
+      // Pass 1 (AI-optimized): Use pre-split lines from Gemini
+      blocks = preOptimizedLines.map((l) => l.line.trim().split(/\s+/));
+    } else {
+      // Pass 1 (heuristic): Break into "thought-like" blocks with punctuation awareness
+      const tokens = script.replace(/\n+/g, ' ').trim().split(/\s+/);
+      const heuristicBlocks: string[][] = [];
+      let currentBlock: string[] = [];
 
-      // Only split on punctuation if we have at least 2 words, to avoid tiny fragments
-      if (
-        (isPunctuation && currentBlock.length >= 2) ||
-        line.length > this.MAX_CHARS_PER_BLOCK ||
-        currentBlock.length >= this.MAX_WORDS_PER_BLOCK
-      ) {
-        blocks.push(currentBlock);
-        currentBlock = [];
+      for (const token of tokens) {
+        currentBlock.push(token);
+        const isPunctuation = /[.?!,]$/.test(token);
+        const line = currentBlock.join(' ');
+
+        // Only split on punctuation if we have at least 2 words, to avoid tiny fragments
+        if (
+          (isPunctuation && currentBlock.length >= 2) ||
+          line.length > this.MAX_CHARS_PER_BLOCK ||
+          currentBlock.length >= this.MAX_WORDS_PER_BLOCK
+        ) {
+          heuristicBlocks.push(currentBlock);
+          currentBlock = [];
+        }
       }
+      if (currentBlock.length > 0) heuristicBlocks.push(currentBlock);
+      blocks = heuristicBlocks;
     }
-    if (currentBlock.length > 0) blocks.push(currentBlock);
 
     const speechTotal = speechSegments.reduce((sum, s) => sum + (s.end - s.start), 0);
     const effectiveTotal = speechTotal > 0.5 ? speechTotal : totalDuration;

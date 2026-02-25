@@ -1,4 +1,5 @@
 import { ICaptionStrategy } from './caption-strategy.interface';
+import { ViralCaptionLine } from '../../services/viral-caption-optimizer.service';
 
 export class LongDurationStrategy implements ICaptionStrategy {
   // Constants for Narrative Flow (Slower, more readable)
@@ -13,30 +14,39 @@ export class LongDurationStrategy implements ICaptionStrategy {
     speechSegments: { start: number; end: number }[],
     totalDuration: number,
     timingType: 'sentence' | 'word',
+    preOptimizedLines?: ViralCaptionLine[],
   ): any[] {
-    const tokens = script.replace(/\n+/g, ' ').trim().split(/\s+/);
-    const blocks: string[][] = [];
-    let currentBlock: string[] = [];
+    let blocks: string[][];
 
-    // Pass 1: Break into "narrative" blocks (Sentence-focused)
-    for (const token of tokens) {
-      currentBlock.push(token);
-      const isStrongPunctuation = /[.?!]$/.test(token);
-      const isComma = /[,]$/.test(token);
-      const line = currentBlock.join(' ');
+    if (preOptimizedLines && preOptimizedLines.length > 0) {
+      // Pass 1 (AI-optimized): Use pre-split lines from Gemini
+      blocks = preOptimizedLines.map((l) => l.line.trim().split(/\s+/));
+    } else {
+      // Pass 1 (heuristic): Break into "narrative" blocks (Sentence-focused)
+      const tokens = script.replace(/\n+/g, ' ').trim().split(/\s+/);
+      const heuristicBlocks: string[][] = [];
+      let currentBlock: string[] = [];
 
-      // Split primarily on sentences or very long clauses
-      if (
-        isStrongPunctuation ||
-        (isComma && currentBlock.length >= 5) ||
-        line.length > this.MAX_CHARS_PER_BLOCK ||
-        currentBlock.length >= this.MAX_WORDS_PER_BLOCK
-      ) {
-        blocks.push(currentBlock);
-        currentBlock = [];
+      for (const token of tokens) {
+        currentBlock.push(token);
+        const isStrongPunctuation = /[.?!]$/.test(token);
+        const isComma = /[,]$/.test(token);
+        const line = currentBlock.join(' ');
+
+        // Split primarily on sentences or very long clauses
+        if (
+          isStrongPunctuation ||
+          (isComma && currentBlock.length >= 5) ||
+          line.length > this.MAX_CHARS_PER_BLOCK ||
+          currentBlock.length >= this.MAX_WORDS_PER_BLOCK
+        ) {
+          heuristicBlocks.push(currentBlock);
+          currentBlock = [];
+        }
       }
+      if (currentBlock.length > 0) heuristicBlocks.push(currentBlock);
+      blocks = heuristicBlocks;
     }
-    if (currentBlock.length > 0) blocks.push(currentBlock);
 
     const speechTotal = speechSegments.reduce((sum, s) => sum + (s.end - s.start), 0);
     const effectiveTotal = speechTotal > 0.5 ? speechTotal : totalDuration;

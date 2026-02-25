@@ -14,7 +14,7 @@ describe('script-prompts (Hindi support)', () => {
 
     it('includes audio_text hint for Hindi (Devanagari only) when language is Hindi', () => {
       const prompt = getScriptGenerationPrompt('Topic', 30, 'Hindi');
-      expect(prompt).toContain('in Hindi (Devanagari script only; no English words)');
+      expect(prompt).toContain('in Hindi, in Devanagari script only');
     });
 
     it('does not include Hindi instruction when language is English', () => {
@@ -33,12 +33,12 @@ describe('script-prompts (Hindi support)', () => {
     it('uses Hindi audio_text hint when language is Hindi', () => {
       const prompt = getOpenAIScriptSystemPrompt(30, 'Hindi');
       expect(prompt).toContain('Devanagari');
-      expect(prompt).toContain('10-12 words in Hindi (Devanagari only; no English)');
+      expect(prompt).toContain('10-12 spoken words in Hindi, Devanagari script only');
     });
 
     it('uses generic narration hint when language is English', () => {
       const prompt = getOpenAIScriptSystemPrompt(30, 'English (US)');
-      expect(prompt).toContain('10-12 words narration');
+      expect(prompt).toContain('10-12 spoken words in English (US)');
       expect(prompt).not.toContain('Devanagari only');
     });
   });

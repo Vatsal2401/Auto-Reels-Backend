@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ICaptionGenerator } from '../interfaces/caption-generator.interface';
+import { ViralCaptionLine } from '../services/viral-caption-optimizer.service';
 import ffmpeg from 'fluent-ffmpeg';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -31,7 +32,16 @@ export class KaraokeCaptionProvider implements ICaptionGenerator {
       const { speechSegments, totalDuration } = await this.getAudioAnalysis(audioBuffer);
 
       // 2. Generate Karaoke Hierarchy
-      const timings = this.generateKaraokeTimings(script, speechSegments, totalDuration);
+      const preOptimizedLines = _config.preOptimizedLines as ViralCaptionLine[] | undefined;
+      const timings = this.generateKaraokeTimings(script, speechSegments, totalDuration, preOptimizedLines);
+
+      // Merge highlight + intensity metadata from AI optimizer (by index)
+      if (preOptimizedLines && preOptimizedLines.length > 0) {
+        timings.forEach((t, i) => {
+          t.highlight = preOptimizedLines[i]?.highlight ?? null;
+          t.intensity = preOptimizedLines[i]?.intensity;
+        });
+      }
 
       return Buffer.from(JSON.stringify(timings), 'utf-8');
     } catch (error) {
@@ -105,9 +115,12 @@ export class KaraokeCaptionProvider implements ICaptionGenerator {
     script: string,
     speechSegments: { start: number; end: number }[],
     totalDuration: number,
+    preOptimizedLines?: ViralCaptionLine[],
   ): any[] {
-    // 1. STRICT CHUNKING: Max 7 words, Max 40 chars
-    const karaokeLines = this.splitScriptStrictly(script);
+    // 1. CHUNKING: Use AI-optimized lines when available, otherwise strict heuristic split
+    const karaokeLines = preOptimizedLines && preOptimizedLines.length > 0
+      ? preOptimizedLines.map((l) => l.line.trim())
+      : this.splitScriptStrictly(script);
     const totalChars = script.replace(/\s/g, '').length;
 
     // 2. AUDIO MAPPING: Distribute lines to speech islands

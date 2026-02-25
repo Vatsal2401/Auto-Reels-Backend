@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ICaptionGenerator } from '../interfaces/caption-generator.interface';
 import { ShortDurationStrategy } from './caption-strategies/short-duration.strategy';
 import { LongDurationStrategy } from './caption-strategies/long-duration.strategy';
+import { ViralCaptionLine } from '../services/viral-caption-optimizer.service';
 import ffmpeg from 'fluent-ffmpeg';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -43,14 +44,25 @@ export class LocalCaptionProvider implements ICaptionGenerator {
         `Selected Caption Strategy: ${totalDuration > 60 ? 'LongDuration' : 'ShortDuration'}`,
       );
 
+      const preOptimizedLines = _config.preOptimizedLines as ViralCaptionLine[] | undefined;
+
       const timings = strategy.generate(
         audioBuffer,
         script,
         speechSegments,
         totalDuration,
         _timing,
+        preOptimizedLines,
       );
       this.logger.log(`Timing generation complete: ${timings.length} captions`);
+
+      // Merge highlight + intensity metadata from AI optimizer (by index)
+      if (preOptimizedLines && preOptimizedLines.length > 0) {
+        timings.forEach((t, i) => {
+          t.highlight = preOptimizedLines[i]?.highlight ?? null;
+          t.intensity = preOptimizedLines[i]?.intensity;
+        });
+      }
 
       // 3. Return as JSON Buffer
       return Buffer.from(JSON.stringify(timings), 'utf-8');

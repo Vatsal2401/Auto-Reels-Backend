@@ -24,6 +24,7 @@ import { SarvamService } from './sarvam.service';
 import { VoicesController } from './controllers/voices.controller';
 import { TTSController } from './controllers/tts.controller';
 import { AiProviderFactory } from './ai-provider.factory';
+import { ViralCaptionOptimizerService } from './services/viral-caption-optimizer.service';
 
 // Use mock providers if OPENAI_API_KEY is not set (for testing)
 const hasOpenAIKey = process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim();
@@ -63,6 +64,7 @@ import { ReplicateImageProvider } from './providers/replicate-image.provider';
     AiProviderFactory,
     ElevenLabsService,
     SarvamService,
+    ViralCaptionOptimizerService,
     // Concrete Providers
     GeminiIntentProvider,
     OpenAIScriptProvider,
@@ -128,6 +130,7 @@ import { ReplicateImageProvider } from './providers/replicate-image.provider';
   ],
   exports: [
     AiProviderFactory,
+    ViralCaptionOptimizerService,
     GeminiTTSProvider,
     OpenAITTSProvider,
     ElevenLabsService,
