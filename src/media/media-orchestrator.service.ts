@@ -445,11 +445,11 @@ export class MediaOrchestratorService {
 
     // --- REEL FAST MODE LOGIC ---
     // Enforce strict image counts based on duration to minimize batches
-    // 30-60s -> 4 images (1 batch)
+    // 30-60s -> 8 images (2 parallel bulk calls of 4)
     // 60-90s -> 6 images (2 batches)
     // 90-120s -> 8 images (2 batches)
     const durationStr = media.input_config?.duration || '30-60';
-    let targetImageCount = 4;
+    let targetImageCount = 8;
     if (durationStr === '60-90') targetImageCount = 6;
     if (durationStr === '90-120') targetImageCount = 8;
 
@@ -474,17 +474,31 @@ export class MediaOrchestratorService {
       `Per-scene prompts for media ${media.id}: ${JSON.stringify(scenePrompts)}`,
     );
 
-    // Generate one image per scene in parallel (same latency as single batched call)
-    const bufferArrays = await Promise.all(
-      scenePrompts.map((prompt) =>
-        imageProvider.generateImages({
-          prompt,
-          style: media.input_config?.imageStyle,
-          aspectRatio: media.input_config?.imageAspectRatio as any,
-          count: 1,
-        }),
-      ),
+    // Generate images via 2 parallel bulk calls (4 images each) for 30-60s videos
+    const batchSize = 4;
+    const batch1Prompt = scenePrompts[0];
+    const batch2Prompt = scenePrompts[batchSize] ?? scenePrompts[0];
+
+    this.logger.log(
+      `Reel Fast Mode: 2 parallel bulk calls (${batchSize} images each) for media ${media.id}`,
     );
+
+    const [batch1Buffers, batch2Buffers] = await Promise.all([
+      imageProvider.generateImages({
+        prompt: batch1Prompt,
+        style: media.input_config?.imageStyle,
+        aspectRatio: media.input_config?.imageAspectRatio as any,
+        count: batchSize,
+      }),
+      imageProvider.generateImages({
+        prompt: batch2Prompt,
+        style: media.input_config?.imageStyle,
+        aspectRatio: media.input_config?.imageAspectRatio as any,
+        count: batchSize,
+      }),
+    ]);
+
+    const bufferArrays = [[...batch1Buffers], [...batch2Buffers]];
 
     const blobIds: string[] = [];
     for (const buffers of bufferArrays) {
