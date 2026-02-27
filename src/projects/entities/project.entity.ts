@@ -55,6 +55,9 @@ export class Project {
   @Column({ type: 'integer', default: 0 })
   credit_cost: number;
 
+  @Column({ type: 'varchar', length: 36, nullable: true, unique: true })
+  share_token: string | null;
+
   @Column({ type: 'text', nullable: true })
   error_message: string | null;
 

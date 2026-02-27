@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Inject } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
 import { Project, ProjectStatus } from './entities/project.entity';
 import { IStorageService } from '../storage/interfaces/storage.interface';
@@ -97,5 +98,27 @@ export class ProjectsService {
     const project = await this.projectRepository.findOne({ where: { id: projectId } });
     if (!project || project.user_id !== userId || !project.output_url) return null;
     return this.storageService.getSignedUrl(project.output_url, 3600);
+  }
+
+  async generateShareToken(projectId: string, userId: string): Promise<string> {
+    const project = await this.projectRepository.findOne({ where: { id: projectId } });
+    if (!project) throw new NotFoundException(`Project ${projectId} not found`);
+    if (project.user_id !== userId) throw new ForbiddenException('Not your project');
+    if (project.share_token) return project.share_token;
+    project.share_token = randomUUID();
+    await this.projectRepository.save(project);
+    return project.share_token;
+  }
+
+  async getPublicByShareToken(
+    token: string,
+  ): Promise<{ project: Project; videoUrl: string | null }> {
+    const project = await this.projectRepository.findOne({ where: { share_token: token } });
+    if (!project) throw new NotFoundException('Share link not found or has expired');
+    const videoUrl =
+      project.output_url
+        ? await this.storageService.getSignedUrl(project.output_url, 3600)
+        : null;
+    return { project, videoUrl };
   }
 }

@@ -70,6 +70,29 @@ export class ProjectsController {
     return { url };
   }
 
+  /** Generate (or return existing) share token — authenticated owner only */
+  @Post(':id/share')
+  @UseGuards(JwtAuthGuard)
+  async createShareToken(@Param('id') id: string, @Req() req: any) {
+    const token = await this.projectsService.generateShareToken(id, req.user.userId);
+    return { token };
+  }
+
+  /** Public endpoint — no auth required */
+  @Get('share/:token')
+  async getSharedProject(@Param('token') token: string) {
+    const { project, videoUrl } = await this.projectsService.getPublicByShareToken(token);
+    return {
+      id: project.id,
+      tool_type: project.tool_type,
+      status: project.status,
+      metadata: project.metadata,
+      duration: project.duration,
+      completed_at: project.completed_at,
+      videoUrl,
+    };
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   async getOne(@Param('id') id: string) {
