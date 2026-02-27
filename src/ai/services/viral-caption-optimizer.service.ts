@@ -23,7 +23,8 @@ RULES:
 5. Rate the emotional intensity of each line from 1 (calm/informational) to 5 (explosive/shocking).
 6. Rate the overall hook strength of the opening line from 1 (weak) to 10 (irresistible).
 7. Lines should follow the natural speaking rhythm. Do NOT add punctuation at end of lines.
-8. Output ONLY valid JSON — no markdown, no explanation, no code fences.
+8. Do NOT use any markdown formatting inside line text. No **bold**, no *italic*, no __underline__. Plain text only.
+9. Output ONLY valid JSON — no markdown, no explanation, no code fences.
 
 OUTPUT FORMAT (strict JSON):
 {
@@ -80,6 +81,16 @@ export class ViralCaptionOptimizerService {
         this.logger.warn('Viral optimizer: unexpected response shape, falling back');
         return null;
       }
+
+      // Safety: strip any markdown formatting from line text that Gemini may have added
+      parsed.captions.forEach((c) => {
+        c.line = c.line
+          .replace(/\*\*([^*]+)\*\*/g, '$1')
+          .replace(/\*([^*]+)\*/g, '$1')
+          .replace(/__([^_]+)__/g, '$1')
+          .replace(/_([^_]+)_/g, '$1')
+          .trim();
+      });
 
       this.logger.log(
         `Viral optimizer: hook_strength=${parsed.hook_strength}, captions=${parsed.captions.length}`,
