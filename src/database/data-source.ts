@@ -19,6 +19,10 @@ import { PseoPage } from '../pseo/entities/pseo-page.entity';
 import { PseoSeedDimension } from '../pseo/entities/pseo-seed-dimension.entity';
 import { PseoPlaybookConfig } from '../pseo/entities/pseo-playbook-config.entity';
 import { UserNotification } from '../user-notifications/entities/user-notification.entity';
+import { BlogPost } from '../blog/entities/blog-post.entity';
+import { BlogComment } from '../blog/entities/blog-comment.entity';
+import { BlogLike } from '../blog/entities/blog-like.entity';
+import { BlogAdminNote } from '../blog/entities/blog-admin-note.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -45,6 +49,10 @@ export const AppDataSource = new DataSource({
     PseoSeedDimension,
     PseoPlaybookConfig,
     UserNotification,
+    BlogPost,
+    BlogComment,
+    BlogLike,
+    BlogAdminNote,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,

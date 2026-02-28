@@ -2,7 +2,10 @@ const TEXT_INVITING =
   /\b(quotes?|overlays?|captions?|titles?|headings?|labels?|signs?|written|posters?|typography|banners?)\b/gi;
 
 function stripTextInvitingWords(prompt: string): string {
-  return prompt.replace(TEXT_INVITING, '').replace(/\s{2,}/g, ' ').trim();
+  return prompt
+    .replace(TEXT_INVITING, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
 
 export function getImageGenerationPrompt(prompt: string, style: string = ''): string {

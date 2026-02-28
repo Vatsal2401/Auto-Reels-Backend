@@ -93,20 +93,32 @@ export class SarvamService implements IVoiceManagementService {
 
     const processedText = preprocessTextForSarvam(text, langCode);
 
+    // bulbul:v2 supports enable_preprocessing which normalizes English words/slang
+    // inside Indic-script text so they are pronounced in Hindi accent, not English.
+    // bulbul:v3 is higher-quality but does NOT support enable_preprocessing.
+    const isHindiScript = langCode === 'hi-IN' || langCode === 'mr-IN';
+    const model = isHindiScript ? 'bulbul:v2' : 'bulbul:v3';
+
+    const requestBody: Record<string, any> = {
+      text: processedText,
+      target_language_code: langCode,
+      speaker: voiceId,
+      model,
+      speech_sample_rate: 44100,
+      pace,
+    };
+
+    if (isHindiScript) {
+      requestBody.enable_preprocessing = true;
+    }
+
     const response = await fetch(SARVAM_TTS_URL, {
       method: 'POST',
       headers: {
         'api-subscription-key': apiKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        text: processedText,
-        target_language_code: langCode,
-        speaker: voiceId,
-        model: 'bulbul:v3',
-        speech_sample_rate: 44100,
-        pace,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {

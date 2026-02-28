@@ -115,10 +115,9 @@ export class ProjectsService {
   ): Promise<{ project: Project; videoUrl: string | null }> {
     const project = await this.projectRepository.findOne({ where: { share_token: token } });
     if (!project) throw new NotFoundException('Share link not found or has expired');
-    const videoUrl =
-      project.output_url
-        ? await this.storageService.getSignedUrl(project.output_url, 3600)
-        : null;
+    const videoUrl = project.output_url
+      ? await this.storageService.getSignedUrl(project.output_url, 3600)
+      : null;
     return { project, videoUrl };
   }
 }

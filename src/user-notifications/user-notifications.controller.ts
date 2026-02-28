@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  Patch,
-  Param,
-  UseGuards,
-  ParseUUIDPipe,
-} from '@nestjs/common';
+import { Controller, Get, Patch, Param, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -30,10 +23,7 @@ export class UserNotificationsController {
   }
 
   @Patch(':id/read')
-  async markRead(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: any,
-  ) {
+  async markRead(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     await this.service.markRead(id, user.userId);
     return { success: true };
   }

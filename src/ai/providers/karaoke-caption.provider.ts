@@ -33,7 +33,12 @@ export class KaraokeCaptionProvider implements ICaptionGenerator {
 
       // 2. Generate Karaoke Hierarchy
       const preOptimizedLines = _config.preOptimizedLines as ViralCaptionLine[] | undefined;
-      const timings = this.generateKaraokeTimings(script, speechSegments, totalDuration, preOptimizedLines);
+      const timings = this.generateKaraokeTimings(
+        script,
+        speechSegments,
+        totalDuration,
+        preOptimizedLines,
+      );
 
       // Merge highlight + intensity metadata from AI optimizer (by index)
       if (preOptimizedLines && preOptimizedLines.length > 0) {
@@ -118,9 +123,10 @@ export class KaraokeCaptionProvider implements ICaptionGenerator {
     preOptimizedLines?: ViralCaptionLine[],
   ): any[] {
     // 1. CHUNKING: Use AI-optimized lines when available, otherwise strict heuristic split
-    const karaokeLines = preOptimizedLines && preOptimizedLines.length > 0
-      ? preOptimizedLines.map((l) => l.line.trim())
-      : this.splitScriptStrictly(script);
+    const karaokeLines =
+      preOptimizedLines && preOptimizedLines.length > 0
+        ? preOptimizedLines.map((l) => l.line.trim())
+        : this.splitScriptStrictly(script);
     const totalChars = script.replace(/\s/g, '').length;
 
     // 2. AUDIO MAPPING: Distribute lines to speech islands

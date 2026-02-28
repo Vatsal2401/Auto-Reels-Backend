@@ -132,9 +132,7 @@ export class PseoService {
   async unpublishPage(id: string): Promise<PseoPage> {
     const page = await this.findById(id);
     if (page.status !== PseoPageStatus.PUBLISHED) {
-      throw new BadRequestException(
-        `Page must be published to unpublish, got: ${page.status}`,
-      );
+      throw new BadRequestException(`Page must be published to unpublish, got: ${page.status}`);
     }
     page.status = PseoPageStatus.GENERATED;
     const saved = await this.repo.save(page);

@@ -69,7 +69,10 @@ export class ViralCaptionOptimizerService {
       const raw = result.response.text().trim();
 
       // Strip markdown code fences if present
-      const jsonStr = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+      const jsonStr = raw
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/, '')
+        .trim();
 
       const parsed = JSON.parse(jsonStr) as ViralCaptionResult;
 
@@ -97,7 +100,9 @@ export class ViralCaptionOptimizerService {
       );
       return parsed;
     } catch (err) {
-      this.logger.warn(`Viral optimizer failed: ${err?.message ?? err} — falling back to heuristic splitting`);
+      this.logger.warn(
+        `Viral optimizer failed: ${err?.message ?? err} — falling back to heuristic splitting`,
+      );
       return null;
     }
   }

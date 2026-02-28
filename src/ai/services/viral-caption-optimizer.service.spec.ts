@@ -14,7 +14,9 @@ function makeService(responseText: string | null) {
         }
       : null;
 
-  const configService = { get: jest.fn().mockReturnValue(responseText !== null ? 'fake-key' : undefined) } as any;
+  const configService = {
+    get: jest.fn().mockReturnValue(responseText !== null ? 'fake-key' : undefined),
+  } as any;
   const svc = new ViralCaptionOptimizerService(configService);
   // Bypass constructor model init and inject mock directly
   (svc as any).model = mockModel;
@@ -38,7 +40,9 @@ describe('ViralCaptionOptimizerService', () => {
   describe('optimize() — happy path', () => {
     it('returns hook_strength and captions array', async () => {
       const { svc } = makeService(VALID_RESPONSE);
-      const result = await svc.optimize('Did you know this changes everything? Most people miss it.');
+      const result = await svc.optimize(
+        'Did you know this changes everything? Most people miss it.',
+      );
 
       expect(result).not.toBeNull();
       expect(result!.hook_strength).toBe(8);

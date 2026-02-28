@@ -20,12 +20,26 @@ describe('ShortDurationStrategy', () => {
 
   describe('with preOptimizedLines', () => {
     it('produces one timing entry per AI line', () => {
-      const timings = strategy.generate(EMPTY_BUFFER, '', SPEECH_SEGMENTS, 30, 'sentence', PRE_OPTIMIZED);
+      const timings = strategy.generate(
+        EMPTY_BUFFER,
+        '',
+        SPEECH_SEGMENTS,
+        30,
+        'sentence',
+        PRE_OPTIMIZED,
+      );
       expect(timings).toHaveLength(PRE_OPTIMIZED.length);
     });
 
     it('each entry text matches the AI line', () => {
-      const timings = strategy.generate(EMPTY_BUFFER, '', SPEECH_SEGMENTS, 30, 'sentence', PRE_OPTIMIZED);
+      const timings = strategy.generate(
+        EMPTY_BUFFER,
+        '',
+        SPEECH_SEGMENTS,
+        30,
+        'sentence',
+        PRE_OPTIMIZED,
+      );
       // Text may be uppercase for single-word blocks; check words are present
       PRE_OPTIMIZED.forEach((l, i) => {
         const words = l.line.trim().split(/\s+/);
@@ -36,7 +50,14 @@ describe('ShortDurationStrategy', () => {
     });
 
     it('timings are non-overlapping and have valid start/end', () => {
-      const timings = strategy.generate(EMPTY_BUFFER, '', SPEECH_SEGMENTS, 30, 'sentence', PRE_OPTIMIZED);
+      const timings = strategy.generate(
+        EMPTY_BUFFER,
+        '',
+        SPEECH_SEGMENTS,
+        30,
+        'sentence',
+        PRE_OPTIMIZED,
+      );
       for (let i = 0; i < timings.length; i++) {
         expect(timings[i].start).toBeGreaterThanOrEqual(0);
         expect(timings[i].end).toBeGreaterThan(timings[i].start);
@@ -47,7 +68,14 @@ describe('ShortDurationStrategy', () => {
     });
 
     it('includes word-level timings when timingType is word', () => {
-      const timings = strategy.generate(EMPTY_BUFFER, '', SPEECH_SEGMENTS, 30, 'word', PRE_OPTIMIZED);
+      const timings = strategy.generate(
+        EMPTY_BUFFER,
+        '',
+        SPEECH_SEGMENTS,
+        30,
+        'word',
+        PRE_OPTIMIZED,
+      );
       timings.forEach((t) => {
         expect(Array.isArray(t.words)).toBe(true);
         expect(t.words!.length).toBeGreaterThan(0);
@@ -83,12 +111,26 @@ describe('LongDurationStrategy', () => {
 
   describe('with preOptimizedLines', () => {
     it('produces one timing entry per AI line', () => {
-      const timings = strategy.generate(EMPTY_BUFFER, '', LONG_SEGMENTS, 90, 'sentence', PRE_OPTIMIZED);
+      const timings = strategy.generate(
+        EMPTY_BUFFER,
+        '',
+        LONG_SEGMENTS,
+        90,
+        'sentence',
+        PRE_OPTIMIZED,
+      );
       expect(timings).toHaveLength(PRE_OPTIMIZED.length);
     });
 
     it('timings are valid', () => {
-      const timings = strategy.generate(EMPTY_BUFFER, '', LONG_SEGMENTS, 90, 'sentence', PRE_OPTIMIZED);
+      const timings = strategy.generate(
+        EMPTY_BUFFER,
+        '',
+        LONG_SEGMENTS,
+        90,
+        'sentence',
+        PRE_OPTIMIZED,
+      );
       timings.forEach((t) => {
         expect(t.start).toBeGreaterThanOrEqual(0);
         expect(t.end).toBeGreaterThan(t.start);
@@ -98,7 +140,8 @@ describe('LongDurationStrategy', () => {
 
   describe('without preOptimizedLines (heuristic fallback)', () => {
     it('falls back to heuristic splitting', () => {
-      const script = 'Long form content with many words. Each sentence is a scene. This tests the fallback path.';
+      const script =
+        'Long form content with many words. Each sentence is a scene. This tests the fallback path.';
       const timings = strategy.generate(EMPTY_BUFFER, script, LONG_SEGMENTS, 90, 'sentence');
       expect(timings.length).toBeGreaterThan(0);
     });

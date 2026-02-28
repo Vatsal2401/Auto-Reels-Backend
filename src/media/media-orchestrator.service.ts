@@ -17,7 +17,10 @@ import { OpenAITTSProvider } from '../ai/providers/openai-tts.provider';
 import { BackgroundMusic } from './entities/background-music.entity';
 import { User } from '../auth/entities/user.entity';
 import { getWatermarkConfig } from '../render/watermark.util';
-import { ViralCaptionOptimizerService, ViralCaptionLine } from '../ai/services/viral-caption-optimizer.service';
+import {
+  ViralCaptionOptimizerService,
+  ViralCaptionLine,
+} from '../ai/services/viral-caption-optimizer.service';
 
 @Injectable()
 export class MediaOrchestratorService {
@@ -281,28 +284,40 @@ export class MediaOrchestratorService {
       throw new Error('Audio Fail: Script text is empty. Please check the "script" step output.');
     }
 
-    const audioProvider = this.aiFactory.getTextToSpeech(
-      process.env.SARVAM_API_KEY
-        ? 'sarvam'
-        : process.env.ELEVENLABS_API_KEY
-          ? 'elevenlabs'
-          : 'openai',
+    // Mad Scientist - Energetic is an ElevenLabs-exclusive voice.
+    // All other voices use Sarvam (if key available) → ElevenLabs → OpenAI.
+    const MAD_SCIENTIST_ELEVENLABS_ID = 'yjJ45q8TVCrtMhEKurxY';
+    const voiceLabel = media.input_config?.voiceLabel || '';
+    const isMadScientist = voiceLabel === 'Mad Scientist - Energetic';
+
+    let providerKey: string;
+    let resolvedVoiceId: string = media.input_config?.voiceId;
+
+    if (isMadScientist && process.env.ELEVENLABS_API_KEY) {
+      providerKey = 'elevenlabs';
+      resolvedVoiceId = MAD_SCIENTIST_ELEVENLABS_ID;
+    } else if (process.env.SARVAM_API_KEY) {
+      providerKey = 'sarvam';
+    } else if (process.env.ELEVENLABS_API_KEY) {
+      providerKey = 'elevenlabs';
+    } else {
+      providerKey = 'openai';
+    }
+
+    const audioProvider = this.aiFactory.getTextToSpeech(providerKey);
+    const primaryProviderName =
+      providerKey === 'elevenlabs' ? 'ElevenLabs' : providerKey === 'sarvam' ? 'Sarvam' : 'OpenAI';
+
+    // Primary: Mad Scientist → ElevenLabs | Others → Sarvam > ElevenLabs > OpenAI
+    this.logger.log(
+      `Generating audio for media ${media.id} via ${primaryProviderName} (voice: ${voiceLabel || resolvedVoiceId})...`,
     );
-
-    // Primary: Sarvam > ElevenLabs > OpenAI
-    this.logger.log(`Generating audio for media ${media.id}...`);
     let audioBuffer: Buffer;
-
-    const primaryProviderName = process.env.SARVAM_API_KEY
-      ? 'Sarvam'
-      : process.env.ELEVENLABS_API_KEY
-        ? 'ElevenLabs'
-        : 'OpenAI';
 
     try {
       audioBuffer = await audioProvider.textToSpeech({
         text: scriptData.text,
-        voiceId: media.input_config?.voiceId,
+        voiceId: resolvedVoiceId,
         language: media.input_config?.language,
         prompt: intentData?.audio_prompt,
       });
@@ -459,7 +474,9 @@ export class MediaOrchestratorService {
 
     // Build per-scene prompts with shared style anchor for visual continuity
     const scenes = scriptJson?.scenes ?? [];
-    const styleAnchor = [scriptJson?.visual_style, scriptJson?.audio_mood].filter(Boolean).join(', ');
+    const styleAnchor = [scriptJson?.visual_style, scriptJson?.audio_mood]
+      .filter(Boolean)
+      .join(', ');
     const sceneIndices = this.selectSceneIndices(scenes.length, targetImageCount);
 
     const scenePrompts: string[] =
@@ -470,9 +487,7 @@ export class MediaOrchestratorService {
           })
         : Array.from({ length: targetImageCount }, () => masterPrompt);
 
-    this.logger.debug(
-      `Per-scene prompts for media ${media.id}: ${JSON.stringify(scenePrompts)}`,
-    );
+    this.logger.debug(`Per-scene prompts for media ${media.id}: ${JSON.stringify(scenePrompts)}`);
 
     // Generate images via 2 parallel bulk calls (4 images each) for 30-60s videos
     const batchSize = 4;
@@ -611,8 +626,7 @@ export class MediaOrchestratorService {
       .filter(Boolean);
     const useRemotionForShort =
       durationCategory === '30-60' &&
-      (process.env.REMOTION_QUEUE_ENABLED !== 'false' ||
-        allowedUserIds.includes(media.user_id));
+      (process.env.REMOTION_QUEUE_ENABLED !== 'false' || allowedUserIds.includes(media.user_id));
     if (useRemotionForShort) {
       await this.remotionQueueService.queueRemotionJob(payload);
     } else {

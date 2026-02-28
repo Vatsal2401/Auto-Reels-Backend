@@ -230,10 +230,7 @@ export class PseoAdminController {
    * PATCH /admin/pseo/:id/metadata
    */
   @Patch(':id/metadata')
-  async updateMetadata(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateMetadataDto,
-  ) {
+  async updateMetadata(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateMetadataDto) {
     return this.pseoService.updateMetadata(id, dto);
   }
 

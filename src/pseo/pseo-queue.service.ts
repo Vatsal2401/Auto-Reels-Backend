@@ -40,7 +40,8 @@ export class PseoQueueService implements OnModuleInit, OnModuleDestroy {
     //   Free tier:          15 RPM  →  PSEO_RPM default = 12  (safe buffer)
     //   Pay-as-you-go:    2000 RPM  →  set PSEO_RPM=100 in .env for faster bulk runs
     const rpm = parseInt(this.configService.get<string>('PSEO_RPM') || '12', 10) || 12;
-    const concurrency = parseInt(this.configService.get<string>('PSEO_CONCURRENCY') || '2', 10) || 2;
+    const concurrency =
+      parseInt(this.configService.get<string>('PSEO_CONCURRENCY') || '2', 10) || 2;
 
     this.logger.log(`PSEO worker: concurrency=${concurrency}, rpm=${rpm} (Gemini free limit=15)`);
 
