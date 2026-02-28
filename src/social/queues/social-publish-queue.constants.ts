@@ -1,6 +1,6 @@
-export const SOCIAL_PUBLISH_QUEUE_YOUTUBE   = 'social-publish:youtube';
-export const SOCIAL_PUBLISH_QUEUE_TIKTOK    = 'social-publish:tiktok';
-export const SOCIAL_PUBLISH_QUEUE_INSTAGRAM = 'social-publish:instagram';
+export const SOCIAL_PUBLISH_QUEUE_YOUTUBE   = 'social-publish-youtube';
+export const SOCIAL_PUBLISH_QUEUE_TIKTOK    = 'social-publish-tiktok';
+export const SOCIAL_PUBLISH_QUEUE_INSTAGRAM = 'social-publish-instagram';
 
 export const JOB_PUBLISH_POST = 'publish-post';
 
