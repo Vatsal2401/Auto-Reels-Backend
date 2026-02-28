@@ -18,6 +18,7 @@ function buildRedisConnection(configService: ConfigService) {
   };
 }
 
+
 @Injectable()
 export class SocialPublishQueueService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SocialPublishQueueService.name);
@@ -39,7 +40,6 @@ export class SocialPublishQueueService implements OnModuleInit, OnModuleDestroy 
         defaultJobOptions: {
           attempts: 3,
           backoff: { type: 'exponential', delay: 10_000 },
-          timeout: 18 * 60 * 1000, // 18 minutes (C6)
           removeOnComplete: { count: 100 },
           removeOnFail: { count: 200 },
         },
@@ -69,7 +69,8 @@ export class SocialPublishQueueService implements OnModuleInit, OnModuleDestroy 
       { scheduledPostId },
       {
         delay,
-        jobId: `post:${scheduledPostId}`, // Prevents duplicate scheduling
+        jobId: `post:${scheduledPostId}`, // prevents duplicate scheduling
+        // Stall protection via Worker stalledInterval + lockDuration (C6)
       },
     );
     this.logger.log(

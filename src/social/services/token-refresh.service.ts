@@ -1,8 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { InjectRedis } from '@nestjs-modules/ioredis';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import * as crypto from 'crypto';
 import { ConnectedAccount, SocialPlatform } from '../entities/connected-account.entity';
 import { TokenEncryptionService } from './token-encryption.service';
@@ -17,12 +16,12 @@ export class TokenRefreshService {
   // Refresh windows per platform
   private readonly YOUTUBE_THRESHOLD_MS   = 60 * 60 * 1000;            // 1 hour
   private readonly TIKTOK_THRESHOLD_MS    = 60 * 60 * 1000;            // 1 hour
-  private readonly INSTAGRAM_THRESHOLD_MS = 10 * 24 * 60 * 60 * 1000; // 10 days
+  private readonly INSTAGRAM_THRESHOLD_MS = 10 * 24 * 60 * 60 * 1000; // 10 days (C1)
 
   constructor(
     @InjectRepository(ConnectedAccount)
     private readonly connectedAccountRepo: Repository<ConnectedAccount>,
-    @InjectRedis() private readonly redis: Redis,
+    @Inject('SOCIAL_REDIS') private readonly redis: Redis,
     private readonly enc: TokenEncryptionService,
     private readonly youtubeService: YouTubeService,
     private readonly tiktokService: TikTokService,
@@ -31,13 +30,12 @@ export class TokenRefreshService {
 
   async refreshAccount(account: ConnectedAccount): Promise<void> {
     const lockKey = `token_refresh_lock:${account.id}`;
-    const lockTtl = 30_000; // 30s max for a token refresh round-trip
+    const lockTtl = 30_000; // 30s max (C2)
     const lockVal = crypto.randomUUID();
 
-    // Atomic lock acquire — SET NX PX
+    // Atomic lock acquire — SET NX PX (C2)
     const acquired = await this.redis.set(lockKey, lockVal, 'PX', lockTtl, 'NX');
     if (!acquired) {
-      // Another instance is refreshing this account — wait briefly and return
       await new Promise((r) => setTimeout(r, 2000));
       return;
     }
@@ -76,7 +74,7 @@ export class TokenRefreshService {
           break;
         }
         case SocialPlatform.INSTAGRAM: {
-          // Instagram refreshes the long-lived token using the access_token itself
+          // Instagram: refresh the long-lived token using the access_token itself (C1)
           const currentAccess = this.enc.decrypt(fresh.access_token_enc);
           const tokens = await this.instagramService.refreshLongLivedToken(currentAccess);
           newAccessEnc = this.enc.encrypt(tokens.access_token);
@@ -99,7 +97,7 @@ export class TokenRefreshService {
       this.logger.error(`Token refresh failed for account ${account.id}: ${err.message}`);
       await this.markNeedsReauth(account.id, err.message);
     } finally {
-      // Release lock only if we still own it (atomic Lua script)
+      // Release lock only if we still own it — atomic Lua script (C2)
       const releaseLua = `if redis.call('get',KEYS[1])==ARGV[1] then return redis.call('del',KEYS[1]) else return 0 end`;
       await this.redis.eval(releaseLua, 1, lockKey, lockVal);
     }

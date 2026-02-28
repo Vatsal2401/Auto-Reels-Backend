@@ -153,7 +153,7 @@ export class TikTokService {
           'Content-Range': `bytes ${start}-${end}/${totalSize}`,
           'Content-Length': String(chunk.length),
         },
-        body: chunk,
+        body: new Uint8Array(chunk),
       });
 
       if (!chunkRes.ok) {

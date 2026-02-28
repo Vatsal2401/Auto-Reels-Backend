@@ -1,9 +1,8 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
-import { InjectRedis } from '@nestjs-modules/ioredis';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import * as crypto from 'crypto';
 import { ConnectedAccount, SocialPlatform } from '../entities/connected-account.entity';
 import { TokenEncryptionService } from './token-encryption.service';
@@ -18,7 +17,7 @@ export class SocialAuthService {
   constructor(
     @InjectRepository(ConnectedAccount)
     private readonly connectedAccountRepo: Repository<ConnectedAccount>,
-    @InjectRedis() private readonly redis: Redis,
+    @Inject('SOCIAL_REDIS') private readonly redis: Redis,
     private readonly jwtService: JwtService,
     private readonly enc: TokenEncryptionService,
     private readonly youtubeService: YouTubeService,
@@ -66,7 +65,7 @@ export class SocialAuthService {
       { expiresIn: '10m' },
     );
 
-    // Store code_verifier in Redis (5min TTL, keyed by state)
+    // Store code_verifier in Redis (5min TTL, keyed by state) — PKCE (H5)
     await this.redis.set(`pkce:${state}`, codeVerifier, 'EX', 600);
     return this.tiktokService.generateAuthUrl(codeChallenge, state);
   }
@@ -112,7 +111,7 @@ export class SocialAuthService {
     // Step 1: Exchange code for short-lived token (1 hour)
     const shortLived = await this.instagramService.exchangeCodeForShortLived(code);
 
-    // Step 2: Exchange short-lived for long-lived token (60 days)
+    // Step 2: Exchange short-lived for long-lived token (60 days) — (C1)
     const longLived = await this.instagramService.exchangeForLongLived(shortLived.access_token);
 
     const info = await this.instagramService.getAccountInfo(longLived.access_token);
@@ -124,7 +123,7 @@ export class SocialAuthService {
       accountName: info.username,
       accountAvatarUrl: info.profilePictureUrl,
       accessToken: longLived.access_token,
-      refreshToken: null, // Instagram has no refresh_token
+      refreshToken: null, // Instagram has no refresh_token (C1)
       tokenExpiresAt: new Date(Date.now() + longLived.expires_in * 1000),
       tokenType: 'long_lived',
     });
