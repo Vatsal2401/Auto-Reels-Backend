@@ -59,7 +59,7 @@ export class SocialPublishWorker implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit() {
     const connection = buildRedisConnection(this.configService);
-    const concurrency = this.configService.get<number>('SOCIAL_WORKER_CONCURRENCY') ?? 3;
+    const concurrency = parseInt(this.configService.get('SOCIAL_WORKER_CONCURRENCY') ?? '3', 10) || 3;
 
     const platformConfigs: Array<{ queueName: string; platform: SocialPlatform }> = [
       { queueName: SOCIAL_PUBLISH_QUEUE_YOUTUBE,   platform: SocialPlatform.YOUTUBE },
