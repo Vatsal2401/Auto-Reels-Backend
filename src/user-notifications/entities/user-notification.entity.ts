@@ -12,6 +12,8 @@ import { User } from '../../auth/entities/user.entity';
 export enum UserNotificationType {
   VIDEO_COMPLETED = 'video_completed',
   VIDEO_FAILED = 'video_failed',
+  POST_FAILED = 'post_failed',
+  POST_SUCCESS = 'post_success',
 }
 
 @Entity('user_notifications')

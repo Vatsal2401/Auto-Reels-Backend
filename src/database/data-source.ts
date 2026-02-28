@@ -23,6 +23,10 @@ import { BlogPost } from '../blog/entities/blog-post.entity';
 import { BlogComment } from '../blog/entities/blog-comment.entity';
 import { BlogLike } from '../blog/entities/blog-like.entity';
 import { BlogAdminNote } from '../blog/entities/blog-admin-note.entity';
+import { UserSettings } from '../user-settings/entities/user-settings.entity';
+import { ConnectedAccount } from '../social/entities/connected-account.entity';
+import { ScheduledPost } from '../social/entities/scheduled-post.entity';
+import { UploadLog } from '../social/entities/upload-log.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -53,6 +57,10 @@ export const AppDataSource = new DataSource({
     BlogComment,
     BlogLike,
     BlogAdminNote,
+    UserSettings,
+    ConnectedAccount,
+    ScheduledPost,
+    UploadLog,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,

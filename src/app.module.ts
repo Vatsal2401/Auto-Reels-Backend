@@ -25,6 +25,8 @@ import { AdminModule } from './admin/admin.module';
 import { PseoModule } from './pseo/pseo.module';
 import { UserNotificationsModule } from './user-notifications/user-notifications.module';
 import { BlogModule } from './blog/blog.module';
+import { UserSettingsModule } from './user-settings/user-settings.module';
+import { SocialModule } from './social/social.module';
 
 @Module({
   imports: [
@@ -65,6 +67,8 @@ import { BlogModule } from './blog/blog.module';
     PseoModule,
     UserNotificationsModule,
     BlogModule,
+    UserSettingsModule,
+    SocialModule,
   ],
   providers: [
     {
