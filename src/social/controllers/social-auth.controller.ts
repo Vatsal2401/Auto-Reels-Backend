@@ -17,6 +17,12 @@ export class SocialAuthController {
 
   // ─── YouTube ─────────────────────────────────────────────────────────────
 
+  @Get('youtube/url')
+  @ApiOperation({ summary: 'Return YouTube OAuth URL as JSON (for SPA redirect)' })
+  async youTubeAuthUrl(@CurrentUser() user: { userId: string }) {
+    return { url: this.socialAuthService.generateYouTubeAuthUrl(user.userId) };
+  }
+
   @Get('youtube')
   @ApiOperation({ summary: 'Initiate YouTube OAuth — redirects to Google' })
   async connectYouTube(
@@ -40,6 +46,12 @@ export class SocialAuthController {
 
   // ─── TikTok ──────────────────────────────────────────────────────────────
 
+  @Get('tiktok/url')
+  @ApiOperation({ summary: 'Return TikTok OAuth URL as JSON (for SPA redirect)' })
+  async tikTokAuthUrl(@CurrentUser() user: { userId: string }) {
+    return { url: await this.socialAuthService.generateTikTokAuthUrl(user.userId) };
+  }
+
   @Get('tiktok')
   @ApiOperation({ summary: 'Initiate TikTok OAuth with PKCE' })
   async connectTikTok(
@@ -62,6 +74,12 @@ export class SocialAuthController {
   }
 
   // ─── Instagram ───────────────────────────────────────────────────────────
+
+  @Get('instagram/url')
+  @ApiOperation({ summary: 'Return Instagram OAuth URL as JSON (for SPA redirect)' })
+  async instagramAuthUrl(@CurrentUser() user: { userId: string }) {
+    return { url: this.socialAuthService.generateInstagramAuthUrl(user.userId) };
+  }
 
   @Get('instagram')
   @ApiOperation({ summary: 'Initiate Instagram OAuth — exchanges for long-lived token' })
