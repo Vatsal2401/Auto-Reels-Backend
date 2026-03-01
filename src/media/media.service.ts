@@ -23,6 +23,7 @@ import { StorageResolverService } from '../storage/storage-resolver.service';
 import { User } from '../auth/entities/user.entity';
 import { BackgroundMusic } from './entities/background-music.entity';
 import { ElevenLabsService } from '../ai/elevenlabs.service';
+import { IVoiceManagementService } from '../ai/interfaces/voice-management.interface';
 import { ProjectsService } from '../projects/projects.service';
 
 @Injectable()
@@ -44,6 +45,7 @@ export class MediaService {
     @Inject('IStorageService') private storageService: IStorageService,
     @Optional() private storageResolver: StorageResolverService | null,
     @Optional() private elevenLabsService: ElevenLabsService | null,
+    @Inject('IVoiceManagementService') private voiceManagementService: IVoiceManagementService,
     private projectsService: ProjectsService,
   ) {}
 
@@ -87,8 +89,8 @@ export class MediaService {
 
     const defaultBackend = (process.env.DEFAULT_STORAGE_BACKEND || 's3') as 'supabase' | 's3';
     // Resolve voiceId from voice type + language when both provided (e.g. "Grounded And Professional" + "Hindi")
-    if (this.elevenLabsService && dto.voiceLabel && dto.language) {
-      dto.voiceId = this.elevenLabsService.getVoiceId(dto.voiceLabel, dto.language);
+    if (dto.voiceLabel && dto.language) {
+      dto.voiceId = this.voiceManagementService.getVoiceId(dto.voiceLabel, dto.language);
     }
 
     // Create a Project for this reel (tool_type=reel) so it appears in Projects list
