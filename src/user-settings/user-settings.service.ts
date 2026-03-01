@@ -23,4 +23,11 @@ export class UserSettingsService {
     const s = await this.getOrCreate(userId);
     return s.social_media_scheduler_enabled;
   }
+
+  async markOnboardingCompleted(userId: string): Promise<void> {
+    const settings = await this.getOrCreate(userId);
+    if (!settings.has_completed_onboarding) {
+      await this.repo.update({ user_id: userId }, { has_completed_onboarding: true });
+    }
+  }
 }

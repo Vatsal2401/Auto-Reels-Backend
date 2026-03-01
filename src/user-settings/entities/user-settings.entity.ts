@@ -22,6 +22,9 @@ export class UserSettings {
   @Column({ name: 'social_media_scheduler_enabled', type: 'boolean', default: false })
   social_media_scheduler_enabled: boolean;
 
+  @Column({ name: 'has_completed_onboarding', type: 'boolean', default: false })
+  has_completed_onboarding: boolean;
+
   @UpdateDateColumn({ name: 'updated_at' })
   updated_at: Date;
 }
