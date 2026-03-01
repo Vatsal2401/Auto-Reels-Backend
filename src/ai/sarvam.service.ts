@@ -101,8 +101,32 @@ export class SarvamService implements IVoiceManagementService {
     const isHindiScript = langCode === 'hi-IN' || langCode === 'mr-IN';
     const model = isHindiScript ? 'bulbul:v2' : 'bulbul:v3';
 
+    // Sarvam TTS has a ~500-char limit per request. Split long scripts into
+    // sentence-boundary chunks and make one API call per chunk, then concatenate.
+    const chunks = this.splitTextIntoChunks(processedText, 500);
+    this.logger.log(
+      `Sarvam TTS: text length=${processedText.length}, chunks=${chunks.length}`,
+    );
+
+    const chunkBuffers = await Promise.all(
+      chunks.map((chunk) => this.callSarvamAPISingle(chunk, voiceId, langCode, model, pace, isHindiScript, apiKey)),
+    );
+
+    if (chunkBuffers.length === 1) return chunkBuffers[0];
+    return this.concatenateWavBuffers(chunkBuffers);
+  }
+
+  private async callSarvamAPISingle(
+    text: string,
+    voiceId: string,
+    langCode: string,
+    model: string,
+    pace: number,
+    isHindiScript: boolean,
+    apiKey: string,
+  ): Promise<Buffer> {
     const requestBody: Record<string, any> = {
-      text: processedText,
+      text,
       target_language_code: langCode,
       speaker: voiceId,
       model,
@@ -129,6 +153,77 @@ export class SarvamService implements IVoiceManagementService {
     }
 
     const json = await response.json();
-    return Buffer.from(json.audios[0], 'base64');
+    // Concatenate all audio chunks returned for this single request as well
+    const audios: string[] = json.audios ?? [];
+    if (audios.length === 0) throw new Error('Sarvam API returned empty audios array');
+    if (audios.length === 1) return Buffer.from(audios[0], 'base64');
+    return this.concatenateWavBuffers(audios.map((a) => Buffer.from(a, 'base64')));
+  }
+
+  /**
+   * Split text into chunks of at most maxChars, cutting at sentence boundaries.
+   * Ensures each chunk ends cleanly without mid-word splits.
+   */
+  private splitTextIntoChunks(text: string, maxChars: number): string[] {
+    if (text.length <= maxChars) return [text];
+
+    const chunks: string[] = [];
+    let remaining = text.trim();
+
+    while (remaining.length > maxChars) {
+      const slice = remaining.slice(0, maxChars);
+
+      // Prefer cutting after a sentence-ending punctuation + space
+      const lastSentence = Math.max(
+        slice.lastIndexOf('. '),
+        slice.lastIndexOf('? '),
+        slice.lastIndexOf('! '),
+        slice.lastIndexOf('.\n'),
+      );
+      let cutPoint: number;
+      if (lastSentence > maxChars / 2) {
+        cutPoint = lastSentence + 2; // include the trailing space
+      } else {
+        // Fallback: cut at last word boundary
+        const lastSpace = slice.lastIndexOf(' ');
+        cutPoint = lastSpace > 0 ? lastSpace + 1 : maxChars;
+      }
+
+      chunks.push(remaining.slice(0, cutPoint).trim());
+      remaining = remaining.slice(cutPoint).trim();
+    }
+
+    if (remaining.length > 0) chunks.push(remaining);
+    return chunks;
+  }
+
+  /**
+   * Concatenate multiple WAV buffers (standard 44-byte PCM header) into one.
+   * Extracts PCM data from each, concatenates it, and rebuilds the header.
+   */
+  private concatenateWavBuffers(buffers: Buffer[]): Buffer {
+    if (buffers.length === 1) return buffers[0];
+
+    // Find the "data" sub-chunk offset in each WAV buffer
+    const getDataOffset = (buf: Buffer): number => {
+      for (let i = 12; i < Math.min(buf.length - 4, 100); i++) {
+        if (buf.toString('ascii', i, i + 4) === 'data') return i + 8;
+      }
+      return 44; // standard fallback
+    };
+
+    const pcmChunks = buffers.map((buf) => buf.slice(getDataOffset(buf)));
+    const totalPcmLength = pcmChunks.reduce((sum, c) => sum + c.length, 0);
+
+    // Copy the first buffer's header as template
+    const firstDataOffset = getDataOffset(buffers[0]);
+    const header = Buffer.from(buffers[0].slice(0, firstDataOffset));
+
+    // Update RIFF chunk size (bytes 4-7): total file size - 8
+    header.writeUInt32LE(totalPcmLength + firstDataOffset - 8, 4);
+    // Update "data" sub-chunk size (4 bytes immediately before PCM data)
+    header.writeUInt32LE(totalPcmLength, firstDataOffset - 4);
+
+    return Buffer.concat([header, ...pcmChunks]);
   }
 }
