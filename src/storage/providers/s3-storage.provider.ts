@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { IStorageService, StorageUploadParams } from '../interfaces/storage.interface';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { getSignedUrl as getCFSignedUrl } from '@aws-sdk/cloudfront-signer';
 import { v4 as uuidv4 } from 'uuid';
 import { createWriteStream, mkdirSync, existsSync } from 'fs';
 import { dirname, join } from 'path';
@@ -13,6 +14,10 @@ import { Upload } from '@aws-sdk/lib-storage';
 export class S3StorageProvider implements IStorageService {
   private s3Client: S3Client;
   private bucketName: string;
+  private cfDomain: string | undefined;
+  private cfKeyPairId: string | undefined;
+  private cfPrivateKey: string | undefined;
+  private isAwsS3: boolean;
 
   constructor() {
     const storageType = process.env.CURRENT_BLOB_STORAGE || 's3';
@@ -35,6 +40,7 @@ export class S3StorageProvider implements IStorageService {
       });
 
       this.bucketName = process.env.SUPABASE_STORAGE_BUCKET_NAME || 'ai-reels-storage';
+      this.isAwsS3 = false;
     } else {
       // Default to AWS S3
       console.log(`🔌 Initializing AWS S3 Storage`);
@@ -47,7 +53,14 @@ export class S3StorageProvider implements IStorageService {
         requestChecksumCalculation: 'WHEN_REQUIRED', // Presigned PUT URLs must not require checksum headers (browser uploads)
       });
       this.bucketName = process.env.S3_BUCKET_NAME || 'ai-reels-storage';
+      this.isAwsS3 = true;
     }
+
+    this.cfDomain = process.env.CLOUDFRONT_DOMAIN;
+    this.cfKeyPairId = process.env.CLOUDFRONT_KEY_PAIR_ID;
+    this.cfPrivateKey = process.env.CLOUDFRONT_PRIVATE_KEY
+      ? Buffer.from(process.env.CLOUDFRONT_PRIVATE_KEY, 'base64').toString('utf-8')
+      : undefined;
   }
 
   async upload(params: StorageUploadParams): Promise<string> {
@@ -132,6 +145,13 @@ export class S3StorageProvider implements IStorageService {
     expiresIn: number = 3600,
     options?: { promptDownload?: boolean; filename?: string },
   ): Promise<string> {
+    // Use CloudFront signed URLs only for AWS S3 objects (not Supabase) and non-download requests
+    if (!options?.promptDownload && this.isAwsS3 && this.cfDomain && this.cfKeyPairId && this.cfPrivateKey) {
+      const url = `https://${this.cfDomain}/${objectId}`;
+      const dateLessThan = new Date(Date.now() + expiresIn * 1000).toISOString();
+      return getCFSignedUrl({ url, keyPairId: this.cfKeyPairId, dateLessThan, privateKey: this.cfPrivateKey });
+    }
+    // Fallback: S3 presigned URL (downloads, Supabase objects, or CloudFront not configured)
     const commandInput: any = {
       Bucket: this.bucketName,
       Key: objectId,
