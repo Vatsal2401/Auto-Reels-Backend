@@ -69,7 +69,7 @@ export class SocialPublishQueueService implements OnModuleInit, OnModuleDestroy 
       { scheduledPostId },
       {
         delay,
-        jobId: `post:${scheduledPostId}`, // prevents duplicate scheduling
+        jobId: `post-${scheduledPostId}`, // prevents duplicate scheduling
         // Stall protection via Worker stalledInterval + lockDuration (C6)
       },
     );
@@ -81,7 +81,7 @@ export class SocialPublishQueueService implements OnModuleInit, OnModuleDestroy 
   async cancelPost(scheduledPostId: string, platform: SocialPlatform): Promise<void> {
     const queue = this.queues.get(platform);
     if (!queue) return;
-    const job = await queue.getJob(`post:${scheduledPostId}`);
+    const job = await queue.getJob(`post-${scheduledPostId}`);
     if (job) await job.remove();
   }
 
