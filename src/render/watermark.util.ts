@@ -1,6 +1,6 @@
 import type { WatermarkConfig } from './render-queue.service';
 
-const DEFAULT_WATERMARK_TEXT = 'Made with AutoReels';
+const DEFAULT_WATERMARK_TEXT = 'Made with autoreels.in';
 
 /**
  * Derives watermark config from user subscription at render time.
