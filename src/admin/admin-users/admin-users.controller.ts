@@ -3,6 +3,7 @@ import {
   Get,
   Patch,
   Post,
+  Delete,
   Param,
   Query,
   Body,
@@ -34,6 +35,14 @@ export class AdminUsersController {
     return this.adminUsersService.listUsers(query);
   }
 
+  @Get('export')
+  @ApiOperation({ summary: 'Export all users as CSV' })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  async exportUsers(@Query('search') search?: string) {
+    const csv = await this.adminUsersService.exportUsers(search);
+    return { csv };
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get user details' })
   getUser(@Param('id', ParseUUIDPipe) id: string) {
@@ -62,6 +71,14 @@ export class AdminUsersController {
     @CurrentAdmin() admin: any,
   ) {
     return this.adminUsersService.updateCredits(id, dto, admin.adminId);
+  }
+
+  @Delete(':id')
+  @UseGuards(AdminRoleGuard)
+  @AdminRoles(AdminRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Permanently delete a user (super_admin only)' })
+  deleteUser(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminUsersService.deleteUser(id);
   }
 
   @Post(':id/impersonate')

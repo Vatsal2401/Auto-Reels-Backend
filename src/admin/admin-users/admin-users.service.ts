@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -191,6 +191,57 @@ export class AdminUsersService {
       totalProjects: projectsResult[0].count,
       totalCreditsUsed: creditsResult[0].total,
     };
+  }
+
+  async exportUsers(search?: string): Promise<string> {
+    const searchParam = search ? `%${search}%` : '%';
+
+    const users = await this.dataSource.query(
+      `SELECT u.id, u.email, u.name, u.credits_balance, u.is_premium, u.country,
+              u.auth_provider, u.created_at, COUNT(p.id)::int as total_projects
+       FROM users u
+       LEFT JOIN projects p ON p.user_id = u.id
+       WHERE u.email ILIKE $1 OR u.name ILIKE $1
+       GROUP BY u.id
+       ORDER BY u.created_at DESC`,
+      [searchParam],
+    );
+
+    const header = ['id', 'email', 'name', 'credits_balance', 'is_premium', 'country', 'auth_provider', 'created_at', 'total_projects'].join(',');
+    const rows = users.map((u) =>
+      [
+        u.id,
+        `"${(u.email || '').replace(/"/g, '""')}"`,
+        `"${(u.name || '').replace(/"/g, '""')}"`,
+        u.credits_balance,
+        u.is_premium,
+        u.country || '',
+        u.auth_provider,
+        u.created_at,
+        u.total_projects,
+      ].join(','),
+    );
+
+    return [header, ...rows].join('\n');
+  }
+
+  async deleteUser(userId: string): Promise<{ deleted: boolean }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    try {
+      await this.userRepository.delete(userId);
+      return { deleted: true };
+    } catch (error) {
+      if (error.code === '23503') {
+        throw new ConflictException(
+          'Cannot delete user: they have associated records. Contact engineering to cascade-delete.',
+        );
+      }
+      throw error;
+    }
   }
 
   async impersonateUser(userId: string, adminId: string, ipAddress: string | null) {
