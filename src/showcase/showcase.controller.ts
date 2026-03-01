@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Header,
   UseInterceptors,
   UseGuards,
   UploadedFile,
@@ -24,6 +25,7 @@ export class ShowcaseController {
   constructor(private readonly showcaseService: ShowcaseService) {}
 
   @Get()
+  @Header('Cache-Control', 'public, max-age=3600, s-maxage=3600')
   async getShowcase(): Promise<ShowcaseResponse> {
     return this.showcaseService.getShowcase();
   }
@@ -40,7 +42,9 @@ export class ShowcaseController {
       sortOrder?: number;
     },
   ): Promise<ShowcaseItem> {
-    return this.showcaseService.createItem(body);
+    const result = await this.showcaseService.createItem(body);
+    this.showcaseService.invalidateShowcaseCache();
+    return result;
   }
 
   @UseGuards(AdminJwtGuard)
@@ -57,13 +61,17 @@ export class ShowcaseController {
       sortOrder?: number;
     },
   ): Promise<ShowcaseItem> {
-    return this.showcaseService.updateItem(id, body);
+    const result = await this.showcaseService.updateItem(id, body);
+    this.showcaseService.invalidateShowcaseCache();
+    return result;
   }
 
   @UseGuards(AdminJwtGuard)
   @Delete('items/:id')
   async deleteItem(@Param('id') id: string): Promise<void> {
-    return this.showcaseService.deleteItem(id);
+    const result = await this.showcaseService.deleteItem(id);
+    this.showcaseService.invalidateShowcaseCache();
+    return result;
   }
 
   @UseGuards(AdminJwtGuard)
@@ -76,6 +84,8 @@ export class ShowcaseController {
     if (!file?.buffer) {
       throw new BadRequestException('File is required');
     }
-    return this.showcaseService.uploadClipForItem(id, file.buffer);
+    const result = await this.showcaseService.uploadClipForItem(id, file.buffer);
+    this.showcaseService.invalidateShowcaseCache();
+    return result;
   }
 }

@@ -6,7 +6,12 @@ import { Project } from '../projects/entities/project.entity';
 import { ShowcaseItem, ShowcaseItemType } from './entities/showcase-item.entity';
 import { IStorageService } from '../storage/interfaces/storage.interface';
 
-const SHOWCASE_SIGNED_URL_EXPIRES = 3600; // 1 hour
+const SHOWCASE_SIGNED_URL_EXPIRES = 7200; // 2 hours — must exceed cache TTL below
+
+// In-memory cache so the same signed URLs are returned for 60 min.
+// Identical URLs = CDN can cache the video files across requests.
+let showcaseCache: { data: ShowcaseResponse; expiresAt: number } | null = null;
+const CACHE_TTL_MS = 60 * 60 * 1000; // 60 minutes
 const DEFAULT_TEXT_TO_IMAGE_URL = 'https://placehold.co/400x600/1a1a2e/6366f1?text=Text+to+Image';
 
 export interface ShowcaseItemResponse {
@@ -55,6 +60,11 @@ export class ShowcaseService {
   }
 
   async getShowcase(): Promise<ShowcaseResponse> {
+    // Serve from cache if still valid
+    if (showcaseCache && showcaseCache.expiresAt > Date.now()) {
+      return showcaseCache.data;
+    }
+
     const rows = await this.showcaseItemRepository.find({
       order: { sort_order: 'ASC' },
     });
@@ -89,7 +99,14 @@ export class ShowcaseService {
       }),
     );
 
-    return { items };
+    const response: ShowcaseResponse = { items };
+    showcaseCache = { data: response, expiresAt: Date.now() + CACHE_TTL_MS };
+    return response;
+  }
+
+  /** Call this after any admin mutation so the next request rebuilds fresh URLs. */
+  invalidateShowcaseCache(): void {
+    showcaseCache = null;
   }
 
   async createItem(dto: {
