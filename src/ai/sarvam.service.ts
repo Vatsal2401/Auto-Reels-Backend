@@ -4,20 +4,22 @@ import { NormalizedVoice } from './elevenlabs.service';
 import { IVoiceManagementService } from './interfaces/voice-management.interface';
 import { isHindi, toSarvamLanguageCode, preprocessTextForSarvam } from './utils/language.util';
 
-/** Voice type -> English and optional Hindi Sarvam speaker names. */
+// bulbul:v2 (Hindi/Marathi) speakers: anushka, abhilash, manisha, vidya, arya, karun, hitesh
+// bulbul:v3 (English + others) speakers: kabir, rahul, priya, aditya, varun, manan, soham, advait, suhani, kavya, amelia, ratan
+/** Voice type -> English (bulbul:v3) and optional Hindi (bulbul:v2) Sarvam speaker names. */
 const VOICE_MAP: Record<string, { en: string; hi?: string }> = {
-  'Viral Energetic': { en: 'kabir', hi: 'aayan' },
-  'Story / Podcast': { en: 'rahul', hi: 'rohan' },
-  'Soft / Aesthetic': { en: 'priya', hi: 'simran' },
-  'Authority / Explainer': { en: 'aditya', hi: 'dev' },
+  'Viral Energetic': { en: 'kabir', hi: 'karun' },
+  'Story / Podcast': { en: 'rahul', hi: 'abhilash' },
+  'Soft / Aesthetic': { en: 'priya', hi: 'anushka' },
+  'Authority / Explainer': { en: 'aditya', hi: 'arya' },
   'Mad Scientist - Energetic': { en: 'varun' },
-  'Creator Natural (Lofi)': { en: 'manan' },
-  'Creator Natural (Creator)': { en: 'soham' },
-  'Creator Natural (Explainer)': { en: 'advait' },
-  Sad: { en: 'suhani' },
-  'Soft Romantic': { en: 'kavya', hi: 'ishita' },
-  'Grounded And Professional': { en: 'amelia' },
-  'Old Rich': { en: 'ratan' },
+  'Creator Natural (Lofi)': { en: 'manan', hi: 'hitesh' },
+  'Creator Natural (Creator)': { en: 'soham', hi: 'abhilash' },
+  'Creator Natural (Explainer)': { en: 'advait', hi: 'arya' },
+  Sad: { en: 'suhani', hi: 'manisha' },
+  'Soft Romantic': { en: 'kavya', hi: 'vidya' },
+  'Grounded And Professional': { en: 'amelia', hi: 'hitesh' },
+  'Old Rich': { en: 'ratan', hi: 'abhilash' },
 };
 
 const SARVAM_TTS_URL = 'https://api.sarvam.ai/text-to-speech';
