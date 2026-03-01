@@ -19,9 +19,7 @@ export class SocialAuthController {
   ) {}
 
   private get frontendUrl(): string {
-    const url = this.configService.get<string>('frontendUrl') ?? 'http://localhost:3001';
-    this.logger.log(`[frontendUrl] configService=${url} | process.env=${process.env.FRONTEND_URL ?? 'NOT_SET'}`);
-    return url;
+    return process.env.FRONTEND_URL || this.configService.get<string>('frontendUrl') || 'http://localhost:3001';
   }
 
   // ─── YouTube ─────────────────────────────────────────────────────────────
