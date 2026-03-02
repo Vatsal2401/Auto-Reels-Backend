@@ -1,6 +1,11 @@
-import { IsOptional, IsInt, IsNumber, Min, Max } from 'class-validator';
+import { IsOptional, IsInt, IsNumber, IsIn, Min, Max } from 'class-validator';
+
+export type VideoFormat = 'horizontal' | 'vertical' | 'square';
 
 export class AnimateDto {
+  @IsOptional()
+  @IsIn(['horizontal', 'vertical', 'square'])
+  format?: VideoFormat;
   @IsOptional()
   @IsInt()
   @Min(14)

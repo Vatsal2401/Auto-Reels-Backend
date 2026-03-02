@@ -2,7 +2,13 @@ import { Injectable, BadGatewayException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import FormData from 'form-data';
-import { AnimateDto } from './dto/animate.dto';
+import { AnimateDto, VideoFormat } from './dto/animate.dto';
+
+const FORMAT_DIMENSIONS: Record<VideoFormat, { width: number; height: number }> = {
+  horizontal: { width: 1024, height: 576 },
+  vertical:   { width: 576,  height: 1024 },
+  square:     { width: 576,  height: 576  },
+};
 
 export interface AnimateResult {
   video_base64: string;
@@ -21,6 +27,8 @@ export class ImageToVideoService {
   async animate(imageBuffer: Buffer, mimetype: string, params: AnimateDto): Promise<AnimateResult> {
     const form = new FormData();
 
+    const { width, height } = FORMAT_DIMENSIONS[params.format ?? 'horizontal'];
+
     // SVD server expects field name "file" and a JSON-encoded "data" string
     form.append('file', imageBuffer, { filename: 'image', contentType: mimetype });
     form.append('data', JSON.stringify({
@@ -30,6 +38,8 @@ export class ImageToVideoService {
       motion_bucket_id:    params.motion_bucket_id    ?? 127,
       noise_aug_strength:  params.noise_aug_strength  ?? 0.02,
       seed:                params.seed                ?? -1,
+      width,
+      height,
     }));
 
     try {
