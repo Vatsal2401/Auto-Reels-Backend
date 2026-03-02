@@ -33,10 +33,10 @@ export class ImageToVideoService {
     form.append('file', imageBuffer, { filename: 'image', contentType: mimetype });
     form.append('data', JSON.stringify({
       num_frames:          params.num_frames          ?? 25,
-      num_inference_steps: params.num_inference_steps ?? 15,
+      num_inference_steps: params.num_inference_steps ?? 20,
       fps:                 params.fps                 ?? 7,
-      motion_bucket_id:    params.motion_bucket_id    ?? 127,
-      noise_aug_strength:  params.noise_aug_strength  ?? 0.02,
+      motion_bucket_id:    params.motion_bucket_id    ?? 100,
+      noise_aug_strength:  params.noise_aug_strength  ?? 0.1,
       seed:                params.seed                ?? -1,
       width,
       height,
