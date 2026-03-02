@@ -24,6 +24,11 @@ export class UserSettingsService {
     return s.social_media_scheduler_enabled;
   }
 
+  async isImageToVideoEnabled(userId: string): Promise<boolean> {
+    const s = await this.getOrCreate(userId);
+    return s.image_to_video_enabled;
+  }
+
   async markOnboardingCompleted(userId: string): Promise<void> {
     const settings = await this.getOrCreate(userId);
     if (!settings.has_completed_onboarding) {

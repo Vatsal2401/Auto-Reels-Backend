@@ -25,6 +25,9 @@ export class UserSettings {
   @Column({ name: 'has_completed_onboarding', type: 'boolean', default: false })
   has_completed_onboarding: boolean;
 
+  @Column({ name: 'image_to_video_enabled', type: 'boolean', default: false })
+  image_to_video_enabled: boolean;
+
   @UpdateDateColumn({ name: 'updated_at' })
   updated_at: Date;
 }

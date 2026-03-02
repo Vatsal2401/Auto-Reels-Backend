@@ -27,6 +27,7 @@ import { UserNotificationsModule } from './user-notifications/user-notifications
 import { BlogModule } from './blog/blog.module';
 import { UserSettingsModule } from './user-settings/user-settings.module';
 import { SocialModule } from './social/social.module';
+import { ImageToVideoModule } from './image-to-video/image-to-video.module';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { SocialModule } from './social/social.module';
     BlogModule,
     UserSettingsModule,
     SocialModule,
+    ImageToVideoModule,
   ],
   providers: [
     {
