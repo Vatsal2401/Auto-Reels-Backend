@@ -20,24 +20,17 @@ export class ImageToVideoService {
 
   async animate(imageBuffer: Buffer, mimetype: string, params: AnimateDto): Promise<AnimateResult> {
     const form = new FormData();
-    form.append('image', imageBuffer, { filename: 'image', contentType: mimetype });
 
-    // Append each param individually so the server receives them as form fields
-    const defaults: Required<AnimateDto> = {
-      num_frames: 25,
-      num_inference_steps: 15,
-      fps: 7,
-      motion_bucket_id: 127,
-      noise_aug_strength: 0.02,
-      seed: -1,
-    };
-
-    form.append('num_frames',           String(params.num_frames           ?? defaults.num_frames));
-    form.append('num_inference_steps',  String(params.num_inference_steps  ?? defaults.num_inference_steps));
-    form.append('fps',                  String(params.fps                  ?? defaults.fps));
-    form.append('motion_bucket_id',     String(params.motion_bucket_id     ?? defaults.motion_bucket_id));
-    form.append('noise_aug_strength',   String(params.noise_aug_strength   ?? defaults.noise_aug_strength));
-    form.append('seed',                 String(params.seed                 ?? defaults.seed));
+    // SVD server expects field name "file" and a JSON-encoded "data" string
+    form.append('file', imageBuffer, { filename: 'image', contentType: mimetype });
+    form.append('data', JSON.stringify({
+      num_frames:          params.num_frames          ?? 25,
+      num_inference_steps: params.num_inference_steps ?? 15,
+      fps:                 params.fps                 ?? 7,
+      motion_bucket_id:    params.motion_bucket_id    ?? 127,
+      noise_aug_strength:  params.noise_aug_strength  ?? 0.02,
+      seed:                params.seed                ?? -1,
+    }));
 
     try {
       const response = await axios.post<AnimateResult>(
@@ -52,7 +45,12 @@ export class ImageToVideoService {
       );
       return response.data;
     } catch (err: any) {
-      const message = err?.response?.data?.detail || err?.message || 'SVD server error';
+      const detail = err?.response?.data?.detail;
+      const message = typeof detail === 'string'
+        ? detail
+        : detail
+          ? JSON.stringify(detail)
+          : err?.message ?? 'SVD server error';
       throw new BadGatewayException(`Image-to-video failed: ${message}`);
     }
   }
