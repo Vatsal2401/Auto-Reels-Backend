@@ -167,6 +167,8 @@ export interface EnhancedScene {
   highlightWords?: string[];
   /** Emoji or keyword for icon/shape overlay generation. */
   iconSuggestion?: string;
+  /** Multi-line structured content (e.g. step list). Used by steps-card and quote-card routing. */
+  lines?: string[];
 }
 
 export type MotionPreset = 'premium-ease' | 'minimal' | 'emphasis';
