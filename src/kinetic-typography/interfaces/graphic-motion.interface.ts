@@ -6,6 +6,17 @@
 export type SceneType = 'intro' | 'problem' | 'feature' | 'cta';
 export type VisualTreatment = 'minimal' | 'bold' | 'kinetic' | 'calm';
 
+export type BackgroundType =
+  | 'flat-light'
+  | 'flat-dark'
+  | 'gradient-soft'
+  | 'animated-gradient'
+  | 'dot-grid'
+  | 'geometric-lines'
+  | 'noise-texture'
+  | 'radial-glow'
+  | 'crosshatch-grid';
+
 /**
  * Per-scene fields optimized for Remotion graphic motion templates.
  * When AI provides these, the engine uses them for labels, subheadlines, quotes, and template choice.
@@ -28,6 +39,12 @@ export interface ScenePlanScene {
   suggestedTemplateType?: TemplateType;
   /** Optional. When "high", headline gets strongest color; "medium" can be used for softer emphasis. */
   headlineEmphasis?: 'high' | 'medium';
+  /** AI-suggested background type for this scene based on tone. */
+  backgroundType?: BackgroundType;
+  /** 1–2 power words to highlight in accent color. */
+  highlightWords?: string[];
+  /** Emoji or keyword for future icon/shape overlay. */
+  iconSuggestion?: string;
 }
 
 export interface ScenePlan {
@@ -45,11 +62,38 @@ export type LayoutType =
   | 'impact-single-word'
   | 'graphic-accent';
 
-/** Structured template types (Canva-style). Each has distinct hierarchy and layout. */
-export type TemplateType = 'title-card' | 'quote-card' | 'feature-highlight' | 'impact-full-bleed';
+/** Structured template types (Canva-style). Each has distinct hierarchy and layout structure. */
+export type TemplateType =
+  | 'title-card'
+  | 'quote-card'
+  | 'feature-highlight'
+  | 'impact-full-bleed'
+  | 'stats-card'
+  | 'steps-card'
+  | 'split-accent'
+  | 'countdown-badge'
+  | 'hero-split';
 
 /** Style preset applied consistently across the whole video. */
-export type TemplateStyle = 'minimal' | 'bold' | 'corporate';
+export type TemplateStyle =
+  | 'minimal'
+  | 'bold'
+  | 'corporate'
+  | 'neon'
+  | 'editorial'
+  | 'gradient-pop'
+  | 'dark-luxury'
+  | 'pastel-soft';
+
+export type TransitionType =
+  | 'fade'
+  | 'slide-up'
+  | 'mask-wipe'
+  | 'zoom'
+  | 'glitch'
+  | 'blur-sweep'
+  | 'diagonal-wipe'
+  | 'letter-blur';
 
 /** Optional three-level text colors (headline, subhead, label). When set, Remotion uses these instead of deriving from background. */
 export interface TextColorHierarchy {
@@ -58,9 +102,21 @@ export interface TextColorHierarchy {
   label: string;
 }
 
+/** A single decorative SVG shape for the icon overlay system. */
+export interface DecorativeShape {
+  shape: 'circle' | 'triangle' | 'diamond' | 'star' | 'cross';
+  cx: number;
+  cy: number;
+  size: number;
+  /** Optional external icon URL. When set, renders <img> instead of SVG primitive. */
+  iconUrl?: string;
+  /** When true, renders an OrbitalRing ellipse around this shape. */
+  hasOrbit?: boolean;
+}
+
 export interface TemplateStyleConfig {
   background: {
-    type: 'flat-light' | 'flat-dark' | 'gradient-soft';
+    type: BackgroundType;
     primary: string;
     secondary?: string;
   };
@@ -77,6 +133,8 @@ export interface TemplateStyleConfig {
   accent: {
     color: string;
     showBar: boolean;
+    /** Glow intensity (0–1). Remotion derives glowPx = glowIntensity × 24. */
+    glowIntensity?: number;
   };
   /** Optional. When set, Remotion uses this hierarchy instead of deriving from background type. */
   textColors?: TextColorHierarchy;
@@ -103,6 +161,12 @@ export interface EnhancedScene {
   authorLine?: string;
   /** Optional. From AI: "high" | "medium". Templates use for headline emphasis. */
   headlineEmphasis?: 'high' | 'medium';
+  /** AI-suggested or rule-derived background type for this scene. */
+  backgroundType?: BackgroundType;
+  /** 1–2 power words to highlight in accent color. */
+  highlightWords?: string[];
+  /** Emoji or keyword for icon/shape overlay generation. */
+  iconSuggestion?: string;
 }
 
 export type MotionPreset = 'premium-ease' | 'minimal' | 'emphasis';
@@ -121,8 +185,6 @@ export interface SceneRhythm {
   exitFrames: number;
   totalFrames: number;
 }
-
-export type TransitionType = 'fade' | 'slide-up' | 'mask-wipe' | 'zoom';
 
 export interface TransitionSpec {
   transitionType: TransitionType;
@@ -152,6 +214,24 @@ export interface GraphicMotionScene {
   accentColor?: string;
   /** Optional. From AI: "high" | "medium". Templates can use for headline vs support color emphasis. */
   headlineEmphasis?: 'high' | 'medium';
+  /** For stats-card: the large metric number/value to display. */
+  statNumber?: string;
+  /** For stats-card: the unit/label below the number. */
+  statLabel?: string;
+  /** For steps-card: array of step text strings (up to 3). Fallback to lines[]. */
+  stepItems?: string[];
+  /** 1–2 power words to render in accent color with underline animation. */
+  highlightWords?: string[];
+  /** Render headline as CSS gradient text (webkit). */
+  gradientText?: boolean;
+  /** Per-scene background type override. Overrides video-level background when set. */
+  backgroundType?: BackgroundType;
+  /** Decorative SVG shape overlays. */
+  decorativeShapes?: DecorativeShape[];
+  /** CTA label text for hero-split template (e.g. "Try Free"). */
+  ctaLabel?: string;
+  /** Asset URL for hero-split template left-column image. */
+  assetUrl?: string;
 }
 
 export interface GraphicMotionTimeline {

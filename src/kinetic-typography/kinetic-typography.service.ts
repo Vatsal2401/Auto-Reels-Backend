@@ -21,6 +21,9 @@ import type {
   GraphicMotionTimeline,
   GraphicMotionScene,
   TemplateStyle,
+  DecorativeShape,
+  BackgroundType,
+  EnhancedScene,
 } from './interfaces/graphic-motion.interface';
 import { TemplateEngineService } from './services/template-engine.service';
 import { getTemplateStyleConfig } from './config/template-style.config';
@@ -43,6 +46,10 @@ export interface KineticCreateDto {
   minHoldSeconds?: number;
   /** Optional. Background music: id from music library, volume 0–1. */
   music?: { id: string; volume?: number };
+  /** Optional. CTA label text for hero-split template (e.g. "Try Free"). */
+  ctaLabel?: string;
+  /** Optional. Brand asset URL — used as left-column image in hero-split scenes. */
+  brandAssetUrl?: string;
 }
 
 const FORMAT_DIMENSIONS: Record<string, { width: number; height: number }> = {
@@ -55,6 +62,30 @@ const FORMAT_DIMENSIONS: Record<string, { width: number; height: number }> = {
 const DEFAULT_WIDTH = 1080;
 const DEFAULT_HEIGHT = 1920;
 const FPS = 30;
+
+/** Icon suggestion → shape mapping for decorative overlays. */
+const ICON_SHAPE_MAP: Record<string, DecorativeShape['shape']> = {
+  circle: 'circle',
+  dot: 'circle',
+  '🔵': 'circle',
+  '⭕': 'circle',
+  triangle: 'triangle',
+  '🔺': 'triangle',
+  '▲': 'triangle',
+  diamond: 'diamond',
+  '🔷': 'diamond',
+  '💎': 'diamond',
+  star: 'star',
+  '⭐': 'star',
+  '✨': 'star',
+  cross: 'cross',
+  plus: 'cross',
+  '+': 'cross',
+  '✚': 'cross',
+};
+
+/** Background types that benefit from shape overlays. */
+const OVERLAY_BG_TYPES: BackgroundType[] = ['animated-gradient', 'dot-grid', 'geometric-lines', 'radial-glow'];
 
 @Injectable()
 export class KineticTypographyService {
@@ -108,7 +139,7 @@ export class KineticTypographyService {
     const transitions = this.transitionManager.assignTransitions(
       enhancedScenes.length,
       layoutTypes,
-      { projectId, fps: FPS },
+      { projectId, fps: FPS, enhancedScenes },
     );
 
     const templateStyle: TemplateStyle = dto.templateStyle ?? 'minimal';
@@ -125,13 +156,32 @@ export class KineticTypographyService {
           : String(scene?.text ?? '')
               .split(/\s+/)
               .filter(Boolean);
+
+      // highlightWords: merge AI-suggested with user-provided dto.highlightWords
+      const sceneHighlightWords = this.mergeHighlightWords(
+        scene.highlightWords,
+        dto.highlightWords,
+        words,
+      );
       const highlightIndices = this.getHighlightIndices(words, dto.highlightWords ?? []);
+
       const label = scene.label ?? this.deriveLabel(scene.sceneType, i, enhancedScenes.length);
+      const decorativeShapes = this.buildDecorativeShapes(scene, styleConfig.background.type);
+
+      const templateType = templateTypes[i]!;
+      // For hero-split: assign assetUrl from dto.brandAssetUrl on first scene; plumb ctaLabel
+      const assetUrl =
+        templateType === 'hero-split' && dto.brandAssetUrl ? dto.brandAssetUrl : undefined;
+      const ctaLabel =
+        templateType === 'hero-split' && dto.ctaLabel
+          ? this.capForRemotion(dto.ctaLabel, 30)
+          : undefined;
+
       return {
         text: scene.text,
         words,
         layoutType: layoutTypes[i]!,
-        templateType: templateTypes[i]!,
+        templateType,
         motionConfig: motionConfigs[i]!,
         rhythm: rhythms[i]!,
         transitionIn: transitions[i]!,
@@ -142,6 +192,11 @@ export class KineticTypographyService {
         authorLine: this.capForRemotion(scene.authorLine, 40),
         accentColor: styleConfig.accent.color,
         headlineEmphasis: scene.headlineEmphasis,
+        backgroundType: scene.backgroundType,
+        highlightWords: sceneHighlightWords.length > 0 ? sceneHighlightWords : undefined,
+        decorativeShapes: decorativeShapes.length > 0 ? decorativeShapes : undefined,
+        ...(ctaLabel && { ctaLabel }),
+        ...(assetUrl && { assetUrl }),
       };
     });
 
@@ -159,6 +214,7 @@ export class KineticTypographyService {
         dto.targetSecondsPerScene ?? this.mapPreferredSceneLength(scenePlan.preferredSceneLength),
       minHoldSeconds: dto.minHoldSeconds,
       scenes,
+      ...(dto.brandAssetUrl && { brandAssetUrl: dto.brandAssetUrl }),
     };
 
     let musicBlobId: string | undefined;
@@ -281,6 +337,52 @@ export class KineticTypographyService {
     if (!Array.isArray(words) || highlightWords.length === 0) return [];
     const set = new Set(highlightWords.map((w) => w.trim().toLowerCase()));
     return words.map((w, i) => (set.has(w.toLowerCase()) ? i : -1)).filter((i) => i >= 0);
+  }
+
+  /** Merge AI scene-level highlight words with user DTO highlight words (unique, max 2). */
+  private mergeHighlightWords(
+    sceneWords: string[] | undefined,
+    dtoWords: string[] | undefined,
+    sceneWordList: string[],
+  ): string[] {
+    const candidates = [
+      ...(sceneWords ?? []),
+      ...(dtoWords ?? []),
+    ];
+    const sceneWordSet = new Set(sceneWordList.map((w) => w.toLowerCase()));
+    return [...new Set(candidates.map((w) => w.trim()).filter((w) => sceneWordSet.has(w.toLowerCase())))].slice(0, 2);
+  }
+
+  /** Generate decorative shapes from iconSuggestion + background type rules. */
+  private buildDecorativeShapes(
+    scene: EnhancedScene,
+    videoBgType: BackgroundType,
+  ): DecorativeShape[] {
+    const effectiveBg = scene.backgroundType ?? videoBgType;
+    const shouldOverlay = OVERLAY_BG_TYPES.includes(effectiveBg);
+
+    if (!scene.iconSuggestion && !shouldOverlay) return [];
+
+    // Map iconSuggestion to shape type
+    let shapeType: DecorativeShape['shape'] = 'circle';
+    if (scene.iconSuggestion) {
+      const key = scene.iconSuggestion.trim().toLowerCase();
+      const mapped = ICON_SHAPE_MAP[key] ?? ICON_SHAPE_MAP[scene.iconSuggestion.trim()];
+      if (mapped) shapeType = mapped;
+    }
+
+    if (!shouldOverlay) {
+      // Only icon suggestion, no bg overlay rule — place one shape top-right
+      return [{ shape: shapeType, cx: 82, cy: 18, size: 64 }];
+    }
+
+    // Background-type-driven placement (2 corner shapes for visual interest)
+    const shapes: DecorativeShape[] = [
+      { shape: shapeType, cx: 82, cy: 18, size: 72 },
+      { shape: shapeType === 'circle' ? 'diamond' : 'circle', cx: 18, cy: 82, size: 56 },
+    ];
+
+    return shapes;
   }
 
   private applyHighlightIndices(

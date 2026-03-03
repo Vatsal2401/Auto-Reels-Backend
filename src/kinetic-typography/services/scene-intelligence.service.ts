@@ -4,6 +4,7 @@ import type {
   EnhancedScene,
   ToneCategory,
   LayoutType,
+  BackgroundType,
 } from '../interfaces/graphic-motion.interface';
 
 @Injectable()
@@ -23,6 +24,8 @@ export class SceneIntelligenceService {
     const toneCategory = this.toneCategory(scene.sceneType, globalTone);
     const visualWeight = scene.importanceScore * 0.6 + scene.emphasisLevel * 0.4;
     const suggestedLayoutType = this.suggestLayout(wordCount, words, scene);
+    const backgroundType =
+      scene.backgroundType ?? this.mapToneToBackground(toneCategory, scene.sceneType);
 
     return {
       text: scene.text,
@@ -41,6 +44,9 @@ export class SceneIntelligenceService {
       supportingText: scene.supportingText,
       authorLine: scene.authorLine,
       headlineEmphasis: scene.headlineEmphasis,
+      backgroundType,
+      highlightWords: scene.highlightWords,
+      iconSuggestion: scene.iconSuggestion,
     };
   }
 
@@ -63,6 +69,18 @@ export class SceneIntelligenceService {
     const t = globalTone.toLowerCase();
     if (t.includes('celebrat') || t.includes('bold')) return 'celebratory';
     return 'neutral';
+  }
+
+  /**
+   * Rule-based background type fallback when AI doesn't suggest one.
+   * urgent → radial-glow, celebratory → animated-gradient, calm/intro → dot-grid, neutral → (no override, use style preset).
+   */
+  mapToneToBackground(toneCategory: ToneCategory, sceneType: ScenePlanScene['sceneType']): BackgroundType | undefined {
+    if (sceneType === 'cta' || toneCategory === 'urgent') return 'radial-glow';
+    if (toneCategory === 'celebratory') return 'animated-gradient';
+    if (toneCategory === 'calm' || sceneType === 'intro') return 'dot-grid';
+    // neutral → let the video-level style preset decide
+    return undefined;
   }
 
   private suggestLayout(

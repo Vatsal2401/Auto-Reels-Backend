@@ -5,9 +5,10 @@ import type {
   ScenePlan,
   ScenePlanScene,
   TemplateType,
+  BackgroundType,
 } from '../interfaces/graphic-motion.interface';
 
-const SCENE_PLANNER_PROMPT = `You are a video scene planner for short-form premium SaaS and promo content that feeds a graphic motion engine (title cards, quote cards, feature highlights, impact words).
+const SCENE_PLANNER_PROMPT = `You are a video scene planner for short-form premium SaaS and promo content that feeds a graphic motion engine (title cards, quote cards, feature highlights, impact words, stats cards, steps cards, countdown badges).
 
 Given a script or short prompt, output a JSON object with:
 - videoStyle: string (e.g. "premium-saas", "minimal")
@@ -23,8 +24,11 @@ Given a script or short prompt, output a JSON object with:
   - subHeadline: exactly ONE short line under the main text for title-card (e.g. a one-line tagline). Max ~15 words.
   - supportingText: exactly ONE line of supporting copy for feature scenes. Max ~20 words.
   - authorLine: for quote-style scenes only, short attribution (e.g. "Steve Jobs", "Our CEO"). Max ~8 words.
-  - suggestedTemplateType: "title-card"|"quote-card"|"feature-highlight"|"impact-full-bleed" when obvious (e.g. one word → impact-full-bleed, long quote → quote-card, intro → title-card).
+  - suggestedTemplateType: "title-card"|"quote-card"|"feature-highlight"|"impact-full-bleed"|"stats-card"|"steps-card"|"split-accent"|"countdown-badge" when obvious. Use stats-card for numeric metrics, steps-card for lists/numbered steps, countdown-badge for CTA with a number, split-accent for feature sections with supporting text.
   - headlineEmphasis: OPTIONAL. "high" for key scenes (strongest headline treatment), "medium" for supporting. Omit when not needed.
+  - backgroundType: OPTIONAL. Background type that fits the scene tone: "animated-gradient" for celebratory/energetic, "radial-glow" for urgent/CTA/dramatic, "dot-grid" for calm/intro, "geometric-lines" for neutral/corporate, "noise-texture" for premium/dark, "flat-light" for clean/minimal, "flat-dark" for bold/dark. Omit to use video-level default.
+  - highlightWords: OPTIONAL. Array of 1–2 power words from the scene text to render in accent color. Keep these to the most impactful words only.
+  - iconSuggestion: OPTIONAL. A single emoji or short keyword (e.g. "rocket", "🚀", "chart") for decorative shape overlay. Only for scenes that benefit from visual decoration.
 
 Split content into clear scenes. First scene is often intro with a strong label; last often cta. For quotes, set authorLine. For feature bullets, set supportingText. Keep all optional fields SHORT so the motion engine renders cleanly. emphasisLevel and importanceScore are 0-1.
 Respond with only valid JSON, no markdown code fences.`;
@@ -83,6 +87,12 @@ export class ScenePlannerService {
                   s?.authorLine != null ? String(s.authorLine).trim() || undefined : undefined,
                 suggestedTemplateType: this.normalizeTemplateType(s?.suggestedTemplateType),
                 headlineEmphasis: this.normalizeHeadlineEmphasis(s?.headlineEmphasis),
+                backgroundType: this.normalizeBackgroundType(s?.backgroundType),
+                highlightWords: this.normalizeHighlightWords(s?.highlightWords),
+                iconSuggestion:
+                  s?.iconSuggestion != null
+                    ? String(s.iconSuggestion).trim() || undefined
+                    : undefined,
               }))
             : [];
           if (scenes.length > 0) {
@@ -120,7 +130,17 @@ export class ScenePlannerService {
 
   private normalizeTemplateType(v: unknown): TemplateType | undefined {
     const s = String(v).toLowerCase();
-    if (['title-card', 'quote-card', 'feature-highlight', 'impact-full-bleed'].includes(s)) {
+    const valid: TemplateType[] = [
+      'title-card',
+      'quote-card',
+      'feature-highlight',
+      'impact-full-bleed',
+      'stats-card',
+      'steps-card',
+      'split-accent',
+      'countdown-badge',
+    ];
+    if (valid.includes(s as TemplateType)) {
       return s as TemplateType;
     }
     return undefined;
@@ -130,6 +150,34 @@ export class ScenePlannerService {
     const s = String(v).toLowerCase();
     if (s === 'high' || s === 'medium') return s;
     return undefined;
+  }
+
+  private normalizeBackgroundType(v: unknown): BackgroundType | undefined {
+    if (v == null) return undefined;
+    const s = String(v).toLowerCase();
+    const valid: BackgroundType[] = [
+      'flat-light',
+      'flat-dark',
+      'gradient-soft',
+      'animated-gradient',
+      'dot-grid',
+      'geometric-lines',
+      'noise-texture',
+      'radial-glow',
+    ];
+    if (valid.includes(s as BackgroundType)) {
+      return s as BackgroundType;
+    }
+    return undefined;
+  }
+
+  private normalizeHighlightWords(v: unknown): string[] | undefined {
+    if (!Array.isArray(v)) return undefined;
+    const words = v
+      .map((w) => String(w).trim())
+      .filter((w) => w.length > 0)
+      .slice(0, 2);
+    return words.length > 0 ? words : undefined;
   }
 
   private fallbackToScriptProcessor(script: string): ScenePlan {
