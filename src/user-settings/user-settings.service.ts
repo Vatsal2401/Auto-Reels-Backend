@@ -29,6 +29,11 @@ export class UserSettingsService {
     return s.image_to_video_enabled;
   }
 
+  async isLipSyncEnabled(userId: string): Promise<boolean> {
+    const s = await this.getOrCreate(userId);
+    return s.lipsync_enabled;
+  }
+
   async markOnboardingCompleted(userId: string): Promise<void> {
     const settings = await this.getOrCreate(userId);
     if (!settings.has_completed_onboarding) {

@@ -19,6 +19,7 @@ export class UserSettingsController {
       social_media_scheduler_enabled: s.social_media_scheduler_enabled,
       has_completed_onboarding: s.has_completed_onboarding,
       image_to_video_enabled: s.image_to_video_enabled,
+      lipsync_enabled: s.lipsync_enabled,
     };
   }
 

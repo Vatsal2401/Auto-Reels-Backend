@@ -28,6 +28,8 @@ import { BlogModule } from './blog/blog.module';
 import { UserSettingsModule } from './user-settings/user-settings.module';
 import { SocialModule } from './social/social.module';
 import { ImageToVideoModule } from './image-to-video/image-to-video.module';
+import { LipSyncModule } from './lipsync/lipsync.module';
+import { UgcModule } from './ugc/ugc.module';
 
 @Module({
   imports: [
@@ -71,6 +73,8 @@ import { ImageToVideoModule } from './image-to-video/image-to-video.module';
     UserSettingsModule,
     SocialModule,
     ImageToVideoModule,
+    LipSyncModule,
+    UgcModule,
   ],
   providers: [
     {

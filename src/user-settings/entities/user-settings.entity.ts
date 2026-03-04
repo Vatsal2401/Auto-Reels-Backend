@@ -28,6 +28,9 @@ export class UserSettings {
   @Column({ name: 'image_to_video_enabled', type: 'boolean', default: false })
   image_to_video_enabled: boolean;
 
+  @Column({ name: 'lipsync_enabled', type: 'boolean', default: false })
+  lipsync_enabled: boolean;
+
   @UpdateDateColumn({ name: 'updated_at' })
   updated_at: Date;
 }
