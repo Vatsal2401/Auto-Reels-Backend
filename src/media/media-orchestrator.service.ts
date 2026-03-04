@@ -1,4 +1,4 @@
-import { Injectable, Logger, Inject } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Media } from './entities/media.entity';
@@ -21,6 +21,11 @@ import {
   ViralCaptionOptimizerService,
   ViralCaptionLine,
 } from '../ai/services/viral-caption-optimizer.service';
+import { UgcScriptService } from '../ugc/services/ugc-script.service';
+import { HedraService } from '../ugc/services/hedra.service';
+import { BrollLibraryService } from '../ugc/services/broll-library.service';
+import { UgcComposeService } from '../ugc/services/ugc-compose.service';
+import { UgcScene } from '../ugc/services/ugc-script.service';
 
 @Injectable()
 export class MediaOrchestratorService {
@@ -46,6 +51,10 @@ export class MediaOrchestratorService {
     @InjectRepository(BackgroundMusic)
     private musicRepository: Repository<BackgroundMusic>,
     private readonly viralCaptionOptimizer: ViralCaptionOptimizerService,
+    @Optional() private readonly ugcScriptService: UgcScriptService,
+    @Optional() private readonly hedraService: HedraService,
+    @Optional() private readonly brollLibraryService: BrollLibraryService,
+    @Optional() private readonly ugcComposeService: UgcComposeService,
   ) {}
 
   async processMedia(mediaId: string): Promise<void> {
@@ -131,6 +140,7 @@ export class MediaOrchestratorService {
           resultBlobIds = await this.handleScriptStep(media);
           break;
         case 'audio':
+        case 'voice':
           resultBlobIds = await this.handleAudioStep(media);
           break;
         case 'captions':
@@ -142,14 +152,30 @@ export class MediaOrchestratorService {
         case 'render':
           resultBlobIds = await this.handleRenderStep(media);
           break;
+        case 'product':
+          resultBlobIds = await this.handleUgcProductStep(media);
+          break;
+        case 'ugcScript':
+          resultBlobIds = await this.handleUgcScriptStep(media);
+          break;
+        case 'broll':
+          resultBlobIds = await this.handleUgcBrollStep(media);
+          break;
+        case 'actor':
+          resultBlobIds = await this.handleUgcActorStep(media);
+          break;
+        case 'ugcCompose':
+          resultBlobIds = await this.handleUgcComposeStep(media);
+          break;
         default:
           throw new Error(`Unknown step type: ${step.step}`);
       }
 
+      const isWorkerHandled = step.step === 'render' || step.step === 'ugcCompose';
       await this.stepRepository.update(step.id, {
-        status: step.step === 'render' ? StepStatus.PROCESSING : StepStatus.SUCCESS,
+        status: isWorkerHandled ? StepStatus.PROCESSING : StepStatus.SUCCESS,
         blob_storage_id: resultBlobIds,
-        completed_at: step.step === 'render' ? null : new Date(),
+        completed_at: isWorkerHandled ? null : new Date(),
       });
     } catch (error) {
       this.logger.error(`Step ${step.step} failed for media ${mediaId}:`, error);
@@ -262,9 +288,15 @@ export class MediaOrchestratorService {
   }
 
   private async handleAudioStep(media: Media): Promise<string> {
-    const scriptAsset = await this.assetRepository.findOne({
+    // For UGC flows, use ugc_script which contains voiceover_text
+    let scriptAsset = await this.assetRepository.findOne({
       where: { media_id: media.id, type: MediaAssetType.SCRIPT },
     });
+    if (!scriptAsset) {
+      scriptAsset = await this.assetRepository.findOne({
+        where: { media_id: media.id, type: MediaAssetType.UGC_SCRIPT },
+      });
+    }
     if (!scriptAsset) throw new Error('Script asset missing');
 
     const intentAsset = await this.assetRepository.findOne({
@@ -275,7 +307,8 @@ export class MediaOrchestratorService {
     const scriptData = JSON.parse(
       (await this.storageService.download(scriptAsset.blob_storage_id)).toString(),
     );
-    const scriptText = (scriptData.text || '').trim();
+    // Support both standard script format ({text}) and UGC format ({voiceover_text})
+    const scriptText = (scriptData.text || scriptData.voiceover_text || '').trim();
 
     if (!scriptText) {
       this.logger.error(
@@ -316,7 +349,7 @@ export class MediaOrchestratorService {
 
     try {
       audioBuffer = await audioProvider.textToSpeech({
-        text: scriptData.text,
+        text: scriptText,
         voiceId: resolvedVoiceId,
         language: media.input_config?.language,
         prompt: intentData?.audio_prompt,
@@ -329,7 +362,7 @@ export class MediaOrchestratorService {
       try {
         this.logger.log(`Attempting Fallback 1: Gemini TTS (Google Journey Voices)...`);
         audioBuffer = await this.geminiTTS.textToSpeech({
-          text: scriptData.text,
+          text: scriptText,
           prompt: intentData?.audio_prompt, // Helps select gender
         });
       } catch (geminiError) {
@@ -338,7 +371,7 @@ export class MediaOrchestratorService {
         // Fallback 2: OpenAI TTS (Last Resort)
         this.logger.log(`Attempting Fallback 2: OpenAI TTS...`);
         audioBuffer = await this.openAITTS.textToSpeech({
-          text: scriptData.text,
+          text: scriptText,
         });
       }
     }
@@ -649,5 +682,219 @@ export class MediaOrchestratorService {
       metadata,
     });
     await this.assetRepository.save(asset);
+  }
+
+  // ─── UGC Step Handlers ───────────────────────────────────────────────────
+
+  /** product: parse and store the product brief JSON to S3 */
+  private async handleUgcProductStep(media: Media): Promise<string> {
+    const config = media.input_config || {};
+    const brief = {
+      productName: config.productName,
+      productDescription: config.productDescription,
+      benefits: config.benefits || [],
+      targetAudience: config.targetAudience,
+      callToAction: config.callToAction,
+      ugcStyle: config.ugcStyle,
+      actorId: config.actorId,
+      voiceId: config.voiceId,
+    };
+
+    const blobId = await this.storageService.upload({
+      userId: media.user_id,
+      mediaId: media.id,
+      type: 'ugc_brief',
+      step: 'product',
+      buffer: Buffer.from(JSON.stringify(brief)),
+      fileName: 'product-brief.json',
+    });
+
+    await this.addAsset(media.id, MediaAssetType.UGC_BRIEF, blobId, brief);
+    return blobId;
+  }
+
+  /** ugcScript: Gemini generates the UgcScriptJSON */
+  private async handleUgcScriptStep(media: Media): Promise<string> {
+    if (!this.ugcScriptService) throw new Error('UgcScriptService not available');
+
+    const briefAsset = await this.assetRepository.findOne({
+      where: { media_id: media.id, type: MediaAssetType.UGC_BRIEF },
+    });
+    if (!briefAsset) throw new Error('UGC brief asset missing');
+
+    const brief = briefAsset.metadata as any;
+    const script = await this.ugcScriptService.generateScript({
+      productName: brief.productName,
+      productDescription: brief.productDescription,
+      benefits: brief.benefits || [],
+      targetAudience: brief.targetAudience,
+      callToAction: brief.callToAction,
+      ugcStyle: brief.ugcStyle,
+    });
+
+    const blobId = await this.storageService.upload({
+      userId: media.user_id,
+      mediaId: media.id,
+      type: 'ugc_script',
+      step: 'ugcScript',
+      buffer: Buffer.from(JSON.stringify(script)),
+      fileName: 'ugc-script.json',
+    });
+
+    await this.addAsset(media.id, MediaAssetType.UGC_SCRIPT, blobId, {
+      hook: script.hook,
+      hook_strength: script.hook_strength,
+      total_duration_seconds: script.total_duration_seconds,
+    });
+
+    // Update script field on media for easy access
+    await this.mediaRepository.update(media.id, { script: script.voiceover_text });
+
+    return blobId;
+  }
+
+  /** broll: Find b-roll clips for each broll_cutaway scene */
+  private async handleUgcBrollStep(media: Media): Promise<string> {
+    if (!this.brollLibraryService) throw new Error('BrollLibraryService not available');
+
+    const scriptAsset = await this.assetRepository.findOne({
+      where: { media_id: media.id, type: MediaAssetType.UGC_SCRIPT },
+    });
+    if (!scriptAsset) throw new Error('UGC script asset missing');
+
+    const scriptData = JSON.parse(
+      (await this.storageService.download(scriptAsset.blob_storage_id)).toString(),
+    );
+
+    const brollScenes = scriptData.scenes.filter(
+      (s: UgcScene) => s.type === 'broll_cutaway' || s.type === 'product_close',
+    );
+
+    const brollMatches: any[] = [];
+    for (const scene of brollScenes) {
+      const match = await this.brollLibraryService.findClip({
+        query: scene.broll_query || 'lifestyle product',
+        clipType: scene.type === 'product_close' ? 'product_close' : 'broll',
+      });
+      brollMatches.push({
+        sceneNumber: scene.scene_number,
+        s3Key: match?.s3Key || '',
+        pexelsUrl: match?.pexelsUrl,
+        durationSeconds: match?.durationSeconds ?? scene.duration_seconds,
+        source: match?.source || 'none',
+      });
+    }
+
+    const blobId = await this.storageService.upload({
+      userId: media.user_id,
+      mediaId: media.id,
+      type: 'broll',
+      step: 'broll',
+      buffer: Buffer.from(JSON.stringify(brollMatches)),
+      fileName: 'broll-matches.json',
+    });
+
+    await this.addAsset(media.id, MediaAssetType.BROLL, blobId, { count: brollMatches.length });
+    return blobId;
+  }
+
+  /** actor: Submit and poll Hedra API to generate actor talking-head video */
+  private async handleUgcActorStep(media: Media): Promise<string> {
+    if (!this.hedraService) throw new Error('HedraService not available');
+
+    const briefAsset = await this.assetRepository.findOne({
+      where: { media_id: media.id, type: MediaAssetType.UGC_BRIEF },
+    });
+    const audioAsset = await this.assetRepository.findOne({
+      where: { media_id: media.id, type: MediaAssetType.AUDIO },
+    });
+    if (!briefAsset || !audioAsset) throw new Error('Brief or audio asset missing for actor step');
+
+    const brief = briefAsset.metadata as any;
+
+    // Get signed URLs for Hedra API (requires public-ish URLs)
+    const actorPortraitKey = `ugc/actors/${brief.actorId}/portrait.jpg`;
+    const avatarImageUrl = await this.storageService.getSignedUrl(actorPortraitKey, 600);
+    const audioUrl = await this.storageService.getSignedUrl(audioAsset.blob_storage_id, 600);
+
+    const jobId = await this.hedraService.submitJob({ avatarImageUrl, audioUrl });
+    const videoUrl = await this.hedraService.pollUntilComplete(jobId);
+
+    // Download Hedra video and re-upload to S3
+    const videoResponse = await fetch(videoUrl);
+    if (!videoResponse.ok) throw new Error(`Failed to download Hedra video: ${videoResponse.status}`);
+    const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+
+    const blobId = await this.storageService.upload({
+      userId: media.user_id,
+      mediaId: media.id,
+      type: 'actor_video',
+      step: 'actor',
+      buffer: videoBuffer,
+      fileName: 'actor-video.mp4',
+    });
+
+    await this.addAsset(media.id, MediaAssetType.ACTOR_VIDEO, blobId, { hedra_job_id: jobId });
+    return blobId;
+  }
+
+  /** ugcCompose: Enqueue FFmpeg composition job to ugc-render-tasks */
+  private async handleUgcComposeStep(media: Media): Promise<string> {
+    if (!this.ugcComposeService) throw new Error('UgcComposeService not available');
+
+    const actorAsset = await this.assetRepository.findOne({
+      where: { media_id: media.id, type: MediaAssetType.ACTOR_VIDEO },
+    });
+    const audioAsset = await this.assetRepository.findOne({
+      where: { media_id: media.id, type: MediaAssetType.AUDIO },
+    });
+    const brollAsset = await this.assetRepository.findOne({
+      where: { media_id: media.id, type: MediaAssetType.BROLL },
+    });
+    const scriptAsset = await this.assetRepository.findOne({
+      where: { media_id: media.id, type: MediaAssetType.UGC_SCRIPT },
+    });
+
+    if (!actorAsset || !audioAsset || !brollAsset || !scriptAsset) {
+      throw new Error('Required assets missing for ugcCompose step');
+    }
+
+    const scriptData = JSON.parse(
+      (await this.storageService.download(scriptAsset.blob_storage_id)).toString(),
+    );
+    const brollData = JSON.parse(
+      (await this.storageService.download(brollAsset.blob_storage_id)).toString(),
+    );
+
+    const step = await this.stepRepository.findOne({
+      where: { media_id: media.id, step: 'ugcCompose' },
+    });
+    const user = await this.userRepository.findOne({ where: { id: media.user_id } });
+
+    const musicConfig = media.input_config?.music;
+    let musicBlobId: string | undefined;
+    if (musicConfig?.id) {
+      const musicEntity = await this.musicRepository.findOne({ where: { id: musicConfig.id } });
+      if (musicEntity) musicBlobId = musicEntity.blob_storage_id;
+    }
+
+    await this.ugcComposeService.enqueueComposition({
+      mediaId: media.id,
+      stepId: step.id,
+      userId: media.user_id,
+      assets: {
+        actorVideo: actorAsset.blob_storage_id,
+        voice: audioAsset.blob_storage_id,
+        brollClips: brollData,
+        music: musicBlobId,
+      },
+      scenes: scriptData.scenes,
+      options: {
+        musicVolume: typeof musicConfig?.volume === 'number' ? musicConfig.volume : 0.15,
+      },
+      monetization: getWatermarkConfig(user?.is_premium ?? false),
+    });
+
+    return null; // Worker updates this on completion
   }
 }

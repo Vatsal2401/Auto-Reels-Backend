@@ -27,6 +27,9 @@ import { UserSettings } from '../user-settings/entities/user-settings.entity';
 import { ConnectedAccount } from '../social/entities/connected-account.entity';
 import { ScheduledPost } from '../social/entities/scheduled-post.entity';
 import { UploadLog } from '../social/entities/upload-log.entity';
+import { UgcActor } from '../ugc/entities/ugc-actor.entity';
+import { UgcContentLibrary } from '../ugc/entities/ugc-content-library.entity';
+import { UgcAbTest } from '../ugc/entities/ugc-ab-test.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -61,6 +64,9 @@ export const AppDataSource = new DataSource({
     ConnectedAccount,
     ScheduledPost,
     UploadLog,
+    UgcActor,
+    UgcContentLibrary,
+    UgcAbTest,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,
