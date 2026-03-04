@@ -1,4 +1,4 @@
-import { IsOptional, IsInt, Min, Max } from 'class-validator';
+import { IsOptional, IsInt, IsString, Min, Max } from 'class-validator';
 
 export class LipSyncDto {
   @IsOptional()
@@ -18,4 +18,14 @@ export class LipSyncDto {
   @Min(1)
   @Max(16)
   batch_size?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(40)
+  extra_margin?: number;
+
+  @IsOptional()
+  @IsString()
+  parsing_mode?: string;
 }

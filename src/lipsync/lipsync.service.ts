@@ -27,12 +27,15 @@ export class LipSyncService {
   ): Promise<LipSyncResult> {
     const form = new FormData();
 
-    form.append('face', faceBuffer, { filename: 'face.jpg', contentType: faceMimetype });
+    const faceFilename = faceMimetype.startsWith('video/') ? 'face.mp4' : 'face.jpg';
+    form.append('face', faceBuffer, { filename: faceFilename, contentType: faceMimetype });
     form.append('audio', audioBuffer, { filename: audioFilename });
     form.append('data', JSON.stringify({
-      bbox_shift:  params.bbox_shift  ?? 0,
-      fps:         params.fps         ?? 25,
-      batch_size:  params.batch_size  ?? 8,
+      bbox_shift:    params.bbox_shift    ?? 0,
+      fps:           params.fps           ?? 25,
+      batch_size:    params.batch_size    ?? 8,
+      extra_margin:  params.extra_margin  ?? 10,
+      parsing_mode:  params.parsing_mode  ?? 'jaw',
     }));
 
     try {
