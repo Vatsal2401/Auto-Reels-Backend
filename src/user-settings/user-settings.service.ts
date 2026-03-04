@@ -34,6 +34,11 @@ export class UserSettingsService {
     return s.lipsync_enabled;
   }
 
+  async isUgcEnabled(userId: string): Promise<boolean> {
+    const s = await this.getOrCreate(userId);
+    return s.ugc_enabled;
+  }
+
   async markOnboardingCompleted(userId: string): Promise<void> {
     const settings = await this.getOrCreate(userId);
     if (!settings.has_completed_onboarding) {

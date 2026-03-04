@@ -31,6 +31,9 @@ export class UserSettings {
   @Column({ name: 'lipsync_enabled', type: 'boolean', default: false })
   lipsync_enabled: boolean;
 
+  @Column({ name: 'ugc_enabled', type: 'boolean', default: false })
+  ugc_enabled: boolean;
+
   @UpdateDateColumn({ name: 'updated_at' })
   updated_at: Date;
 }

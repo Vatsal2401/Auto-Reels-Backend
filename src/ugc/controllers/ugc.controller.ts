@@ -11,12 +11,13 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { UgcEnabledGuard } from '../../user-settings/guards/ugc-enabled.guard';
 import { UgcService } from '../services/ugc.service';
 import { CreateUgcVideoDto } from '../dto/create-ugc-video.dto';
 import { MediaOrchestratorService } from '../../media/media-orchestrator.service';
 
 @Controller('ugc')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, UgcEnabledGuard)
 export class UgcController {
   constructor(
     private readonly ugcService: UgcService,

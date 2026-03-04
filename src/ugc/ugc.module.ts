@@ -15,6 +15,7 @@ import { CreditsModule } from '../credits/credits.module';
 import { StorageModule } from '../storage/storage.module';
 import { AuthModule } from '../auth/auth.module';
 import { MediaModule } from '../media/media.module';
+import { UserSettingsModule } from '../user-settings/user-settings.module';
 import { Media } from '../media/entities/media.entity';
 import { MediaStep } from '../media/entities/media-step.entity';
 
@@ -23,6 +24,7 @@ import { MediaStep } from '../media/entities/media-step.entity';
     TypeOrmModule.forFeature([UgcActor, UgcContentLibrary, UgcAbTest, Media, MediaStep]),
     CreditsModule,
     StorageModule,
+    UserSettingsModule,
     forwardRef(() => AuthModule),
     forwardRef(() => MediaModule),
   ],
