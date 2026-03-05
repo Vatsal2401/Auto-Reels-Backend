@@ -18,6 +18,7 @@ import { BackgroundMusic } from './entities/background-music.entity';
 import { MusicService } from './music.service';
 import { MusicController } from './music.controller';
 import { UgcModule } from '../ugc/ugc.module';
+import { StoryModule } from '../story/story.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { UgcModule } from '../ugc/ugc.module';
     MailModule,
     forwardRef(() => AuthModule),
     forwardRef(() => UgcModule),
+    forwardRef(() => StoryModule),
   ],
   providers: [MediaService, MediaOrchestratorService, MusicService],
   controllers: [MediaController, MusicController],

@@ -10,6 +10,10 @@ export enum MediaAssetType {
   UGC_SCRIPT = 'ugc_script',
   BROLL = 'broll',
   ACTOR_VIDEO = 'actor_video',
+  STORY_SCRIPT = 'story_script',
+  STORY_IMAGES = 'story_images',
+  STORY_AUDIO = 'story_audio',
+  STORY_CAPTIONS = 'story_captions',
 }
 
 export enum MediaType {
@@ -107,6 +111,16 @@ export const MEDIA_FLOWS: Record<
       broll: ['ugcScript'],
       actor: ['voice'],
       ugcCompose: ['actor', 'broll'],
+    },
+  },
+  storyReel: {
+    steps: ['storyScript', 'storyImages', 'storyAudio', 'storyCaptions', 'storyRender'],
+    dependencies: {
+      storyScript: [],
+      storyImages: ['storyScript'],
+      storyAudio: ['storyScript'],
+      storyCaptions: ['storyAudio'],
+      storyRender: ['storyImages', 'storyAudio', 'storyCaptions'],
     },
   },
 };

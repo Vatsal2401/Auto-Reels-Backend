@@ -26,6 +26,8 @@ import { HedraService } from '../ugc/services/hedra.service';
 import { BrollLibraryService } from '../ugc/services/broll-library.service';
 import { UgcComposeService } from '../ugc/services/ugc-compose.service';
 import { UgcScene } from '../ugc/services/ugc-script.service';
+import { StoryScriptService } from '../story/services/story-script.service';
+import { StoryRenderQueueService } from '../story/queues/story-render-queue.service';
 
 @Injectable()
 export class MediaOrchestratorService {
@@ -55,6 +57,8 @@ export class MediaOrchestratorService {
     @Optional() private readonly hedraService: HedraService,
     @Optional() private readonly brollLibraryService: BrollLibraryService,
     @Optional() private readonly ugcComposeService: UgcComposeService,
+    @Optional() private readonly storyScriptService: StoryScriptService,
+    @Optional() private readonly storyRenderQueueService: StoryRenderQueueService,
   ) {}
 
   async processMedia(mediaId: string): Promise<void> {
@@ -167,11 +171,27 @@ export class MediaOrchestratorService {
         case 'ugcCompose':
           resultBlobIds = await this.handleUgcComposeStep(media);
           break;
+        case 'storyScript':
+          resultBlobIds = await this.handleStoryScriptStep(media);
+          break;
+        case 'storyImages':
+          resultBlobIds = await this.handleStoryImagesStep(media);
+          break;
+        case 'storyAudio':
+          resultBlobIds = await this.handleStoryAudioStep(media);
+          break;
+        case 'storyCaptions':
+          resultBlobIds = await this.handleStoryCaptionsStep(media);
+          break;
+        case 'storyRender':
+          await this.handleStoryRenderStep(media, step);
+          return; // stays PROCESSING — worker finalizes
         default:
           throw new Error(`Unknown step type: ${step.step}`);
       }
 
-      const isWorkerHandled = step.step === 'render' || step.step === 'ugcCompose';
+      const isWorkerHandled =
+        step.step === 'render' || step.step === 'ugcCompose' || step.step === 'storyRender';
       await this.stepRepository.update(step.id, {
         status: isWorkerHandled ? StepStatus.PROCESSING : StepStatus.SUCCESS,
         blob_storage_id: resultBlobIds,
@@ -836,6 +856,247 @@ export class MediaOrchestratorService {
 
     await this.addAsset(media.id, MediaAssetType.ACTOR_VIDEO, blobId, { hedra_job_id: jobId });
     return blobId;
+  }
+
+  // ─── Story Step Handlers ──────────────────────────────────────────────────
+
+  /** storyScript: Gemini generates StoryScriptJSON; persists Story + characters + scenes to DB */
+  private async handleStoryScriptStep(media: Media): Promise<string> {
+    if (!this.storyScriptService) throw new Error('StoryScriptService not available');
+
+    const config = media.input_config || {};
+    const script = await this.storyScriptService.generateScript({
+      mediaId: media.id,
+      userId: media.user_id,
+      genre: config.genre || 'horror',
+      sceneCount: config.sceneCount || 5,
+      userPrompt: config.prompt || config.topic || '',
+    });
+
+    const blobId = await this.storageService.upload({
+      userId: media.user_id,
+      mediaId: media.id,
+      type: 'story_script',
+      step: 'storyScript',
+      buffer: Buffer.from(JSON.stringify(script)),
+      fileName: 'story-script.json',
+    });
+
+    await this.addAsset(media.id, MediaAssetType.STORY_SCRIPT, blobId, {
+      title: script.title,
+      scene_count: script.scenes.length,
+      total_duration_seconds: script.total_duration_seconds,
+    });
+
+    return blobId;
+  }
+
+  /** storyImages: Generate one image per scene using the per-scene image_prompt */
+  private async handleStoryImagesStep(media: Media): Promise<string[]> {
+    const scriptAsset = await this.assetRepository.findOne({
+      where: { media_id: media.id, type: MediaAssetType.STORY_SCRIPT },
+    });
+    if (!scriptAsset) throw new Error('Story script asset missing');
+
+    const scriptData = JSON.parse(
+      (await this.storageService.download(scriptAsset.blob_storage_id)).toString(),
+    );
+
+    const imageProvider = this.aiFactory.getImageGenerator('gemini');
+    const story = await this.storyScriptService.findStoryByMediaId(media.id);
+
+    const blobIds: string[] = [];
+    for (const scene of scriptData.scenes) {
+      const [buffer] = await imageProvider.generateImages({
+        prompt: scene.image_prompt,
+        aspectRatio: '9:16' as any,
+        count: 1,
+      });
+
+      const blobId = await this.storageService.upload({
+        userId: media.user_id,
+        mediaId: media.id,
+        type: 'story_images',
+        step: 'storyImages',
+        buffer,
+        fileName: `scene_${scene.scene_number}.jpg`,
+      });
+
+      await this.addAsset(media.id, MediaAssetType.STORY_IMAGES, blobId, {
+        scene_number: scene.scene_number,
+      });
+      blobIds.push(blobId);
+
+      // Update story_scenes.image_url
+      if (story) {
+        await this.storyScriptService.updateSceneImageUrl(story.id, scene.scene_number, blobId);
+      }
+    }
+
+    return blobIds;
+  }
+
+  /** storyAudio: Concatenate all scene narrations into a single TTS audio */
+  private async handleStoryAudioStep(media: Media): Promise<string> {
+    const scriptAsset = await this.assetRepository.findOne({
+      where: { media_id: media.id, type: MediaAssetType.STORY_SCRIPT },
+    });
+    if (!scriptAsset) throw new Error('Story script asset missing');
+
+    const scriptData = JSON.parse(
+      (await this.storageService.download(scriptAsset.blob_storage_id)).toString(),
+    );
+
+    const fullNarration = scriptData.scenes
+      .map((s: any) => s.narration || '')
+      .filter(Boolean)
+      .join(' ');
+
+    if (!fullNarration) throw new Error('No narration text found in story scenes');
+
+    // Use same provider chain as handleAudioStep
+    let providerKey: string;
+    const voiceId = media.input_config?.voiceId;
+    if (process.env.SARVAM_API_KEY) {
+      providerKey = 'sarvam';
+    } else if (process.env.ELEVENLABS_API_KEY) {
+      providerKey = 'elevenlabs';
+    } else {
+      providerKey = 'openai';
+    }
+
+    const audioProvider = this.aiFactory.getTextToSpeech(providerKey);
+    let audioBuffer: Buffer;
+
+    try {
+      audioBuffer = await audioProvider.textToSpeech({
+        text: fullNarration,
+        voiceId,
+        language: media.input_config?.language,
+      });
+    } catch (error) {
+      this.logger.warn(`Primary TTS failed for story ${media.id}, falling back: ${error.message}`);
+      try {
+        audioBuffer = await this.geminiTTS.textToSpeech({ text: fullNarration });
+      } catch (geminiError) {
+        audioBuffer = await this.openAITTS.textToSpeech({ text: fullNarration });
+      }
+    }
+
+    const blobId = await this.storageService.upload({
+      userId: media.user_id,
+      mediaId: media.id,
+      type: 'story_audio',
+      step: 'storyAudio',
+      buffer: audioBuffer,
+      fileName: 'narration.mp3',
+    });
+
+    await this.addAsset(media.id, MediaAssetType.STORY_AUDIO, blobId);
+    return blobId;
+  }
+
+  /** storyCaptions: Generate captions from the story audio */
+  private async handleStoryCaptionsStep(media: Media): Promise<string> {
+    const audioAsset = await this.assetRepository.findOne({
+      where: { media_id: media.id, type: MediaAssetType.STORY_AUDIO },
+    });
+    if (!audioAsset) throw new Error('Story audio asset missing');
+
+    const scriptAsset = await this.assetRepository.findOne({
+      where: { media_id: media.id, type: MediaAssetType.STORY_SCRIPT },
+    });
+    if (!scriptAsset) throw new Error('Story script asset missing');
+
+    const audioBuffer = await this.storageService.download(audioAsset.blob_storage_id);
+    const scriptData = JSON.parse(
+      (await this.storageService.download(scriptAsset.blob_storage_id)).toString(),
+    );
+
+    const fullNarration = scriptData.scenes
+      .map((s: any) => s.narration || '')
+      .filter(Boolean)
+      .join(' ');
+
+    const captionProvider = this.aiFactory.getCaptionGenerator('local');
+    const captionBuffer = await captionProvider.generateCaptions(
+      audioBuffer,
+      fullNarration,
+      undefined,
+      'sentence',
+      { enabled: true, preset: 'bold-stroke', position: 'bottom', timing: 'sentence' },
+    );
+
+    const blobId = await this.storageService.upload({
+      userId: media.user_id,
+      mediaId: media.id,
+      type: 'story_captions',
+      step: 'storyCaptions',
+      buffer: captionBuffer,
+      fileName: 'captions.json',
+    });
+
+    await this.addAsset(media.id, MediaAssetType.STORY_CAPTIONS, blobId);
+    return blobId;
+  }
+
+  /** storyRender: Enqueue FFmpeg story composition to story-render-tasks */
+  private async handleStoryRenderStep(media: Media, step: MediaStep): Promise<void> {
+    if (!this.storyRenderQueueService) throw new Error('StoryRenderQueueService not available');
+
+    const scriptAsset = await this.assetRepository.findOne({
+      where: { media_id: media.id, type: MediaAssetType.STORY_SCRIPT },
+    });
+    const imageAssets = await this.assetRepository.find({
+      where: { media_id: media.id, type: MediaAssetType.STORY_IMAGES },
+    });
+    const audioAsset = await this.assetRepository.findOne({
+      where: { media_id: media.id, type: MediaAssetType.STORY_AUDIO },
+    });
+    const captionAsset = await this.assetRepository.findOne({
+      where: { media_id: media.id, type: MediaAssetType.STORY_CAPTIONS },
+    });
+
+    if (!scriptAsset || !audioAsset || !captionAsset || imageAssets.length === 0) {
+      throw new Error('Required story assets missing for storyRender step');
+    }
+
+    const scriptData = JSON.parse(
+      (await this.storageService.download(scriptAsset.blob_storage_id)).toString(),
+    );
+
+    // Sort image assets by scene_number (stored in metadata)
+    const sortedImageAssets = [...imageAssets].sort(
+      (a, b) => ((a.metadata as any)?.scene_number ?? 0) - ((b.metadata as any)?.scene_number ?? 0),
+    );
+
+    // Handle background music
+    let musicBlobId: string | undefined;
+    const musicId = media.input_config?.musicId;
+    if (musicId) {
+      const musicEntity = await this.musicRepository.findOne({ where: { id: musicId } });
+      if (musicEntity) musicBlobId = musicEntity.blob_storage_id;
+    }
+
+    const user = await this.userRepository.findOne({ where: { id: media.user_id } });
+
+    await this.storyRenderQueueService.queueStoryRenderJob({
+      mediaId: media.id,
+      stepId: step.id,
+      userId: media.user_id,
+      scenes: scriptData.scenes.map((s: any) => ({
+        subtitle: s.subtitle || '',
+        duration_seconds: s.duration_seconds,
+        camera_motion: s.camera_motion || 'zoom_in',
+      })),
+      assets: {
+        images: sortedImageAssets.map((a) => a.blob_storage_id),
+        audio: audioAsset.blob_storage_id,
+        caption: captionAsset.blob_storage_id,
+        music: musicBlobId,
+      },
+      watermark: getWatermarkConfig(user?.is_premium ?? false).watermark,
+    });
   }
 
   /** ugcCompose: Enqueue FFmpeg composition job to ugc-render-tasks */

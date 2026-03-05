@@ -30,6 +30,9 @@ import { UploadLog } from '../social/entities/upload-log.entity';
 import { UgcActor } from '../ugc/entities/ugc-actor.entity';
 import { UgcContentLibrary } from '../ugc/entities/ugc-content-library.entity';
 import { UgcAbTest } from '../ugc/entities/ugc-ab-test.entity';
+import { Story } from '../story/entities/story.entity';
+import { StoryCharacter } from '../story/entities/story-character.entity';
+import { StoryScene } from '../story/entities/story-scene.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -67,6 +70,9 @@ export const AppDataSource = new DataSource({
     UgcActor,
     UgcContentLibrary,
     UgcAbTest,
+    Story,
+    StoryCharacter,
+    StoryScene,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,

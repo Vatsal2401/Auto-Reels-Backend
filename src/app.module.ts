@@ -30,6 +30,7 @@ import { SocialModule } from './social/social.module';
 import { ImageToVideoModule } from './image-to-video/image-to-video.module';
 import { LipSyncModule } from './lipsync/lipsync.module';
 import { UgcModule } from './ugc/ugc.module';
+import { StoryModule } from './story/story.module';
 
 @Module({
   imports: [
@@ -75,6 +76,7 @@ import { UgcModule } from './ugc/ugc.module';
     ImageToVideoModule,
     LipSyncModule,
     UgcModule,
+    StoryModule,
   ],
   providers: [
     {
