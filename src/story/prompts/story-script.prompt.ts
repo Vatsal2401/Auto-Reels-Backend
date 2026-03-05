@@ -3,7 +3,7 @@ export function buildStoryScriptPrompt(params: {
   sceneCount: number;
   userPrompt: string;
 }): { systemPrompt: string; userPrompt: string } {
-  const { genre, sceneCount, userPrompt } = params;
+  const { genre, sceneCount, userPrompt: inputPrompt } = params;
 
   const systemPrompt = `You are a cinematic storytelling AI for short-form vertical video (9:16 reels).
 Generate STRICT JSON matching the StoryScriptJSON schema below.
@@ -51,7 +51,7 @@ JSON SCHEMA:
   "total_duration_seconds": "number"
 }`;
 
-  const userPrompt = `Genre: ${genre}. Scene count: ${sceneCount}. Story prompt: "${userPrompt}".
+  const userPrompt = `Genre: ${genre}. Scene count: ${sceneCount}. Story prompt: "${inputPrompt}".
 
 Create a complete StoryScriptJSON for a ${sceneCount}-scene short-form video reel. Make it emotionally engaging for the ${genre} genre. Return valid JSON only.`;
 

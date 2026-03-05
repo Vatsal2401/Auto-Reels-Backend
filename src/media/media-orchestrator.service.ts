@@ -191,7 +191,7 @@ export class MediaOrchestratorService {
       }
 
       const isWorkerHandled =
-        step.step === 'render' || step.step === 'ugcCompose' || step.step === 'storyRender';
+        step.step === 'render' || step.step === 'ugcCompose';
       await this.stepRepository.update(step.id, {
         status: isWorkerHandled ? StepStatus.PROCESSING : StepStatus.SUCCESS,
         blob_storage_id: resultBlobIds,
