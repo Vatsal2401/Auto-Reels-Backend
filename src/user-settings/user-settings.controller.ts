@@ -20,6 +20,8 @@ export class UserSettingsController {
       has_completed_onboarding: s.has_completed_onboarding,
       image_to_video_enabled: s.image_to_video_enabled,
       lipsync_enabled: s.lipsync_enabled,
+      ugc_enabled: s.ugc_enabled,
+      story_reel_enabled: s.story_reel_enabled,
     };
   }
 

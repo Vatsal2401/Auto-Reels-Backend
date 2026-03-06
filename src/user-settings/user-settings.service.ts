@@ -39,6 +39,11 @@ export class UserSettingsService {
     return s.ugc_enabled;
   }
 
+  async isStoryReelEnabled(userId: string): Promise<boolean> {
+    const s = await this.getOrCreate(userId);
+    return s.story_reel_enabled;
+  }
+
   async markOnboardingCompleted(userId: string): Promise<void> {
     const settings = await this.getOrCreate(userId);
     if (!settings.has_completed_onboarding) {
