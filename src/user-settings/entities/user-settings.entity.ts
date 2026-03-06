@@ -34,6 +34,9 @@ export class UserSettings {
   @Column({ name: 'ugc_enabled', type: 'boolean', default: false })
   ugc_enabled: boolean;
 
+  @Column({ name: 'story_reel_enabled', type: 'boolean', default: false })
+  story_reel_enabled: boolean;
+
   @UpdateDateColumn({ name: 'updated_at' })
   updated_at: Date;
 }
