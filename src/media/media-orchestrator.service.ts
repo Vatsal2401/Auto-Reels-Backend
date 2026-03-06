@@ -185,13 +185,13 @@ export class MediaOrchestratorService {
           break;
         case 'storyRender':
           await this.handleStoryRenderStep(media, step);
-          return; // stays PROCESSING — worker finalizes
+          break;
         default:
           throw new Error(`Unknown step type: ${step.step}`);
       }
 
       const isWorkerHandled =
-        step.step === 'render' || step.step === 'ugcCompose';
+        step.step === 'render' || step.step === 'ugcCompose' || step.step === 'storyRender';
       await this.stepRepository.update(step.id, {
         status: isWorkerHandled ? StepStatus.PROCESSING : StepStatus.SUCCESS,
         blob_storage_id: resultBlobIds,
