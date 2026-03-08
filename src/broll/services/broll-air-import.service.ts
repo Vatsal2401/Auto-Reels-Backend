@@ -8,6 +8,7 @@ import { IStorageService } from '../../storage/interfaces/storage.interface';
 import { BrollAirImport } from '../entities/broll-air-import.entity';
 import { BrollLibrary } from '../entities/broll-library.entity';
 import { ImportFromAirDto } from '../dto/import-from-air.dto';
+import { BrowseAirDto } from '../dto/browse-air.dto';
 
 const AIR_API_BASE = 'https://api.air.inc';
 const PART_SIZE = 50 * 1024 * 1024; // 50 MB
@@ -21,6 +22,23 @@ interface AirAsset {
   mimeType?: string;
   source?: { downloadUrl?: string };
   duration?: number;
+  thumbnails?: { url: string }[];
+}
+
+export interface AirClipPreview {
+  id: string;
+  title: string;
+  ext: string;
+  size?: number;
+  duration?: number;
+  mimeType?: string;
+  thumbnailUrl: string | null;
+}
+
+export interface AirBrowseResult {
+  boardId: string;
+  totalClips: number;
+  clips: AirClipPreview[];
 }
 
 @Injectable()
@@ -63,10 +81,36 @@ export class BrollAirImportService {
 
     // Run import asynchronously — never blocks the HTTP response
     setImmediate(() => {
-      void this.runImport(saved, dto.airApiKey, dto.autoIndex ?? false);
+      void this.runImport(saved, dto.airApiKey, dto.clipIds, dto.autoIndex ?? false);
     });
 
     return saved;
+  }
+
+  async browseBoard(libId: string, userId: string, dto: BrowseAirDto): Promise<AirBrowseResult> {
+    const lib = await this.libraryRepo.findOne({ where: { id: libId } });
+    if (!lib) throw new NotFoundException('Library not found');
+    if (lib.userId !== userId) throw new ForbiddenException();
+
+    const boardId = this.parseAirBoardUrl(dto.boardUrl);
+    if (!boardId) {
+      throw new BadRequestException('Invalid AIR share URL — could not extract board ID');
+    }
+
+    const assets = await this.paginateAirAssetsPublic(boardId);
+    return {
+      boardId,
+      totalClips: assets.length,
+      clips: assets.map((a) => ({
+        id: a.id,
+        title: a.title,
+        ext: a.ext,
+        size: a.size,
+        duration: a.duration,
+        mimeType: a.mimeType,
+        thumbnailUrl: a.thumbnails?.[0]?.url ?? null,
+      })),
+    };
   }
 
   async listImports(libId: string, userId: string): Promise<BrollAirImport[]> {
@@ -89,9 +133,16 @@ export class BrollAirImportService {
     return match?.[1] ?? null;
   }
 
-  private async runImport(job: BrollAirImport, apiKey: string, autoIndex: boolean): Promise<void> {
+  private async runImport(job: BrollAirImport, apiKey: string | undefined, clipIds: string[] | undefined, autoIndex: boolean): Promise<void> {
     try {
-      const assets = await this.paginateAirAssets(job.boardId, apiKey);
+      let assets = apiKey
+        ? await this.paginateAirAssets(job.boardId, apiKey)
+        : await this.paginateAirAssetsPublic(job.boardId);
+
+      if (clipIds?.length) {
+        const idSet = new Set(clipIds);
+        assets = assets.filter((a) => idSet.has(a.id));
+      }
 
       await this.importRepo.update({ id: job.id }, { totalClips: assets.length });
 
@@ -200,6 +251,64 @@ export class BrollAirImportService {
         headers: { Authorization: `Bearer ${apiKey}` },
         timeout: 30_000,
       });
+
+      const page = res.data.clips ?? res.data.assets ?? [];
+      assets.push(...page);
+      cursor = res.data.cursor;
+      hasMore = res.data.hasMore ?? false;
+    }
+
+    return assets;
+  }
+
+  private async paginateAirAssetsPublic(boardId: string): Promise<AirAsset[]> {
+    const assets: AirAsset[] = [];
+    let cursor: string | undefined;
+    let hasMore = true;
+
+    while (hasMore) {
+      try {
+        const body: Record<string, unknown> = { boardId, types: ['video'], limit: 50 };
+        if (cursor) body.cursor = cursor;
+        const res = await axios.post<{
+          assets: AirAsset[];
+          cursor?: string;
+          hasMore?: boolean;
+        }>(`${AIR_API_BASE}/assets/search`, body, { timeout: 30_000 });
+
+        assets.push(...(res.data.assets ?? []));
+        cursor = res.data.cursor;
+        hasMore = res.data.hasMore ?? false;
+      } catch (err) {
+        if (!cursor) {
+          this.logger.warn(`paginateAirAssetsPublic: POST /assets/search failed, trying GET fallback: ${(err as Error)?.message}`);
+          const fallback = await this.paginatePublicClipsFallback(boardId);
+          assets.push(...fallback);
+          break;
+        }
+        throw err;
+      }
+    }
+
+    return assets;
+  }
+
+  private async paginatePublicClipsFallback(boardId: string): Promise<AirAsset[]> {
+    const assets: AirAsset[] = [];
+    let cursor: string | undefined;
+    let hasMore = true;
+
+    while (hasMore) {
+      const url = cursor
+        ? `${AIR_API_BASE}/boards/${boardId}/clips?limit=50&cursor=${cursor}`
+        : `${AIR_API_BASE}/boards/${boardId}/clips?limit=50`;
+
+      const res = await axios.get<{
+        clips?: AirAsset[];
+        assets?: AirAsset[];
+        cursor?: string;
+        hasMore?: boolean;
+      }>(url, { timeout: 30_000 });
 
       const page = res.data.clips ?? res.data.assets ?? [];
       assets.push(...page);

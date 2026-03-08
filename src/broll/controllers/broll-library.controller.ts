@@ -18,6 +18,7 @@ import { BrollAirImportService } from '../services/broll-air-import.service';
 import { CreateLibraryDto } from '../dto/create-library.dto';
 import { UpdateLibraryDto } from '../dto/update-library.dto';
 import { ImportFromAirDto } from '../dto/import-from-air.dto';
+import { BrowseAirDto } from '../dto/browse-air.dto';
 
 @ApiTags('broll/libraries')
 @ApiBearerAuth()
@@ -264,6 +265,16 @@ export class BrollLibraryController {
     @Param('videoId') videoId: string,
   ) {
     return this.libraryService.getVideoFrames(id, videoId, this.userId(req));
+  }
+
+  @Post(':id/import/air/browse')
+  @ApiOperation({ summary: 'Browse clips from a public AIR share link' })
+  async browseAirBoard(
+    @Req() req: { user?: { userId?: string; id?: string } },
+    @Param('id') id: string,
+    @Body() dto: BrowseAirDto,
+  ) {
+    return this.airImportService.browseBoard(id, this.userId(req), dto);
   }
 
   @Post(':id/import/air')
