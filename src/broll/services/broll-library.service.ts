@@ -111,7 +111,7 @@ export class BrollLibraryService {
   }
 
   async listVideos(libId: string, userId: string): Promise<BrollVideoRow[]> {
-    await this.getLibrary(libId, userId);
+    // Single query: ownership check (user_id = $2) + video list + latest job — no extra round-trip
     const rows = await this.dataSource.query(
       `SELECT v.id, v.file_path, v.filename, v.status, v.duration_seconds,
               v.frame_count, v.ingested_at, v.error_message, v.library_id, v.user_id,
@@ -126,9 +126,16 @@ export class BrollLibraryService {
          LIMIT 1
        ) j ON true
        WHERE v.library_id = $1
+         AND EXISTS (SELECT 1 FROM broll_libraries WHERE id = $1 AND user_id = $2)
        ORDER BY v.created_at DESC`,
-      [libId],
+      [libId, userId],
     ) as BrollVideoRow[];
+
+    if (rows.length === 0) {
+      // Could be empty library or forbidden — do a lightweight ownership check only in that case
+      await this.getLibrary(libId, userId);
+    }
+
     return rows;
   }
 
