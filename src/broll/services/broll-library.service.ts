@@ -223,7 +223,8 @@ export class BrollLibraryService {
       [videoId, libId],
     ) as { file_path: string }[];
     if (!rows[0]) throw new NotFoundException('Video not found in this library');
-    const signedUrl = await this.storageService.getSignedUrl(rows[0].file_path, 3600);
+    // promptDownload: true forces S3 presigned URL — CloudFront may not cover broll paths
+    const signedUrl = await this.storageService.getSignedUrl(rows[0].file_path, 3600, { promptDownload: true });
     return { signedUrl };
   }
 
