@@ -24,7 +24,7 @@ export class BrollPythonService {
   private readonly serverUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.serverUrl = this.configService.get<string>('BROLL_MATCHER_URL', 'http://localhost:8001');
+    this.serverUrl = this.configService.get<string>('BROLL_PYTHON_URL', 'http://localhost:8001');
   }
 
   async ingestFromUrl(url: string, filename: string): Promise<void> {
