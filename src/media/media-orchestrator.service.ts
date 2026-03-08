@@ -905,10 +905,15 @@ export class MediaOrchestratorService {
     const imageProvider = this.aiFactory.getImageGenerator('gemini');
     const story = await this.storyScriptService.findStoryByMediaId(media.id);
 
+    const imageStyle: string =
+      media.input_config?.imageStyle ||
+      'cartoon comic illustration, bold black outlines, vibrant colors, animated storybook art style';
+
     const blobIds: string[] = [];
     for (const scene of scriptData.scenes) {
+      const prompt = `${scene.image_prompt}. Style: ${imageStyle}.`;
       const [buffer] = await imageProvider.generateImages({
-        prompt: scene.image_prompt,
+        prompt,
         aspectRatio: '9:16' as any,
         count: 1,
       });

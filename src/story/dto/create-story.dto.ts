@@ -23,4 +23,8 @@ export class CreateStoryDto {
   @IsOptional()
   @IsString()
   musicId?: string;
+
+  @IsOptional()
+  @IsString()
+  imageStyle?: string;
 }
