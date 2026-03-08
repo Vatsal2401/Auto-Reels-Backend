@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { BrollMatchResult } from '../entities/broll-match-result.entity';
 import { BrollScript } from '../entities/broll-script.entity';
 import { CreateScriptDto } from '../dto/create-script.dto';
@@ -27,6 +27,7 @@ export class BrollScriptService {
     private readonly resultRepo: Repository<BrollMatchResult>,
     private readonly libraryService: BrollLibraryService,
     private readonly brollPythonService: BrollPythonService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async createScript(libId: string, userId: string, dto: CreateScriptDto): Promise<BrollScript> {
@@ -94,7 +95,16 @@ export class BrollScriptService {
     dto: RunScriptDto,
   ): Promise<BrollScript> {
     const lib = await this.libraryService.getLibrary(libId, userId);
-    if (lib.indexedCount === 0) {
+    // indexedCount is a denormalized counter — fall back to live query if stale
+    let indexedCount = lib.indexedCount;
+    if (indexedCount === 0) {
+      const [{ count }] = await this.dataSource.query(
+        `SELECT COUNT(*) FROM broll_videos WHERE library_id = $1 AND status = 'indexed'`,
+        [libId],
+      ) as [{ count: string }];
+      indexedCount = parseInt(count, 10);
+    }
+    if (indexedCount === 0) {
       throw new BadRequestException('Library has no indexed videos. Index videos first.');
     }
 
