@@ -73,4 +73,10 @@ export interface IStorageService {
 
   /** Abort an in-progress multipart upload and release all uploaded parts. */
   abortMultipartUpload(key: string, uploadId: string): Promise<void>;
+
+  /**
+   * Upload a single Buffer as a multipart part directly (server-side, no presigned URL).
+   * Returns the ETag for use in completeMultipartUpload.
+   */
+  uploadPartDirect(key: string, uploadId: string, partNumber: number, body: Buffer): Promise<string>;
 }

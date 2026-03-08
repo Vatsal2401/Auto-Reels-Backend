@@ -14,15 +14,20 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { BrollEnabledGuard } from '../guards/broll-enabled.guard';
 import { BrollLibraryService } from '../services/broll-library.service';
+import { BrollAirImportService } from '../services/broll-air-import.service';
 import { CreateLibraryDto } from '../dto/create-library.dto';
 import { UpdateLibraryDto } from '../dto/update-library.dto';
+import { ImportFromAirDto } from '../dto/import-from-air.dto';
 
 @ApiTags('broll/libraries')
 @ApiBearerAuth()
 @Controller('broll/libraries')
 @UseGuards(JwtAuthGuard, BrollEnabledGuard)
 export class BrollLibraryController {
-  constructor(private readonly libraryService: BrollLibraryService) {}
+  constructor(
+    private readonly libraryService: BrollLibraryService,
+    private readonly airImportService: BrollAirImportService,
+  ) {}
 
   private userId(req: { user?: { userId?: string; id?: string } }): string {
     return req.user?.userId ?? req.user?.id ?? '';
@@ -170,6 +175,17 @@ export class BrollLibraryController {
     return this.libraryService.searchClips(id, this.userId(req), body.query.trim(), body.topK ?? 10);
   }
 
+  @Post(':id/videos/:videoId/confirm')
+  @ApiOperation({ summary: 'Confirm that a single-part S3 PUT upload has completed' })
+  async confirmUpload(
+    @Req() req: { user?: { userId?: string; id?: string } },
+    @Param('id') id: string,
+    @Param('videoId') videoId: string,
+  ) {
+    await this.libraryService.confirmUpload(id, videoId, this.userId(req));
+    return { success: true };
+  }
+
   @Get(':id/videos')
   @ApiOperation({ summary: 'List videos in the library with ingestion job status' })
   async listVideos(
@@ -238,5 +254,34 @@ export class BrollLibraryController {
     @Param('videoId') videoId: string,
   ) {
     return this.libraryService.getVideoPreviewUrl(id, videoId, this.userId(req));
+  }
+
+  @Get(':id/videos/:videoId/frames')
+  @ApiOperation({ summary: 'Get frame timeline with semantic captions for an indexed video' })
+  async getVideoFrames(
+    @Req() req: { user?: { userId?: string; id?: string } },
+    @Param('id') id: string,
+    @Param('videoId') videoId: string,
+  ) {
+    return this.libraryService.getVideoFrames(id, videoId, this.userId(req));
+  }
+
+  @Post(':id/import/air')
+  @ApiOperation({ summary: 'Start a server-side AIR board → S3 import job' })
+  async importFromAir(
+    @Req() req: { user?: { userId?: string; id?: string } },
+    @Param('id') id: string,
+    @Body() dto: ImportFromAirDto,
+  ) {
+    return this.airImportService.startImport(id, this.userId(req), dto);
+  }
+
+  @Get(':id/import-jobs')
+  @ApiOperation({ summary: 'List AIR import jobs for a library' })
+  async listImportJobs(
+    @Req() req: { user?: { userId?: string; id?: string } },
+    @Param('id') id: string,
+  ) {
+    return this.airImportService.listImports(id, this.userId(req));
   }
 }

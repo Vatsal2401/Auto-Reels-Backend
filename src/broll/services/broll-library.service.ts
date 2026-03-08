@@ -110,14 +110,28 @@ export class BrollLibraryService {
       900,
       inferredContentType,
     );
-    // Insert broll_videos row
+    // Insert as 'uploading' — confirmUpload() will promote to 'uploaded' once S3 PUT succeeds
     await this.dataSource.query(
       `INSERT INTO broll_videos (id, file_path, filename, status, library_id, user_id)
-       VALUES ($1, $2, $3, 'uploaded', $4, $5)`,
+       VALUES ($1, $2, $3, 'uploading', $4, $5)`,
       [videoId, result.objectId, filename, libId, userId],
     );
     await this.recalcStats(libId);
     return { uploadUrl: result.uploadUrl, s3Key: result.objectId, videoId };
+  }
+
+  async confirmUpload(libId: string, videoId: string, userId: string): Promise<void> {
+    await this.getLibrary(libId, userId);
+    const rows = await this.dataSource.query(
+      `SELECT id FROM broll_videos WHERE id = $1 AND library_id = $2 AND status = 'uploading'`,
+      [videoId, libId],
+    ) as { id: string }[];
+    if (!rows[0]) throw new NotFoundException('Video not found or already confirmed');
+    await this.dataSource.query(
+      `UPDATE broll_videos SET status = 'uploaded' WHERE id = $1`,
+      [videoId],
+    );
+    await this.recalcStats(libId);
   }
 
   async listVideos(libId: string, userId: string): Promise<BrollVideoRow[]> {
@@ -223,8 +237,7 @@ export class BrollLibraryService {
       [videoId, libId],
     ) as { file_path: string }[];
     if (!rows[0]) throw new NotFoundException('Video not found in this library');
-    // promptDownload: true forces S3 presigned URL — CloudFront may not cover broll paths
-    const signedUrl = await this.storageService.getSignedUrl(rows[0].file_path, 3600, { promptDownload: true });
+    const signedUrl = await this.storageService.getSignedUrl(rows[0].file_path, 3600);
     return { signedUrl };
   }
 
@@ -321,6 +334,28 @@ export class BrollLibraryService {
     }
     await this.dataSource.query(`DELETE FROM broll_videos WHERE id = $1`, [videoId]);
     await this.recalcStats(libId);
+  }
+
+  // ─── Frame Timeline ────────────────────────────────────────────────────────
+
+  async getVideoFrames(
+    libId: string,
+    videoId: string,
+    userId: string,
+  ): Promise<{ frameTime: number; frameIndex: number; caption: string | null }[]> {
+    await this.getLibrary(libId, userId);
+    const rows = await this.dataSource.query(
+      `SELECT frame_time, frame_index, caption
+       FROM broll_frame_embeddings
+       WHERE video_id = $1
+       ORDER BY frame_index ASC`,
+      [videoId],
+    ) as { frame_time: number; frame_index: number; caption: string | null }[];
+    return rows.map((r) => ({
+      frameTime: r.frame_time,
+      frameIndex: r.frame_index,
+      caption: r.caption ?? null,
+    }));
   }
 
   // ─── Search (for ClipPickerPanel) ──────────────────────────────────────────

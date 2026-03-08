@@ -37,6 +37,7 @@ import { BrollLibrary } from '../broll/entities/broll-library.entity';
 import { BrollScript } from '../broll/entities/broll-script.entity';
 import { BrollMatchResult } from '../broll/entities/broll-match-result.entity';
 import { BrollIngestionJob } from '../broll/entities/broll-ingestion-job.entity';
+import { BrollAirImport } from '../broll/entities/broll-air-import.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -81,6 +82,7 @@ export const AppDataSource = new DataSource({
     BrollScript,
     BrollMatchResult,
     BrollIngestionJob,
+    BrollAirImport,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,

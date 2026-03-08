@@ -242,6 +242,20 @@ export class S3StorageProvider implements IStorageService {
     );
   }
 
+  async uploadPartDirect(key: string, uploadId: string, partNumber: number, body: Buffer): Promise<string> {
+    const response = await this.s3Client.send(
+      new UploadPartCommand({
+        Bucket: this.bucketName,
+        Key: key,
+        UploadId: uploadId,
+        PartNumber: partNumber,
+        Body: body,
+      }),
+    );
+    if (!response.ETag) throw new Error(`S3 did not return ETag for part ${partNumber}`);
+    return response.ETag;
+  }
+
   private getExtensionForType(type: string): string {
     switch (type) {
       case 'audio':
