@@ -15,6 +15,15 @@ import { CreateLibraryDto } from '../dto/create-library.dto';
 import { UpdateLibraryDto } from '../dto/update-library.dto';
 import { BrollPythonService } from './broll-python.service';
 
+const BROLL_CONTENT_TYPE_MAP: Record<string, string> = {
+  '.mp4': 'video/mp4',
+  '.mov': 'video/quicktime',
+  '.avi': 'video/x-msvideo',
+  '.mkv': 'video/x-matroska',
+  '.webm': 'video/webm',
+  '.m4v': 'video/x-m4v',
+};
+
 interface BrollVideoRow {
   id: string;
   file_path: string;
@@ -95,10 +104,11 @@ export class BrollLibraryService {
     await this.getLibrary(libId, userId);
     const ext = filename.match(/\.[^.]+$/)?.[0]?.toLowerCase() ?? '.mp4';
     const videoId = uuidv4();
+    const inferredContentType = contentType ?? BROLL_CONTENT_TYPE_MAP[ext] ?? 'video/mp4';
     const result = await this.storageService.getPresignedPutUrl(
       { userId, mediaId: videoId, type: 'broll', fileName: `input${ext}` },
       900,
-      contentType ?? 'video/mp4',
+      inferredContentType,
     );
     // Insert broll_videos row
     await this.dataSource.query(
