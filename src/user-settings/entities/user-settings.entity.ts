@@ -37,6 +37,9 @@ export class UserSettings {
   @Column({ name: 'story_reel_enabled', type: 'boolean', default: false })
   story_reel_enabled: boolean;
 
+  @Column({ name: 'broll_enabled', type: 'boolean', default: false })
+  broll_enabled: boolean;
+
   @UpdateDateColumn({ name: 'updated_at' })
   updated_at: Date;
 }

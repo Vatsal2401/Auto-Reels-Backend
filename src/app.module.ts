@@ -31,6 +31,7 @@ import { ImageToVideoModule } from './image-to-video/image-to-video.module';
 import { LipSyncModule } from './lipsync/lipsync.module';
 import { UgcModule } from './ugc/ugc.module';
 import { StoryModule } from './story/story.module';
+import { BrollModule } from './broll/broll.module';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { StoryModule } from './story/story.module';
     LipSyncModule,
     UgcModule,
     StoryModule,
+    BrollModule,
   ],
   providers: [
     {

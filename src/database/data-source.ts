@@ -33,6 +33,10 @@ import { UgcAbTest } from '../ugc/entities/ugc-ab-test.entity';
 import { Story } from '../story/entities/story.entity';
 import { StoryCharacter } from '../story/entities/story-character.entity';
 import { StoryScene } from '../story/entities/story-scene.entity';
+import { BrollLibrary } from '../broll/entities/broll-library.entity';
+import { BrollScript } from '../broll/entities/broll-script.entity';
+import { BrollMatchResult } from '../broll/entities/broll-match-result.entity';
+import { BrollIngestionJob } from '../broll/entities/broll-ingestion-job.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -73,6 +77,10 @@ export const AppDataSource = new DataSource({
     Story,
     StoryCharacter,
     StoryScene,
+    BrollLibrary,
+    BrollScript,
+    BrollMatchResult,
+    BrollIngestionJob,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,

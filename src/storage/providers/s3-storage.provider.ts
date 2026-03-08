@@ -1,6 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { IStorageService, StorageUploadParams } from '../interfaces/storage.interface';
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getSignedUrl as getCFSignedUrl } from '@aws-sdk/cloudfront-signer';
 import { v4 as uuidv4 } from 'uuid';
@@ -180,6 +188,58 @@ export class S3StorageProvider implements IStorageService {
     });
     const uploadUrl = await getSignedUrl(this.s3Client, command, { expiresIn });
     return { uploadUrl, objectId: key };
+  }
+
+  buildObjectKey(userId: string, mediaId: string, type: string, fileName: string): string {
+    const safeUserId = userId && userId !== 'null' ? userId : 'anonymous';
+    return `users/${safeUserId}/media/${mediaId}/${type}/${fileName}`;
+  }
+
+  async createMultipartUpload(key: string, contentType: string): Promise<string> {
+    const response = await this.s3Client.send(
+      new CreateMultipartUploadCommand({
+        Bucket: this.bucketName,
+        Key: key,
+        ContentType: contentType,
+      }),
+    );
+    if (!response.UploadId) throw new Error('S3 did not return an UploadId');
+    return response.UploadId;
+  }
+
+  async presignUploadPart(key: string, uploadId: string, partNumber: number, expiresIn: number): Promise<string> {
+    const command = new UploadPartCommand({
+      Bucket: this.bucketName,
+      Key: key,
+      UploadId: uploadId,
+      PartNumber: partNumber,
+    });
+    return getSignedUrl(this.s3Client, command, { expiresIn });
+  }
+
+  async completeMultipartUpload(
+    key: string,
+    uploadId: string,
+    parts: { PartNumber: number; ETag: string }[],
+  ): Promise<void> {
+    await this.s3Client.send(
+      new CompleteMultipartUploadCommand({
+        Bucket: this.bucketName,
+        Key: key,
+        UploadId: uploadId,
+        MultipartUpload: { Parts: parts },
+      }),
+    );
+  }
+
+  async abortMultipartUpload(key: string, uploadId: string): Promise<void> {
+    await this.s3Client.send(
+      new AbortMultipartUploadCommand({
+        Bucket: this.bucketName,
+        Key: key,
+        UploadId: uploadId,
+      }),
+    );
   }
 
   private getExtensionForType(type: string): string {
