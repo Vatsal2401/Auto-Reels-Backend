@@ -27,9 +27,9 @@ export class BrollPythonService {
     this.serverUrl = this.configService.get<string>('BROLL_PYTHON_URL', 'http://localhost:8001');
   }
 
-  async ingestFromUrl(url: string, filename: string): Promise<void> {
+  async ingestFromUrl(url: string, filename: string, videoId?: string): Promise<void> {
     axios
-      .post(`${this.serverUrl}/ingest/from-url`, { url, filename }, { timeout: 10_000 })
+      .post(`${this.serverUrl}/ingest/from-url`, { url, filename, video_id: videoId }, { timeout: 10_000 })
       .catch((err) => {
         this.logger.error(
           `BrollPythonService.ingestFromUrl: failed for ${filename}: ${(err as Error)?.message}`,

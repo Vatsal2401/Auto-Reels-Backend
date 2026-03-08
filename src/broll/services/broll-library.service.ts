@@ -365,7 +365,7 @@ export class BrollLibraryService {
 
     try {
       const presignedUrl = await this.storageService.getSignedUrl(s3Key, 3600);
-      await this.brollPythonService.ingestFromUrl(presignedUrl, filename);
+      await this.brollPythonService.ingestFromUrl(presignedUrl, filename, videoId);
       await this.jobRepo.update({ id: job.id }, { status: 'active', stage: 'downloading' });
       await this.dataSource.query(
         `UPDATE broll_videos SET status = 'processing' WHERE id = $1`,
