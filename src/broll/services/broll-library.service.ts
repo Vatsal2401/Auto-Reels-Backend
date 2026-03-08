@@ -374,7 +374,9 @@ export class BrollLibraryService {
     await this.jobRepo.save(job);
 
     try {
-      const presignedUrl = await this.storageService.getSignedUrl(s3Key, 3600);
+      // promptDownload: true forces direct S3 presigned URL (bypasses CloudFront)
+      // — CloudFront may not be configured for broll paths, causing 403
+      const presignedUrl = await this.storageService.getSignedUrl(s3Key, 3600, { promptDownload: true });
       await this.brollPythonService.ingestFromUrl(presignedUrl, filename, videoId);
       await this.jobRepo.update({ id: job.id }, { status: 'active', stage: 'downloading' });
       await this.dataSource.query(
