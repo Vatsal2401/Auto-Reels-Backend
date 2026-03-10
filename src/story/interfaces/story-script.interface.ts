@@ -1,4 +1,15 @@
-export type StoryGenre = 'horror' | 'motivational' | 'crime' | 'urban_legend' | 'comedy';
+export type StoryGenre =
+  | 'horror'
+  | 'motivational'
+  | 'crime'
+  | 'urban_legend'
+  | 'comedy'
+  | 'sci_fi'
+  | 'romance'
+  | 'thriller'
+  | 'historical'
+  | 'documentary'
+  | 'mystery';
 export type CameraMotion = 'zoom_in' | 'slow_pan' | 'parallax' | 'camera_shake' | 'fade_out';
 
 export interface StoryCharacter {
