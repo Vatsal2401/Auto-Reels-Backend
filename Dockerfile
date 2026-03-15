@@ -43,6 +43,14 @@ WORKDIR /app
 COPY --from=ffmpeg /ffmpeg /usr/local/bin/
 COPY --from=ffmpeg /ffprobe /usr/local/bin/
 
+# Install yt-dlp standalone binary (no Python dependency)
+RUN apt-get update \
+ && apt-get install -y curl --no-install-recommends \
+ && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux \
+      -o /usr/local/bin/yt-dlp \
+ && chmod +x /usr/local/bin/yt-dlp \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # Create non-root user (Debian Syntax)
 RUN groupadd -g 1001 nodejs \
  && useradd -u 1001 -g nodejs -m -s /bin/bash nestjs
