@@ -34,7 +34,7 @@ export class DurationAllocatorService {
 
     const result: TimelineBlock[] = blocks.map((block) => {
       const wordCount = block.words.length || 1;
-      let frames = Math.round(
+      const frames = Math.round(
         Math.min(
           MAX_FRAMES_PER_BLOCK,
           Math.max(MIN_FRAMES_PER_BLOCK, wordCount * BASE_FRAMES_PER_WORD * factor),

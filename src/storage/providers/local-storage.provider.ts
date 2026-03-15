@@ -134,11 +134,25 @@ export class LocalStorageProvider implements IStorageService {
     return `users/${safeUserId}/media/${mediaId}/${type}/${fileName}`;
   }
 
-  async createMultipartUpload(_k: string, _ct: string): Promise<string> { throw new Error('Multipart not supported in local storage'); }
-  async presignUploadPart(_k: string, _u: string, _n: number, _e: number): Promise<string> { throw new Error('Multipart not supported in local storage'); }
-  async completeMultipartUpload(_k: string, _u: string, _p: { PartNumber: number; ETag: string }[]): Promise<void> { throw new Error('Multipart not supported in local storage'); }
-  async abortMultipartUpload(_k: string, _u: string): Promise<void> { throw new Error('Multipart not supported in local storage'); }
-  async uploadPartDirect(_k: string, _u: string, _n: number, _b: Buffer): Promise<string> { throw new Error('Multipart not supported in local storage'); }
+  async createMultipartUpload(_k: string, _ct: string): Promise<string> {
+    throw new Error('Multipart not supported in local storage');
+  }
+  async presignUploadPart(_k: string, _u: string, _n: number, _e: number): Promise<string> {
+    throw new Error('Multipart not supported in local storage');
+  }
+  async completeMultipartUpload(
+    _k: string,
+    _u: string,
+    _p: { PartNumber: number; ETag: string }[],
+  ): Promise<void> {
+    throw new Error('Multipart not supported in local storage');
+  }
+  async abortMultipartUpload(_k: string, _u: string): Promise<void> {
+    throw new Error('Multipart not supported in local storage');
+  }
+  async uploadPartDirect(_k: string, _u: string, _n: number, _b: Buffer): Promise<string> {
+    throw new Error('Multipart not supported in local storage');
+  }
 
   private getAbsolutePath(objectId: string): string {
     // Handle legacy URLs or absolute paths

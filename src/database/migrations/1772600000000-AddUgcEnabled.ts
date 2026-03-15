@@ -8,8 +8,6 @@ export class AddUgcEnabled1772600000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "user_settings" DROP COLUMN IF EXISTS "ugc_enabled"`,
-    );
+    await queryRunner.query(`ALTER TABLE "user_settings" DROP COLUMN IF EXISTS "ugc_enabled"`);
   }
 }

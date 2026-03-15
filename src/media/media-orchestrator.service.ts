@@ -842,7 +842,8 @@ export class MediaOrchestratorService {
 
     // Download Hedra video and re-upload to S3
     const videoResponse = await fetch(videoUrl);
-    if (!videoResponse.ok) throw new Error(`Failed to download Hedra video: ${videoResponse.status}`);
+    if (!videoResponse.ok)
+      throw new Error(`Failed to download Hedra video: ${videoResponse.status}`);
     const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
 
     const blobId = await this.storageService.upload({

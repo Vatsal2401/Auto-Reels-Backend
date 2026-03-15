@@ -1,4 +1,11 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import axios from 'axios';
@@ -55,11 +62,7 @@ export class BrollAirImportService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async startImport(
-    libId: string,
-    userId: string,
-    dto: ImportFromAirDto,
-  ): Promise<BrollAirImport> {
+  async startImport(libId: string, userId: string, dto: ImportFromAirDto): Promise<BrollAirImport> {
     // Verify library ownership
     const lib = await this.libraryRepo.findOne({ where: { id: libId } });
     if (!lib) throw new NotFoundException('Library not found');
@@ -133,7 +136,12 @@ export class BrollAirImportService {
     return match?.[1] ?? null;
   }
 
-  private async runImport(job: BrollAirImport, apiKey: string | undefined, clipIds: string[] | undefined, autoIndex: boolean): Promise<void> {
+  private async runImport(
+    job: BrollAirImport,
+    apiKey: string | undefined,
+    clipIds: string[] | undefined,
+    autoIndex: boolean,
+  ): Promise<void> {
     try {
       let assets = apiKey
         ? await this.paginateAirAssets(job.boardId, apiKey)
@@ -172,18 +180,25 @@ export class BrollAirImportService {
       // Recalculate library stats
       await this.recalcStats(job.libraryId);
 
-      const finalStatus = failedClips === 0 ? 'completed' : importedClips === 0 ? 'failed' : 'partial';
-      await this.importRepo.update({ id: job.id }, {
-        status: finalStatus,
-        importedClips,
-        failedClips,
-      });
+      const finalStatus =
+        failedClips === 0 ? 'completed' : importedClips === 0 ? 'failed' : 'partial';
+      await this.importRepo.update(
+        { id: job.id },
+        {
+          status: finalStatus,
+          importedClips,
+          failedClips,
+        },
+      );
     } catch (err) {
       this.logger.error(`runImport: fatal error for job ${job.id}: ${(err as Error)?.message}`);
-      await this.importRepo.update({ id: job.id }, {
-        status: 'failed',
-        errorMessage: (err as Error)?.message ?? 'Unknown error',
-      });
+      await this.importRepo.update(
+        { id: job.id },
+        {
+          status: 'failed',
+          errorMessage: (err as Error)?.message ?? 'Unknown error',
+        },
+      );
     }
   }
 
@@ -205,14 +220,10 @@ export class BrollAirImportService {
           assets: AirAsset[];
           cursor?: string;
           hasMore?: boolean;
-        }>(
-          `${AIR_API_BASE}/assets/search`,
-          body,
-          {
-            headers: { Authorization: `Bearer ${apiKey}` },
-            timeout: 30_000,
-          },
-        );
+        }>(`${AIR_API_BASE}/assets/search`, body, {
+          headers: { Authorization: `Bearer ${apiKey}` },
+          timeout: 30_000,
+        });
 
         assets.push(...(res.data.assets ?? []));
         cursor = res.data.cursor;
@@ -220,7 +231,9 @@ export class BrollAirImportService {
       } catch (err) {
         // Fallback: try GET /boards/{boardId}/clips
         if (!cursor) {
-          this.logger.warn(`paginateAirAssets: POST /assets/search failed, trying GET fallback: ${(err as Error)?.message}`);
+          this.logger.warn(
+            `paginateAirAssets: POST /assets/search failed, trying GET fallback: ${(err as Error)?.message}`,
+          );
           const fallback = await this.paginateAirClipsFallback(boardId, apiKey);
           assets.push(...fallback);
           break;
@@ -281,7 +294,9 @@ export class BrollAirImportService {
         hasMore = res.data.hasMore ?? false;
       } catch (err) {
         if (!cursor) {
-          this.logger.warn(`paginateAirAssetsPublic: POST /assets/search failed, trying GET fallback: ${(err as Error)?.message}`);
+          this.logger.warn(
+            `paginateAirAssetsPublic: POST /assets/search failed, trying GET fallback: ${(err as Error)?.message}`,
+          );
           const fallback = await this.paginatePublicClipsFallback(boardId);
           assets.push(...fallback);
           break;
@@ -364,7 +379,9 @@ export class BrollAirImportService {
         try {
           await this.storageService.abortMultipartUpload(key, uploadId);
         } catch (abortErr) {
-          this.logger.warn(`streamAirToS3: abort failed for ${videoId}: ${(abortErr as Error)?.message}`);
+          this.logger.warn(
+            `streamAirToS3: abort failed for ${videoId}: ${(abortErr as Error)?.message}`,
+          );
         }
       }
       // Mark video as error
@@ -403,9 +420,11 @@ export class BrollAirImportService {
           const currentPart = partNumber++;
 
           flushParts.push(
-            this.storageService.uploadPartDirect(key, uploadId, currentPart, partBuf).then((etag) => {
-              parts.push({ PartNumber: currentPart, ETag: etag });
-            }),
+            this.storageService
+              .uploadPartDirect(key, uploadId, currentPart, partBuf)
+              .then((etag) => {
+                parts.push({ PartNumber: currentPart, ETag: etag });
+              }),
           );
         }
 
@@ -422,7 +441,12 @@ export class BrollAirImportService {
           // Upload remaining bytes as the last part
           if (buffer.length > 0) {
             const currentPart = partNumber++;
-            const etag = await this.storageService.uploadPartDirect(key, uploadId, currentPart, buffer);
+            const etag = await this.storageService.uploadPartDirect(
+              key,
+              uploadId,
+              currentPart,
+              buffer,
+            );
             parts.push({ PartNumber: currentPart, ETag: etag });
           }
           // Sort parts by PartNumber before completing
@@ -444,7 +468,9 @@ export class BrollAirImportService {
     filename: string,
   ): Promise<void> {
     try {
-      const signedUrl = await this.storageService.getSignedUrl(s3Key, 3600, { promptDownload: true });
+      const signedUrl = await this.storageService.getSignedUrl(s3Key, 3600, {
+        promptDownload: true,
+      });
       // Lazy import to avoid circular dependency
       // Insert a queued job row — caller can rely on polling existing mechanism
       await this.dataSource.query(
@@ -452,7 +478,9 @@ export class BrollAirImportService {
          VALUES ($1, $2, 'queued')`,
         [videoId, libId],
       );
-      this.logger.log(`triggerIngestionSilent: queued job for video ${videoId} (${filename}) url=${signedUrl.substring(0, 80)}...`);
+      this.logger.log(
+        `triggerIngestionSilent: queued job for video ${videoId} (${filename}) url=${signedUrl.substring(0, 80)}...`,
+      );
     } catch (err) {
       this.logger.warn(`triggerIngestionSilent: failed for ${videoId}: ${(err as Error)?.message}`);
     }

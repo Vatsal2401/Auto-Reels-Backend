@@ -25,10 +25,7 @@ export class ImageToVideoController {
   @ApiOperation({ summary: 'Animate an image into a short video using Stable Video Diffusion' })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('image', { limits: { fileSize: 20 * 1024 * 1024 } }))
-  async animate(
-    @UploadedFile() file: Express.Multer.File,
-    @Body() body: { data?: string },
-  ) {
+  async animate(@UploadedFile() file: Express.Multer.File, @Body() body: { data?: string }) {
     if (!file) {
       throw new BadRequestException('Image file is required.');
     }

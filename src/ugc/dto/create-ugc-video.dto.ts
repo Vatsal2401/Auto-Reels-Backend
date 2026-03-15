@@ -29,12 +29,7 @@ export class CreateUgcVideoDto {
   actorId: string;
 
   @IsString()
-  ugcStyle:
-    | 'selfie_review'
-    | 'unboxing'
-    | 'problem_solution'
-    | 'before_after'
-    | 'tiktok_story';
+  ugcStyle: 'selfie_review' | 'unboxing' | 'problem_solution' | 'before_after' | 'tiktok_story';
 
   /** ElevenLabs voice ID (falls back to actor.voice_id if not provided) */
   @IsString()

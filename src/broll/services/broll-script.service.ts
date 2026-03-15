@@ -98,10 +98,10 @@ export class BrollScriptService {
     // indexedCount is a denormalized counter — fall back to live query if stale
     let indexedCount = lib.indexedCount;
     if (indexedCount === 0) {
-      const [{ count }] = await this.dataSource.query(
+      const [{ count }] = (await this.dataSource.query(
         `SELECT COUNT(*) FROM broll_videos WHERE library_id = $1 AND status = 'indexed'`,
         [libId],
-      ) as [{ count: string }];
+      )) as [{ count: string }];
       indexedCount = parseInt(count, 10);
     }
     if (indexedCount === 0) {
@@ -208,12 +208,7 @@ export class BrollScriptService {
     await this.resultRepo.update({ id: result.id }, { isLocked: locked });
   }
 
-  async exportScript(
-    libId: string,
-    sid: string,
-    format: string,
-    userId: string,
-  ): Promise<string> {
+  async exportScript(libId: string, sid: string, format: string, userId: string): Promise<string> {
     const script = await this.getScript(libId, sid, userId);
     const results = (script.results ?? []).sort((a, b) => a.lineIndex - b.lineIndex);
 

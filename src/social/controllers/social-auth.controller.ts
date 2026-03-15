@@ -19,7 +19,11 @@ export class SocialAuthController {
   ) {}
 
   private get frontendUrl(): string {
-    return process.env.FRONTEND_URL || this.configService.get<string>('frontendUrl') || 'http://localhost:3001';
+    return (
+      process.env.FRONTEND_URL ||
+      this.configService.get<string>('frontendUrl') ||
+      'http://localhost:3001'
+    );
   }
 
   // ─── YouTube ─────────────────────────────────────────────────────────────
@@ -34,10 +38,7 @@ export class SocialAuthController {
   @Get('youtube')
   @UseGuards(JwtAuthGuard, SocialSchedulerEnabledGuard)
   @ApiOperation({ summary: 'Initiate YouTube OAuth — redirects to Google' })
-  async connectYouTube(
-    @CurrentUser() user: { userId: string },
-    @Res() res: Response,
-  ) {
+  async connectYouTube(@CurrentUser() user: { userId: string }, @Res() res: Response) {
     const url = this.socialAuthService.generateYouTubeAuthUrl(user.userId);
     return res.redirect(url);
   }
@@ -66,10 +67,7 @@ export class SocialAuthController {
   @Get('tiktok')
   @UseGuards(JwtAuthGuard, SocialSchedulerEnabledGuard)
   @ApiOperation({ summary: 'Initiate TikTok OAuth with PKCE' })
-  async connectTikTok(
-    @CurrentUser() user: { userId: string },
-    @Res() res: Response,
-  ) {
+  async connectTikTok(@CurrentUser() user: { userId: string }, @Res() res: Response) {
     const url = await this.socialAuthService.generateTikTokAuthUrl(user.userId);
     return res.redirect(url);
   }
@@ -98,10 +96,7 @@ export class SocialAuthController {
   @Get('instagram')
   @UseGuards(JwtAuthGuard, SocialSchedulerEnabledGuard)
   @ApiOperation({ summary: 'Initiate Instagram OAuth — exchanges for long-lived token' })
-  async connectInstagram(
-    @CurrentUser() user: { userId: string },
-    @Res() res: Response,
-  ) {
+  async connectInstagram(@CurrentUser() user: { userId: string }, @Res() res: Response) {
     const url = this.socialAuthService.generateInstagramAuthUrl(user.userId);
     return res.redirect(url);
   }

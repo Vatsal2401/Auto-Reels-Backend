@@ -63,8 +63,8 @@ export class SceneRhythmEngineService {
       entryPct *= 0.98 + 0.04 * seededHash(seed);
       exitPct *= 0.95 + 0.1 * seededHash(seed + 'e');
 
-      let entryFrames = Math.max(10, Math.floor(totalFrames * entryPct));
-      let exitFrames = Math.max(8, Math.floor(totalFrames * exitPct));
+      const entryFrames = Math.max(10, Math.floor(totalFrames * entryPct));
+      const exitFrames = Math.max(8, Math.floor(totalFrames * exitPct));
       let holdFrames = totalFrames - entryFrames - exitFrames;
       if (holdFrames < minHoldFrames) {
         holdFrames = minHoldFrames;

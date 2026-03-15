@@ -9,10 +9,10 @@ export class BrollEnabledGuard implements CanActivate {
     const req = ctx.switchToHttp().getRequest();
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const userId: string = req.user?.userId ?? req.user?.id;
-    const rows = await this.dataSource.query(
+    const rows = (await this.dataSource.query(
       'SELECT broll_enabled FROM user_settings WHERE user_id = $1',
       [userId],
-    ) as { broll_enabled: boolean }[];
+    )) as { broll_enabled: boolean }[];
     if (!rows[0]?.broll_enabled) {
       throw new ForbiddenException('B-roll feature not enabled');
     }

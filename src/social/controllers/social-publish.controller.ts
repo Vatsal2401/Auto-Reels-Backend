@@ -61,20 +61,14 @@ export class SocialPublishController {
 
   @Post('posts')
   @ApiOperation({ summary: 'Schedule a video post' })
-  async schedulePost(
-    @CurrentUser() user: { userId: string },
-    @Body() dto: SchedulePostDto,
-  ) {
+  async schedulePost(@CurrentUser() user: { userId: string }, @Body() dto: SchedulePostDto) {
     return this.publishService.schedulePost(user.userId, dto);
   }
 
   @Get('posts')
   @ApiOperation({ summary: 'List scheduled posts' })
   @ApiQuery({ name: 'status', enum: PostStatus, required: false })
-  async listPosts(
-    @CurrentUser() user: { userId: string },
-    @Query('status') status?: PostStatus,
-  ) {
+  async listPosts(@CurrentUser() user: { userId: string }, @Query('status') status?: PostStatus) {
     return this.publishService.listPosts(user.userId, status);
   }
 

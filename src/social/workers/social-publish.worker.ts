@@ -59,27 +59,24 @@ export class SocialPublishWorker implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit() {
     const connection = buildRedisConnection(this.configService);
-    const concurrency = parseInt(this.configService.get('SOCIAL_WORKER_CONCURRENCY') ?? '3', 10) || 3;
+    const concurrency =
+      parseInt(this.configService.get('SOCIAL_WORKER_CONCURRENCY') ?? '3', 10) || 3;
 
     const platformConfigs: Array<{ queueName: string; platform: SocialPlatform }> = [
-      { queueName: SOCIAL_PUBLISH_QUEUE_YOUTUBE,   platform: SocialPlatform.YOUTUBE },
-      { queueName: SOCIAL_PUBLISH_QUEUE_TIKTOK,    platform: SocialPlatform.TIKTOK },
+      { queueName: SOCIAL_PUBLISH_QUEUE_YOUTUBE, platform: SocialPlatform.YOUTUBE },
+      { queueName: SOCIAL_PUBLISH_QUEUE_TIKTOK, platform: SocialPlatform.TIKTOK },
       { queueName: SOCIAL_PUBLISH_QUEUE_INSTAGRAM, platform: SocialPlatform.INSTAGRAM },
     ];
 
     for (const { queueName, platform } of platformConfigs) {
-      const worker = new Worker(
-        queueName,
-        (job: Job) => this.processJob(job, platform),
-        {
-          connection,
-          concurrency,
-          limiter: PLATFORM_RATE_LIMITS[platform],
-          stalledInterval: 30_000,   // check for stalled jobs every 30s (C6)
-          maxStalledCount: 1,        // re-queue if stalled once
-          lockDuration: 20 * 60 * 1000, // must exceed job timeout
-        },
-      );
+      const worker = new Worker(queueName, (job: Job) => this.processJob(job, platform), {
+        connection,
+        concurrency,
+        limiter: PLATFORM_RATE_LIMITS[platform],
+        stalledInterval: 30_000, // check for stalled jobs every 30s (C6)
+        maxStalledCount: 1, // re-queue if stalled once
+        lockDuration: 20 * 60 * 1000, // must exceed job timeout
+      });
 
       // Handle permanently failed jobs (all retries exhausted) (H7)
       worker.on('failed', async (job, err) => {
@@ -96,6 +93,10 @@ export class SocialPublishWorker implements OnModuleInit, OnModuleDestroy {
             status: PostStatus.FAILED,
             error_message: err.message,
           });
+
+          if (post.campaign_post_id) {
+            await this.syncCampaignPipelineStatus(post.campaign_post_id);
+          }
 
           await this.userNotificationsService.create({
             userId: post.user_id,
@@ -209,6 +210,10 @@ export class SocialPublishWorker implements OnModuleInit, OnModuleDestroy {
         platform_post_id: platformPostId,
         upload_progress_pct: 100,
       });
+
+      if (typedPost.campaign_post_id) {
+        await this.syncCampaignPipelineStatus(typedPost.campaign_post_id);
+      }
 
       await this.userNotificationsService.create({
         userId: typedPost.user_id,
@@ -377,5 +382,57 @@ export class SocialPublishWorker implements OnModuleInit, OnModuleDestroy {
         }),
       )
       .catch((err) => this.logger.error(`Failed to write upload log: ${err.message}`));
+  }
+
+  /**
+   * Recompute and persist campaign_post pipeline_status from linked scheduled_posts.
+   * Uses raw DataSource SQL to avoid any circular dependency with CampaignsModule.
+   *
+   * Transition rules (checked in order):
+   *   all SUCCESS           → published
+   *   any UPLOADING/PENDING → publishing
+   *   all FAILED/CANCELLED  → failed
+   *   otherwise             → ready (nothing active, mix of states)
+   */
+  private async syncCampaignPipelineStatus(campaignPostId: string): Promise<void> {
+    try {
+      await this.dataSource.query(
+        `
+        UPDATE campaign_posts cp
+        SET
+          pipeline_status = (CASE
+            WHEN counts.total > 0 AND counts.success_count = counts.total
+              THEN 'published'
+            WHEN counts.active_count > 0
+              THEN 'publishing'
+            WHEN counts.total > 0 AND (counts.failed_count + counts.cancelled_count) = counts.total
+              THEN 'failed'
+            ELSE 'ready'
+          END)::campaign_posts_pipeline_status_enum,
+          published_at = CASE
+            WHEN counts.total > 0 AND counts.success_count = counts.total THEN now()
+            ELSE cp.published_at
+          END,
+          updated_at = now()
+        FROM (
+          SELECT
+            COUNT(*)                                                         AS total,
+            COUNT(*) FILTER (WHERE status = 'success')                       AS success_count,
+            COUNT(*) FILTER (WHERE status IN ('pending', 'uploading'))       AS active_count,
+            COUNT(*) FILTER (WHERE status = 'failed')                        AS failed_count,
+            COUNT(*) FILTER (WHERE status = 'cancelled')                     AS cancelled_count
+          FROM scheduled_posts
+          WHERE campaign_post_id = $1
+        ) counts
+        WHERE cp.id = $1
+        `,
+        [campaignPostId],
+      );
+    } catch (err: any) {
+      this.logger.error(
+        `syncCampaignPipelineStatus.error campaignPostId=${campaignPostId}: ${err.message}`,
+        err.stack,
+      );
+    }
   }
 }

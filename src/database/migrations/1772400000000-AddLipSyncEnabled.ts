@@ -8,8 +8,6 @@ export class AddLipSyncEnabled1772400000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "user_settings" DROP COLUMN IF EXISTS "lipsync_enabled"`,
-    );
+    await queryRunner.query(`ALTER TABLE "user_settings" DROP COLUMN IF EXISTS "lipsync_enabled"`);
   }
 }

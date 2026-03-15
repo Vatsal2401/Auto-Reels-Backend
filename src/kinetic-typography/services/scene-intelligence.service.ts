@@ -75,7 +75,10 @@ export class SceneIntelligenceService {
    * Rule-based background type fallback when AI doesn't suggest one.
    * urgent → radial-glow, celebratory → animated-gradient, calm/intro → dot-grid, neutral → (no override, use style preset).
    */
-  mapToneToBackground(toneCategory: ToneCategory, sceneType: ScenePlanScene['sceneType']): BackgroundType | undefined {
+  mapToneToBackground(
+    toneCategory: ToneCategory,
+    sceneType: ScenePlanScene['sceneType'],
+  ): BackgroundType | undefined {
     if (sceneType === 'cta' || toneCategory === 'urgent') return 'radial-glow';
     if (toneCategory === 'celebratory') return 'animated-gradient';
     if (toneCategory === 'calm' || sceneType === 'intro') return 'dot-grid';

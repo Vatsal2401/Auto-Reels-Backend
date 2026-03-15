@@ -65,9 +65,7 @@ export class TikTokService {
     return data;
   }
 
-  async refreshAccessToken(
-    refreshToken: string,
-  ): Promise<{
+  async refreshAccessToken(refreshToken: string): Promise<{
     access_token: string;
     refresh_token: string;
     expires_in: number;
@@ -157,9 +155,7 @@ export class TikTokService {
       });
 
       if (!chunkRes.ok) {
-        throw new Error(
-          `TikTok chunk ${i + 1}/${totalChunks} upload failed: ${chunkRes.status}`,
-        );
+        throw new Error(`TikTok chunk ${i + 1}/${totalChunks} upload failed: ${chunkRes.status}`);
       }
     }
 

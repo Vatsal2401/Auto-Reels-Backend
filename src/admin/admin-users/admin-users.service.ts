@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -207,7 +212,17 @@ export class AdminUsersService {
       [searchParam],
     );
 
-    const header = ['id', 'email', 'name', 'credits_balance', 'is_premium', 'country', 'auth_provider', 'created_at', 'total_projects'].join(',');
+    const header = [
+      'id',
+      'email',
+      'name',
+      'credits_balance',
+      'is_premium',
+      'country',
+      'auth_provider',
+      'created_at',
+      'total_projects',
+    ].join(',');
     const rows = users.map((u) =>
       [
         u.id,

@@ -14,8 +14,8 @@ export class TokenRefreshService {
   private readonly logger = new Logger(TokenRefreshService.name);
 
   // Refresh windows per platform
-  private readonly YOUTUBE_THRESHOLD_MS   = 60 * 60 * 1000;            // 1 hour
-  private readonly TIKTOK_THRESHOLD_MS    = 60 * 60 * 1000;            // 1 hour
+  private readonly YOUTUBE_THRESHOLD_MS = 60 * 60 * 1000; // 1 hour
+  private readonly TIKTOK_THRESHOLD_MS = 60 * 60 * 1000; // 1 hour
   private readonly INSTAGRAM_THRESHOLD_MS = 10 * 24 * 60 * 60 * 1000; // 10 days (C1)
 
   constructor(
@@ -113,7 +113,7 @@ export class TokenRefreshService {
           `(a.platform = 'instagram' AND a.token_expires_at < :ig)`,
         {
           std: new Date(now + this.YOUTUBE_THRESHOLD_MS),
-          ig:  new Date(now + this.INSTAGRAM_THRESHOLD_MS),
+          ig: new Date(now + this.INSTAGRAM_THRESHOLD_MS),
         },
       )
       .getMany();

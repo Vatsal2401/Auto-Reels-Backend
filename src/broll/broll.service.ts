@@ -16,7 +16,11 @@ export class BrollService {
     private readonly brollPythonService: BrollPythonService,
   ) {}
 
-  async presignUpload(userId: string, filename: string, contentType?: string): Promise<{ uploadUrl: string; s3Key: string; expiresIn: number }> {
+  async presignUpload(
+    userId: string,
+    filename: string,
+    contentType?: string,
+  ): Promise<{ uploadUrl: string; s3Key: string; expiresIn: number }> {
     const ext = filename.match(/\.[^.]+$/)?.[0]?.toLowerCase() ?? '.mp4';
     const result = await this.storageService.getPresignedPutUrl(
       { userId, mediaId: uuidv4(), type: 'broll', fileName: `input${ext}` },
@@ -26,7 +30,10 @@ export class BrollService {
     return { uploadUrl: result.uploadUrl, s3Key: result.objectId, expiresIn: 900 };
   }
 
-  async ingestVideo(s3Key: string, filename: string): Promise<{ s3Key: string; filename: string; status: string }> {
+  async ingestVideo(
+    s3Key: string,
+    filename: string,
+  ): Promise<{ s3Key: string; filename: string; status: string }> {
     const presignedUrl = await this.storageService.getSignedUrl(s3Key, 3600);
     await this.brollPythonService.ingestFromUrl(presignedUrl, filename);
     return { s3Key, filename, status: 'processing' };
@@ -41,7 +48,10 @@ export class BrollService {
   }
 
   async startIngestion(dto: IngestDto) {
-    return this.brollPythonService.startIngestion(dto.videoDir ?? '/broll', dto.forceReingest ?? false);
+    return this.brollPythonService.startIngestion(
+      dto.videoDir ?? '/broll',
+      dto.forceReingest ?? false,
+    );
   }
 
   async rebuildIndex() {

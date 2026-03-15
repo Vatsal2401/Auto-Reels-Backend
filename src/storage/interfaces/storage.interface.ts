@@ -62,7 +62,12 @@ export interface IStorageService {
   createMultipartUpload(key: string, contentType: string): Promise<string>;
 
   /** Generate a presigned URL for a single part of a multipart upload. */
-  presignUploadPart(key: string, uploadId: string, partNumber: number, expiresIn: number): Promise<string>;
+  presignUploadPart(
+    key: string,
+    uploadId: string,
+    partNumber: number,
+    expiresIn: number,
+  ): Promise<string>;
 
   /** Complete a multipart upload after all parts have been uploaded. */
   completeMultipartUpload(
@@ -78,5 +83,10 @@ export interface IStorageService {
    * Upload a single Buffer as a multipart part directly (server-side, no presigned URL).
    * Returns the ETag for use in completeMultipartUpload.
    */
-  uploadPartDirect(key: string, uploadId: string, partNumber: number, body: Buffer): Promise<string>;
+  uploadPartDirect(
+    key: string,
+    uploadId: string,
+    partNumber: number,
+    body: Buffer,
+  ): Promise<string>;
 }

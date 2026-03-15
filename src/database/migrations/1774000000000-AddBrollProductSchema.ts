@@ -30,9 +30,7 @@ export class AddBrollProductSchema1774000000000 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "broll_videos" ADD COLUMN IF NOT EXISTS "library_id" uuid REFERENCES "broll_libraries"("id") ON DELETE CASCADE`,
     );
-    await queryRunner.query(
-      `ALTER TABLE "broll_videos" ADD COLUMN IF NOT EXISTS "user_id" uuid`,
-    );
+    await queryRunner.query(`ALTER TABLE "broll_videos" ADD COLUMN IF NOT EXISTS "user_id" uuid`);
 
     // B-roll scripts
     await queryRunner.query(`
@@ -96,12 +94,24 @@ export class AddBrollProductSchema1774000000000 implements MigrationInterface {
     `);
 
     // Indexes
-    await queryRunner.query(`CREATE INDEX "idx_broll_libraries_user" ON "broll_libraries"("user_id")`);
-    await queryRunner.query(`CREATE INDEX "idx_broll_videos_library" ON "broll_videos"("library_id")`);
-    await queryRunner.query(`CREATE INDEX "idx_broll_scripts_library" ON "broll_scripts"("library_id")`);
-    await queryRunner.query(`CREATE INDEX "idx_broll_results_script" ON "broll_match_results"("script_id")`);
-    await queryRunner.query(`CREATE INDEX "idx_broll_ingest_jobs_library" ON "broll_ingestion_jobs"("library_id")`);
-    await queryRunner.query(`CREATE INDEX "idx_broll_ingest_jobs_status" ON "broll_ingestion_jobs"("status")`);
+    await queryRunner.query(
+      `CREATE INDEX "idx_broll_libraries_user" ON "broll_libraries"("user_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_broll_videos_library" ON "broll_videos"("library_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_broll_scripts_library" ON "broll_scripts"("library_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_broll_results_script" ON "broll_match_results"("script_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_broll_ingest_jobs_library" ON "broll_ingestion_jobs"("library_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_broll_ingest_jobs_status" ON "broll_ingestion_jobs"("status")`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

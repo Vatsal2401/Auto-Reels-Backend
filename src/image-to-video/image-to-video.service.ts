@@ -6,8 +6,8 @@ import { AnimateDto, VideoFormat } from './dto/animate.dto';
 
 const FORMAT_DIMENSIONS: Record<VideoFormat, { width: number; height: number }> = {
   horizontal: { width: 1024, height: 576 },
-  vertical:   { width: 576,  height: 1024 },
-  square:     { width: 576,  height: 576  },
+  vertical: { width: 576, height: 1024 },
+  square: { width: 576, height: 576 },
 };
 
 export interface AnimateResult {
@@ -31,36 +31,36 @@ export class ImageToVideoService {
 
     // SVD server expects field name "file" and a JSON-encoded "data" string
     form.append('file', imageBuffer, { filename: 'image', contentType: mimetype });
-    form.append('data', JSON.stringify({
-      num_frames:          params.num_frames          ?? 25,
-      num_inference_steps: params.num_inference_steps ?? 20,
-      fps:                 params.fps                 ?? 7,
-      motion_bucket_id:    params.motion_bucket_id    ?? 100,
-      noise_aug_strength:  params.noise_aug_strength  ?? 0.1,
-      seed:                params.seed                ?? -1,
-      width,
-      height,
-    }));
+    form.append(
+      'data',
+      JSON.stringify({
+        num_frames: params.num_frames ?? 25,
+        num_inference_steps: params.num_inference_steps ?? 20,
+        fps: params.fps ?? 7,
+        motion_bucket_id: params.motion_bucket_id ?? 100,
+        noise_aug_strength: params.noise_aug_strength ?? 0.1,
+        seed: params.seed ?? -1,
+        width,
+        height,
+      }),
+    );
 
     try {
-      const response = await axios.post<AnimateResult>(
-        `${this.serverUrl}/animate`,
-        form,
-        {
-          headers: form.getHeaders(),
-          maxBodyLength: Infinity,
-          maxContentLength: Infinity,
-          timeout: 300_000, // 5 min — SVD generation can take ~100s
-        },
-      );
+      const response = await axios.post<AnimateResult>(`${this.serverUrl}/animate`, form, {
+        headers: form.getHeaders(),
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+        timeout: 300_000, // 5 min — SVD generation can take ~100s
+      });
       return response.data;
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
-      const message = typeof detail === 'string'
-        ? detail
-        : detail
-          ? JSON.stringify(detail)
-          : err?.message ?? 'SVD server error';
+      const message =
+        typeof detail === 'string'
+          ? detail
+          : detail
+            ? JSON.stringify(detail)
+            : (err?.message ?? 'SVD server error');
       throw new BadGatewayException(`Image-to-video failed: ${message}`);
     }
   }

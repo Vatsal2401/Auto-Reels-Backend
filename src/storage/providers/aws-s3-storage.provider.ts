@@ -102,7 +102,12 @@ export class AwsS3StorageProvider implements IStorageService {
     if (!options?.promptDownload && this.cfDomain && this.cfKeyPairId && this.cfPrivateKey) {
       const url = `https://${this.cfDomain}/${objectId}`;
       const dateLessThan = new Date(Date.now() + expiresIn * 1000).toISOString();
-      return getCFSignedUrl({ url, keyPairId: this.cfKeyPairId, dateLessThan, privateKey: this.cfPrivateKey });
+      return getCFSignedUrl({
+        url,
+        keyPairId: this.cfKeyPairId,
+        dateLessThan,
+        privateKey: this.cfPrivateKey,
+      });
     }
     // Fallback: S3 presigned URL (downloads or CloudFront not configured)
     const commandInput: any = { Bucket: this.bucketName, Key: objectId };
@@ -136,11 +141,25 @@ export class AwsS3StorageProvider implements IStorageService {
   }
 
   // Multipart not implemented on this provider — use S3StorageProvider (s3-storage.provider.ts)
-  async createMultipartUpload(_key: string, _ct: string): Promise<string> { throw new Error('Not implemented'); }
-  async presignUploadPart(_k: string, _u: string, _n: number, _e: number): Promise<string> { throw new Error('Not implemented'); }
-  async completeMultipartUpload(_k: string, _u: string, _p: { PartNumber: number; ETag: string }[]): Promise<void> { throw new Error('Not implemented'); }
-  async abortMultipartUpload(_k: string, _u: string): Promise<void> { throw new Error('Not implemented'); }
-  async uploadPartDirect(_k: string, _u: string, _n: number, _b: Buffer): Promise<string> { throw new Error('Not implemented'); }
+  async createMultipartUpload(_key: string, _ct: string): Promise<string> {
+    throw new Error('Not implemented');
+  }
+  async presignUploadPart(_k: string, _u: string, _n: number, _e: number): Promise<string> {
+    throw new Error('Not implemented');
+  }
+  async completeMultipartUpload(
+    _k: string,
+    _u: string,
+    _p: { PartNumber: number; ETag: string }[],
+  ): Promise<void> {
+    throw new Error('Not implemented');
+  }
+  async abortMultipartUpload(_k: string, _u: string): Promise<void> {
+    throw new Error('Not implemented');
+  }
+  async uploadPartDirect(_k: string, _u: string, _n: number, _b: Buffer): Promise<string> {
+    throw new Error('Not implemented');
+  }
 
   private getExtensionForType(type: string): string {
     const map: Record<string, string> = {

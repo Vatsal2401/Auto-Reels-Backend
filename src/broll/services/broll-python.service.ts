@@ -29,7 +29,11 @@ export class BrollPythonService {
 
   async ingestFromUrl(url: string, filename: string, videoId?: string): Promise<void> {
     axios
-      .post(`${this.serverUrl}/ingest/from-url`, { url, filename, video_id: videoId }, { timeout: 10_000 })
+      .post(
+        `${this.serverUrl}/ingest/from-url`,
+        { url, filename, video_id: videoId },
+        { timeout: 10_000 },
+      )
       .catch((err) => {
         this.logger.error(
           `BrollPythonService.ingestFromUrl: failed for ${filename}: ${(err as Error)?.message}`,
@@ -53,7 +57,7 @@ export class BrollPythonService {
           ? detail
           : detail
             ? JSON.stringify(detail)
-            : axiosErr?.message ?? 'B-roll matcher error';
+            : (axiosErr?.message ?? 'B-roll matcher error');
       throw new BadGatewayException(`B-roll match failed: ${message}`);
     }
   }
@@ -83,14 +87,18 @@ export class BrollPythonService {
           ? detail
           : detail
             ? JSON.stringify(detail)
-            : axiosErr?.message ?? 'B-roll matcher error';
+            : (axiosErr?.message ?? 'B-roll matcher error');
       throw new BadGatewayException(`Ingestion failed: ${message}`);
     }
   }
 
   async rebuildIndex(): Promise<unknown> {
     try {
-      const res = await axios.post(`${this.serverUrl}/ingest/rebuild-index`, {}, { timeout: 120_000 });
+      const res = await axios.post(
+        `${this.serverUrl}/ingest/rebuild-index`,
+        {},
+        { timeout: 120_000 },
+      );
       return res.data;
     } catch {
       throw new BadGatewayException('Failed to rebuild B-roll index');

@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddStoryAndUgcAssetTypeEnums1772800000000
-  implements MigrationInterface
-{
+export class AddStoryAndUgcAssetTypeEnums1772800000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
       `ALTER TYPE "public"."media_assets_type_enum" ADD VALUE IF NOT EXISTS 'ugc_brief'`,

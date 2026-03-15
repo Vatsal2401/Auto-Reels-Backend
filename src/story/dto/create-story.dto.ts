@@ -6,7 +6,19 @@ export class CreateStoryDto {
   @MinLength(10)
   prompt: string;
 
-  @IsEnum(['horror', 'motivational', 'crime', 'urban_legend', 'comedy', 'sci_fi', 'romance', 'thriller', 'historical', 'documentary', 'mystery'])
+  @IsEnum([
+    'horror',
+    'motivational',
+    'crime',
+    'urban_legend',
+    'comedy',
+    'sci_fi',
+    'romance',
+    'thriller',
+    'historical',
+    'documentary',
+    'mystery',
+  ])
   genre: StoryGenre;
 
   @IsIn([3, 5, 7, 10])

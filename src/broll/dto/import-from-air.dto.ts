@@ -6,7 +6,9 @@ export class ImportFromAirDto {
   @IsUrl()
   boardUrl: string;
 
-  @ApiPropertyOptional({ description: 'AIR API key for authentication (optional for public boards)' })
+  @ApiPropertyOptional({
+    description: 'AIR API key for authentication (optional for public boards)',
+  })
   @IsOptional()
   @IsString()
   airApiKey?: string;
@@ -17,7 +19,10 @@ export class ImportFromAirDto {
   @IsString({ each: true })
   clipIds?: string[];
 
-  @ApiPropertyOptional({ description: 'Automatically trigger ingestion after upload', default: false })
+  @ApiPropertyOptional({
+    description: 'Automatically trigger ingestion after upload',
+    default: false,
+  })
   @IsOptional()
   @IsBoolean()
   autoIndex?: boolean;

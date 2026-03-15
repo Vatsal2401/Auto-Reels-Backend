@@ -122,11 +122,25 @@ export class SupabaseStorageProvider implements IStorageService {
     return `users/${safeUserId}/media/${mediaId}/${type}/${fileName}`;
   }
 
-  async createMultipartUpload(_k: string, _ct: string): Promise<string> { throw new Error('Not implemented'); }
-  async presignUploadPart(_k: string, _u: string, _n: number, _e: number): Promise<string> { throw new Error('Not implemented'); }
-  async completeMultipartUpload(_k: string, _u: string, _p: { PartNumber: number; ETag: string }[]): Promise<void> { throw new Error('Not implemented'); }
-  async abortMultipartUpload(_k: string, _u: string): Promise<void> { throw new Error('Not implemented'); }
-  async uploadPartDirect(_k: string, _u: string, _n: number, _b: Buffer): Promise<string> { throw new Error('Not implemented'); }
+  async createMultipartUpload(_k: string, _ct: string): Promise<string> {
+    throw new Error('Not implemented');
+  }
+  async presignUploadPart(_k: string, _u: string, _n: number, _e: number): Promise<string> {
+    throw new Error('Not implemented');
+  }
+  async completeMultipartUpload(
+    _k: string,
+    _u: string,
+    _p: { PartNumber: number; ETag: string }[],
+  ): Promise<void> {
+    throw new Error('Not implemented');
+  }
+  async abortMultipartUpload(_k: string, _u: string): Promise<void> {
+    throw new Error('Not implemented');
+  }
+  async uploadPartDirect(_k: string, _u: string, _n: number, _b: Buffer): Promise<string> {
+    throw new Error('Not implemented');
+  }
 
   private getExtensionForType(type: string): string {
     const map: Record<string, string> = {

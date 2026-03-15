@@ -154,10 +154,21 @@ export class S3StorageProvider implements IStorageService {
     options?: { promptDownload?: boolean; filename?: string },
   ): Promise<string> {
     // Use CloudFront signed URLs only for AWS S3 objects (not Supabase) and non-download requests
-    if (!options?.promptDownload && this.isAwsS3 && this.cfDomain && this.cfKeyPairId && this.cfPrivateKey) {
+    if (
+      !options?.promptDownload &&
+      this.isAwsS3 &&
+      this.cfDomain &&
+      this.cfKeyPairId &&
+      this.cfPrivateKey
+    ) {
       const url = `https://${this.cfDomain}/${objectId}`;
       const dateLessThan = new Date(Date.now() + expiresIn * 1000).toISOString();
-      return getCFSignedUrl({ url, keyPairId: this.cfKeyPairId, dateLessThan, privateKey: this.cfPrivateKey });
+      return getCFSignedUrl({
+        url,
+        keyPairId: this.cfKeyPairId,
+        dateLessThan,
+        privateKey: this.cfPrivateKey,
+      });
     }
     // Fallback: S3 presigned URL (downloads, Supabase objects, or CloudFront not configured)
     const commandInput: any = {
@@ -207,7 +218,12 @@ export class S3StorageProvider implements IStorageService {
     return response.UploadId;
   }
 
-  async presignUploadPart(key: string, uploadId: string, partNumber: number, expiresIn: number): Promise<string> {
+  async presignUploadPart(
+    key: string,
+    uploadId: string,
+    partNumber: number,
+    expiresIn: number,
+  ): Promise<string> {
     const command = new UploadPartCommand({
       Bucket: this.bucketName,
       Key: key,
@@ -242,7 +258,12 @@ export class S3StorageProvider implements IStorageService {
     );
   }
 
-  async uploadPartDirect(key: string, uploadId: string, partNumber: number, body: Buffer): Promise<string> {
+  async uploadPartDirect(
+    key: string,
+    uploadId: string,
+    partNumber: number,
+    body: Buffer,
+  ): Promise<string> {
     const response = await this.s3Client.send(
       new UploadPartCommand({
         Bucket: this.bucketName,

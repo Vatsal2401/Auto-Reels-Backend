@@ -38,9 +38,7 @@ export class StoryRenderQueueService {
       return;
     }
 
-    const connectionOptions: any = host
-      ? { host, port: port || 6379, password }
-      : { url };
+    const connectionOptions: any = host ? { host, port: port || 6379, password } : { url };
 
     if (useTls) {
       connectionOptions.tls = { rejectUnauthorized: false };

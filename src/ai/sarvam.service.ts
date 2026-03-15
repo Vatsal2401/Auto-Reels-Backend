@@ -104,12 +104,12 @@ export class SarvamService implements IVoiceManagementService {
     // Sarvam TTS has a ~500-char limit per request. Split long scripts into
     // sentence-boundary chunks and make one API call per chunk, then concatenate.
     const chunks = this.splitTextIntoChunks(processedText, 500);
-    this.logger.log(
-      `Sarvam TTS: text length=${processedText.length}, chunks=${chunks.length}`,
-    );
+    this.logger.log(`Sarvam TTS: text length=${processedText.length}, chunks=${chunks.length}`);
 
     const chunkBuffers = await Promise.all(
-      chunks.map((chunk) => this.callSarvamAPISingle(chunk, voiceId, langCode, model, pace, isHindiScript, apiKey)),
+      chunks.map((chunk) =>
+        this.callSarvamAPISingle(chunk, voiceId, langCode, model, pace, isHindiScript, apiKey),
+      ),
     );
 
     if (chunkBuffers.length === 1) return chunkBuffers[0];

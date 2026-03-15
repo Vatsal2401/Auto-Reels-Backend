@@ -36,7 +36,10 @@ export class BrollLibraryController {
 
   @Post()
   @ApiOperation({ summary: 'Create a new B-roll library' })
-  async create(@Req() req: { user?: { userId?: string; id?: string } }, @Body() dto: CreateLibraryDto) {
+  async create(
+    @Req() req: { user?: { userId?: string; id?: string } },
+    @Body() dto: CreateLibraryDto,
+  ) {
     return this.libraryService.createLibrary(this.userId(req), dto);
   }
 
@@ -71,7 +74,9 @@ export class BrollLibraryController {
   }
 
   @Post(':id/videos/presign')
-  @ApiOperation({ summary: 'Get presigned S3 PUT URL to upload a video to the library (files < 100 MB)' })
+  @ApiOperation({
+    summary: 'Get presigned S3 PUT URL to upload a video to the library (files < 100 MB)',
+  })
   async presignUpload(
     @Req() req: { user?: { userId?: string; id?: string } },
     @Param('id') id: string,
@@ -125,7 +130,8 @@ export class BrollLibraryController {
   async completeMultipart(
     @Req() req: { user?: { userId?: string; id?: string } },
     @Param('id') id: string,
-    @Body() body: {
+    @Body()
+    body: {
       videoId: string;
       uploadId: string;
       key: string;
@@ -173,7 +179,12 @@ export class BrollLibraryController {
     @Body() body: { query: string; topK?: number },
   ): Promise<unknown[]> {
     if (!body.query?.trim()) throw new BadRequestException('query is required');
-    return this.libraryService.searchClips(id, this.userId(req), body.query.trim(), body.topK ?? 10);
+    return this.libraryService.searchClips(
+      id,
+      this.userId(req),
+      body.query.trim(),
+      body.topK ?? 10,
+    );
   }
 
   @Post(':id/videos/:videoId/confirm')
@@ -209,10 +220,7 @@ export class BrollLibraryController {
 
   @Post(':id/index')
   @ApiOperation({ summary: 'Bulk index all unindexed videos in the library' })
-  async indexAll(
-    @Req() req: { user?: { userId?: string; id?: string } },
-    @Param('id') id: string,
-  ) {
+  async indexAll(@Req() req: { user?: { userId?: string; id?: string } }, @Param('id') id: string) {
     return this.libraryService.indexAll(id, this.userId(req));
   }
 
@@ -240,10 +248,7 @@ export class BrollLibraryController {
 
   @Get(':id/jobs')
   @ApiOperation({ summary: 'List ingestion jobs for the library (for polling)' })
-  async listJobs(
-    @Req() req: { user?: { userId?: string; id?: string } },
-    @Param('id') id: string,
-  ) {
+  async listJobs(@Req() req: { user?: { userId?: string; id?: string } }, @Param('id') id: string) {
     return this.libraryService.listJobs(id, this.userId(req));
   }
 

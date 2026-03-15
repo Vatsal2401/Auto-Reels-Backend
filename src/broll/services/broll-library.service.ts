@@ -1,10 +1,4 @@
-import {
-  ForbiddenException,
-  Inject,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
@@ -122,21 +116,20 @@ export class BrollLibraryService {
 
   async confirmUpload(libId: string, videoId: string, userId: string): Promise<void> {
     await this.getLibrary(libId, userId);
-    const rows = await this.dataSource.query(
+    const rows = (await this.dataSource.query(
       `SELECT id FROM broll_videos WHERE id = $1 AND library_id = $2 AND status = 'uploading'`,
       [videoId, libId],
-    ) as { id: string }[];
+    )) as { id: string }[];
     if (!rows[0]) throw new NotFoundException('Video not found or already confirmed');
-    await this.dataSource.query(
-      `UPDATE broll_videos SET status = 'uploaded' WHERE id = $1`,
-      [videoId],
-    );
+    await this.dataSource.query(`UPDATE broll_videos SET status = 'uploaded' WHERE id = $1`, [
+      videoId,
+    ]);
     await this.recalcStats(libId);
   }
 
   async listVideos(libId: string, userId: string): Promise<BrollVideoRow[]> {
     // Single query: ownership check (user_id = $2) + video list + latest job — no extra round-trip
-    const rows = await this.dataSource.query(
+    const rows = (await this.dataSource.query(
       `SELECT v.id, v.file_path, v.filename, v.status, v.duration_seconds,
               v.frame_count, v.ingested_at, v.error_message, v.library_id, v.user_id,
               j.status AS job_status, j.stage AS job_stage,
@@ -153,7 +146,7 @@ export class BrollLibraryService {
          AND EXISTS (SELECT 1 FROM broll_libraries WHERE id = $1 AND user_id = $2)
        ORDER BY v.created_at DESC`,
       [libId, userId],
-    ) as BrollVideoRow[];
+    )) as BrollVideoRow[];
 
     if (rows.length === 0) {
       // Could be empty library or forbidden — do a lightweight ownership check only in that case
@@ -165,10 +158,10 @@ export class BrollLibraryService {
 
   async deleteVideo(libId: string, videoId: string, userId: string): Promise<void> {
     await this.getLibrary(libId, userId);
-    const rows = await this.dataSource.query(
+    const rows = (await this.dataSource.query(
       `SELECT id FROM broll_videos WHERE id = $1 AND library_id = $2`,
       [videoId, libId],
-    ) as { id: string }[];
+    )) as { id: string }[];
     if (!rows[0]) throw new NotFoundException('Video not found in this library');
     await this.dataSource.query(`DELETE FROM broll_videos WHERE id = $1`, [videoId]);
     await this.recalcStats(libId);
@@ -176,10 +169,10 @@ export class BrollLibraryService {
 
   async indexAll(libId: string, userId: string): Promise<{ queued: number }> {
     await this.getLibrary(libId, userId);
-    const videos = await this.dataSource.query(
+    const videos = (await this.dataSource.query(
       `SELECT id, file_path, filename FROM broll_videos WHERE library_id = $1 AND status = 'uploaded'`,
       [libId],
-    ) as { id: string; file_path: string; filename: string }[];
+    )) as { id: string; file_path: string; filename: string }[];
 
     let queued = 0;
     for (const video of videos) {
@@ -195,10 +188,10 @@ export class BrollLibraryService {
 
   async indexOne(libId: string, videoId: string, userId: string): Promise<void> {
     await this.getLibrary(libId, userId);
-    const rows = await this.dataSource.query(
+    const rows = (await this.dataSource.query(
       `SELECT id, file_path, filename FROM broll_videos WHERE id = $1 AND library_id = $2`,
       [videoId, libId],
-    ) as { id: string; file_path: string; filename: string }[];
+    )) as { id: string; file_path: string; filename: string }[];
     if (!rows[0]) throw new NotFoundException('Video not found in this library');
     await this.triggerIngestion(libId, rows[0].id, rows[0].file_path, rows[0].filename);
     await this.libraryRepo.update({ id: libId }, { status: 'processing' });
@@ -206,13 +199,15 @@ export class BrollLibraryService {
 
   async reindexOne(libId: string, videoId: string, userId: string): Promise<void> {
     await this.getLibrary(libId, userId);
-    const rows = await this.dataSource.query(
+    const rows = (await this.dataSource.query(
       `SELECT id, file_path, filename FROM broll_videos WHERE id = $1 AND library_id = $2`,
       [videoId, libId],
-    ) as { id: string; file_path: string; filename: string }[];
+    )) as { id: string; file_path: string; filename: string }[];
     if (!rows[0]) throw new NotFoundException('Video not found in this library');
     // Reset status to re-index
-    await this.dataSource.query(`UPDATE broll_videos SET status = 'uploaded' WHERE id = $1`, [videoId]);
+    await this.dataSource.query(`UPDATE broll_videos SET status = 'uploaded' WHERE id = $1`, [
+      videoId,
+    ]);
     await this.triggerIngestion(libId, rows[0].id, rows[0].file_path, rows[0].filename);
     await this.libraryRepo.update({ id: libId }, { status: 'processing' });
   }
@@ -232,10 +227,10 @@ export class BrollLibraryService {
     userId: string,
   ): Promise<{ signedUrl: string }> {
     await this.getLibrary(libId, userId);
-    const rows = await this.dataSource.query(
+    const rows = (await this.dataSource.query(
       `SELECT file_path FROM broll_videos WHERE id = $1 AND library_id = $2`,
       [videoId, libId],
-    ) as { file_path: string }[];
+    )) as { file_path: string }[];
     if (!rows[0]) throw new NotFoundException('Video not found in this library');
     const signedUrl = await this.storageService.getSignedUrl(rows[0].file_path, 3600);
     return { signedUrl };
@@ -308,10 +303,9 @@ export class BrollLibraryService {
       parts.map((p) => ({ PartNumber: p.partNumber, ETag: p.etag })),
     );
     // Mark video as uploaded so it can be indexed
-    await this.dataSource.query(
-      `UPDATE broll_videos SET status = 'uploaded' WHERE id = $1`,
-      [videoId],
-    );
+    await this.dataSource.query(`UPDATE broll_videos SET status = 'uploaded' WHERE id = $1`, [
+      videoId,
+    ]);
     await this.dataSource.query(
       `UPDATE broll_multipart_uploads SET status = 'completed', updated_at = now() WHERE video_id = $1 AND upload_id = $2`,
       [videoId, uploadId],
@@ -344,13 +338,13 @@ export class BrollLibraryService {
     userId: string,
   ): Promise<{ frameTime: number; frameIndex: number; caption: string | null }[]> {
     await this.getLibrary(libId, userId);
-    const rows = await this.dataSource.query(
+    const rows = (await this.dataSource.query(
       `SELECT frame_time, frame_index, caption
        FROM broll_frame_embeddings
        WHERE video_id = $1
        ORDER BY frame_index ASC`,
       [videoId],
-    ) as { frame_time: number; frame_index: number; caption: string | null }[];
+    )) as { frame_time: number; frame_index: number; caption: string | null }[];
     return rows.map((r) => ({
       frameTime: r.frame_time,
       frameIndex: r.frame_index,
@@ -360,12 +354,7 @@ export class BrollLibraryService {
 
   // ─── Search (for ClipPickerPanel) ──────────────────────────────────────────
 
-  async searchClips(
-    libId: string,
-    userId: string,
-    query: string,
-    topK = 10,
-  ): Promise<unknown[]> {
+  async searchClips(libId: string, userId: string, query: string, topK = 10): Promise<unknown[]> {
     await this.getLibrary(libId, userId);
     try {
       const results = await this.brollPythonService.match([query], topK);
@@ -412,19 +401,25 @@ export class BrollLibraryService {
     try {
       // promptDownload: true forces direct S3 presigned URL (bypasses CloudFront)
       // — CloudFront may not be configured for broll paths, causing 403
-      const presignedUrl = await this.storageService.getSignedUrl(s3Key, 3600, { promptDownload: true });
+      const presignedUrl = await this.storageService.getSignedUrl(s3Key, 3600, {
+        promptDownload: true,
+      });
       await this.brollPythonService.ingestFromUrl(presignedUrl, filename, videoId);
       await this.jobRepo.update({ id: job.id }, { status: 'active', stage: 'downloading' });
-      await this.dataSource.query(
-        `UPDATE broll_videos SET status = 'processing' WHERE id = $1`,
-        [videoId],
-      );
+      await this.dataSource.query(`UPDATE broll_videos SET status = 'processing' WHERE id = $1`, [
+        videoId,
+      ]);
     } catch (err) {
-      this.logger.error(`triggerIngestion: failed for video ${videoId}: ${(err as Error)?.message}`);
-      await this.jobRepo.update({ id: job.id }, {
-        status: 'failed',
-        errorMessage: (err as Error)?.message ?? 'Unknown error',
-      });
+      this.logger.error(
+        `triggerIngestion: failed for video ${videoId}: ${(err as Error)?.message}`,
+      );
+      await this.jobRepo.update(
+        { id: job.id },
+        {
+          status: 'failed',
+          errorMessage: (err as Error)?.message ?? 'Unknown error',
+        },
+      );
     }
   }
 }

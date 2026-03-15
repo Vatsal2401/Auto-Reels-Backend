@@ -27,10 +27,7 @@ export class HedraService {
    * audio_url: signed S3 URL for voice-over audio
    * Returns job_id for polling.
    */
-  async submitJob(params: {
-    avatarImageUrl: string;
-    audioUrl: string;
-  }): Promise<string> {
+  async submitJob(params: { avatarImageUrl: string; audioUrl: string }): Promise<string> {
     const response = await fetch(`${this.baseUrl}/characters`, {
       method: 'POST',
       headers: {

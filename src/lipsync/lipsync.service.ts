@@ -15,7 +15,10 @@ export class LipSyncService {
   private readonly serverUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.serverUrl = this.configService.get<string>('MUSETALK_SERVER_URL', 'http://musetalk.autoreels.in');
+    this.serverUrl = this.configService.get<string>(
+      'MUSETALK_SERVER_URL',
+      'http://musetalk.autoreels.in',
+    );
   }
 
   async lipsync(
@@ -30,33 +33,33 @@ export class LipSyncService {
     const faceFilename = faceMimetype.startsWith('video/') ? 'face.mp4' : 'face.jpg';
     form.append('face', faceBuffer, { filename: faceFilename, contentType: faceMimetype });
     form.append('audio', audioBuffer, { filename: audioFilename });
-    form.append('data', JSON.stringify({
-      bbox_shift:    params.bbox_shift    ?? 0,
-      fps:           params.fps           ?? 25,
-      batch_size:    params.batch_size    ?? 8,
-      extra_margin:  params.extra_margin  ?? 10,
-      parsing_mode:  params.parsing_mode  ?? 'jaw',
-    }));
+    form.append(
+      'data',
+      JSON.stringify({
+        bbox_shift: params.bbox_shift ?? 0,
+        fps: params.fps ?? 25,
+        batch_size: params.batch_size ?? 8,
+        extra_margin: params.extra_margin ?? 10,
+        parsing_mode: params.parsing_mode ?? 'jaw',
+      }),
+    );
 
     try {
-      const response = await axios.post<LipSyncResult>(
-        `${this.serverUrl}/lipsync`,
-        form,
-        {
-          headers: form.getHeaders(),
-          maxBodyLength: Infinity,
-          maxContentLength: Infinity,
-          timeout: 600_000, // 10 min — MuseTalk can be slow on long audio
-        },
-      );
+      const response = await axios.post<LipSyncResult>(`${this.serverUrl}/lipsync`, form, {
+        headers: form.getHeaders(),
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+        timeout: 600_000, // 10 min — MuseTalk can be slow on long audio
+      });
       return response.data;
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
-      const message = typeof detail === 'string'
-        ? detail
-        : detail
-          ? JSON.stringify(detail)
-          : err?.message ?? 'MuseTalk server error';
+      const message =
+        typeof detail === 'string'
+          ? detail
+          : detail
+            ? JSON.stringify(detail)
+            : (err?.message ?? 'MuseTalk server error');
       throw new BadGatewayException(`Lip-sync failed: ${message}`);
     }
   }

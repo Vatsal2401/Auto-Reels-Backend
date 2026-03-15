@@ -1,18 +1,27 @@
 function getGenreRules(genre: string): string {
   const rules: Record<string, string> = {
-    horror: 'Slow dread building to a peak; use parallax+zoom_in for tension; subtitles ominous ALL CAPS.',
-    motivational: 'Escalating energy; slow_pan for establishing shots, zoom_in for climax; affirming uplifting subtitles.',
+    horror:
+      'Slow dread building to a peak; use parallax+zoom_in for tension; subtitles ominous ALL CAPS.',
+    motivational:
+      'Escalating energy; slow_pan for establishing shots, zoom_in for climax; affirming uplifting subtitles.',
     crime: 'Investigative pacing, noir tone; parallax for mystery; clipped factual subtitles.',
     urban_legend: 'Slow eerie build with reveal; mix slow_pan and camera_shake; dread subtitles.',
     comedy: 'Punchy quick pacing; zoom_in on punchlines; playful witty subtitles.',
-    sci_fi: 'Wonder and tension alternating; slow_pan for alien/tech environments; speculative tone subtitles.',
+    sci_fi:
+      'Wonder and tension alternating; slow_pan for alien/tech environments; speculative tone subtitles.',
     romance: 'Intimate gentle pacing; fade_out for longing moments; lyrical emotional subtitles.',
-    thriller: 'Fast pacing with sudden pauses; camera_shake for danger beats; fragmented dread subtitles.',
-    historical: 'Deliberate documentary-like pacing; slow_pan for landscapes; authoritative yet vivid subtitles.',
-    documentary: 'Educational but engaging rhythm; neutral yet compelling; factual concise subtitles.',
-    mystery: 'Tease with withheld information; parallax for the unknown; questions-and-clues subtitles.',
+    thriller:
+      'Fast pacing with sudden pauses; camera_shake for danger beats; fragmented dread subtitles.',
+    historical:
+      'Deliberate documentary-like pacing; slow_pan for landscapes; authoritative yet vivid subtitles.',
+    documentary:
+      'Educational but engaging rhythm; neutral yet compelling; factual concise subtitles.',
+    mystery:
+      'Tease with withheld information; parallax for the unknown; questions-and-clues subtitles.',
   };
-  return rules[genre] ?? 'Craft an engaging narrative with strong emotional beats and vivid imagery.';
+  return (
+    rules[genre] ?? 'Craft an engaging narrative with strong emotional beats and vivid imagery.'
+  );
 }
 
 export function buildStoryScriptPrompt(params: {

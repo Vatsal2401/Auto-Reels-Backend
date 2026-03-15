@@ -105,13 +105,19 @@ export class BrollLibraryService {
       }
 
       const data = (await res.json()) as {
-        videos: { id: number; duration: number; video_files: { link: string; quality: string; width: number }[] }[];
+        videos: {
+          id: number;
+          duration: number;
+          video_files: { link: string; quality: string; width: number }[];
+        }[];
       };
 
       const video = data.videos?.[0];
       if (!video) return null;
 
-      const file = video.video_files.find((f) => f.quality === 'hd' && f.width <= 1080) || video.video_files[0];
+      const file =
+        video.video_files.find((f) => f.quality === 'hd' && f.width <= 1080) ||
+        video.video_files[0];
 
       this.logger.log(`Pexels fallback: found video for query="${query}"`);
       return {

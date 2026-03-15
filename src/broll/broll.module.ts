@@ -21,9 +21,21 @@ import { BrollAirImport } from './entities/broll-air-import.entity';
   imports: [
     ConfigModule,
     StorageModule,
-    TypeOrmModule.forFeature([BrollLibrary, BrollScript, BrollMatchResult, BrollIngestionJob, BrollAirImport]),
+    TypeOrmModule.forFeature([
+      BrollLibrary,
+      BrollScript,
+      BrollMatchResult,
+      BrollIngestionJob,
+      BrollAirImport,
+    ]),
   ],
-  providers: [BrollService, BrollPythonService, BrollLibraryService, BrollScriptService, BrollAirImportService],
+  providers: [
+    BrollService,
+    BrollPythonService,
+    BrollLibraryService,
+    BrollScriptService,
+    BrollAirImportService,
+  ],
   controllers: [
     BrollController,
     BrollAdminController,

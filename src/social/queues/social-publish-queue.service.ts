@@ -18,7 +18,6 @@ function buildRedisConnection(configService: ConfigService) {
   };
 }
 
-
 @Injectable()
 export class SocialPublishQueueService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SocialPublishQueueService.name);
@@ -29,8 +28,8 @@ export class SocialPublishQueueService implements OnModuleInit, OnModuleDestroy 
   onModuleInit() {
     const connection = buildRedisConnection(this.configService);
     const platformConfigs: Array<{ platform: SocialPlatform; name: string }> = [
-      { platform: SocialPlatform.YOUTUBE,   name: SOCIAL_PUBLISH_QUEUE_YOUTUBE },
-      { platform: SocialPlatform.TIKTOK,    name: SOCIAL_PUBLISH_QUEUE_TIKTOK },
+      { platform: SocialPlatform.YOUTUBE, name: SOCIAL_PUBLISH_QUEUE_YOUTUBE },
+      { platform: SocialPlatform.TIKTOK, name: SOCIAL_PUBLISH_QUEUE_TIKTOK },
       { platform: SocialPlatform.INSTAGRAM, name: SOCIAL_PUBLISH_QUEUE_INSTAGRAM },
     ];
 

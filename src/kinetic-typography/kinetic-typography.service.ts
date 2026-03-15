@@ -85,7 +85,12 @@ const ICON_SHAPE_MAP: Record<string, DecorativeShape['shape']> = {
 };
 
 /** Background types that benefit from shape overlays. */
-const OVERLAY_BG_TYPES: BackgroundType[] = ['animated-gradient', 'dot-grid', 'geometric-lines', 'radial-glow'];
+const OVERLAY_BG_TYPES: BackgroundType[] = [
+  'animated-gradient',
+  'dot-grid',
+  'geometric-lines',
+  'radial-glow',
+];
 
 @Injectable()
 export class KineticTypographyService {
@@ -345,12 +350,11 @@ export class KineticTypographyService {
     dtoWords: string[] | undefined,
     sceneWordList: string[],
   ): string[] {
-    const candidates = [
-      ...(sceneWords ?? []),
-      ...(dtoWords ?? []),
-    ];
+    const candidates = [...(sceneWords ?? []), ...(dtoWords ?? [])];
     const sceneWordSet = new Set(sceneWordList.map((w) => w.toLowerCase()));
-    return [...new Set(candidates.map((w) => w.trim()).filter((w) => sceneWordSet.has(w.toLowerCase())))].slice(0, 2);
+    return [
+      ...new Set(candidates.map((w) => w.trim()).filter((w) => sceneWordSet.has(w.toLowerCase()))),
+    ].slice(0, 2);
   }
 
   /** Generate decorative shapes from iconSuggestion + background type rules. */

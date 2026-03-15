@@ -37,6 +37,12 @@ import { MediaStep } from '../media/entities/media-step.entity';
     UgcComposeService,
     UgcRenderQueueService,
   ],
-  exports: [UgcScriptService, HedraService, BrollLibraryService, UgcComposeService, UgcRenderQueueService],
+  exports: [
+    UgcScriptService,
+    HedraService,
+    BrollLibraryService,
+    UgcComposeService,
+    UgcRenderQueueService,
+  ],
 })
 export class UgcModule {}

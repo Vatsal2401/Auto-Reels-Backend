@@ -44,10 +44,7 @@ export class BrollScriptController {
 
   @Get()
   @ApiOperation({ summary: 'List scripts in the library' })
-  async list(
-    @Req() req: { user?: { userId?: string; id?: string } },
-    @Param('id') id: string,
-  ) {
+  async list(@Req() req: { user?: { userId?: string; id?: string } }, @Param('id') id: string) {
     return this.scriptService.listScripts(id, this.userId(req));
   }
 

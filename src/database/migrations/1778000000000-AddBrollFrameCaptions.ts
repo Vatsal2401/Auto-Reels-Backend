@@ -4,8 +4,12 @@ export class AddBrollFrameCaptions1778000000000 implements MigrationInterface {
   name = 'AddBrollFrameCaptions1778000000000';
 
   async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "broll_frame_embeddings" ADD COLUMN IF NOT EXISTS "caption" TEXT`);
-    await queryRunner.query(`ALTER TABLE "broll_videos" ADD COLUMN IF NOT EXISTS "video_summary" TEXT`);
+    await queryRunner.query(
+      `ALTER TABLE "broll_frame_embeddings" ADD COLUMN IF NOT EXISTS "caption" TEXT`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "broll_videos" ADD COLUMN IF NOT EXISTS "video_summary" TEXT`,
+    );
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {

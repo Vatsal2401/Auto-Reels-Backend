@@ -15,10 +15,10 @@ export interface UgcRenderJobPayload {
   stepId: string;
   userId: string;
   assets: {
-    actorVideo: string;   // S3 key for Hedra-generated actor video
-    voice: string;        // S3 key for ElevenLabs VO audio
+    actorVideo: string; // S3 key for Hedra-generated actor video
+    voice: string; // S3 key for ElevenLabs VO audio
     brollClips: UgcBrollAsset[];
-    music?: string;       // S3 key for background music
+    music?: string; // S3 key for background music
   };
   scenes: UgcScene[];
   options: {
@@ -46,9 +46,7 @@ export class UgcRenderQueueService {
       return;
     }
 
-    const connectionOptions: any = host
-      ? { host, port: port || 6379, password }
-      : { url };
+    const connectionOptions: any = host ? { host, port: port || 6379, password } : { url };
 
     if (useTls) {
       connectionOptions.tls = { rejectUnauthorized: false };

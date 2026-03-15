@@ -38,9 +38,7 @@ export class CreateBrollMatcher1773000000000 implements MigrationInterface {
     await queryRunner.query(
       `CREATE INDEX "idx_broll_frame_video_id" ON "broll_frame_embeddings" ("video_id")`,
     );
-    await queryRunner.query(
-      `CREATE INDEX "idx_broll_videos_status" ON "broll_videos" ("status")`,
-    );
+    await queryRunner.query(`CREATE INDEX "idx_broll_videos_status" ON "broll_videos" ("status")`);
 
     // IVFFlat index intentionally omitted here — run POST /admin/broll/rebuild-index
     // after first ingestion so the quantizer has data to train on.

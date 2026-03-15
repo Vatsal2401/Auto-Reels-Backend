@@ -37,9 +37,15 @@ export interface UploadResult {
 export class YouTubeService {
   private readonly logger = new Logger(YouTubeService.name);
 
-  private get clientId() { return this.configService.get<string>('YOUTUBE_CLIENT_ID')!; }
-  private get clientSecret() { return this.configService.get<string>('YOUTUBE_CLIENT_SECRET')!; }
-  private get redirectUri() { return this.configService.get<string>('YOUTUBE_REDIRECT_URI')!; }
+  private get clientId() {
+    return this.configService.get<string>('YOUTUBE_CLIENT_ID')!;
+  }
+  private get clientSecret() {
+    return this.configService.get<string>('YOUTUBE_CLIENT_SECRET')!;
+  }
+  private get redirectUri() {
+    return this.configService.get<string>('YOUTUBE_REDIRECT_URI')!;
+  }
 
   constructor(
     private readonly configService: ConfigService,
@@ -155,7 +161,7 @@ export class YouTubeService {
         },
         body: JSON.stringify({
           snippet: {
-            title: opts.title,
+            title: this.sanitizeYouTubeTitle(opts.title),
             description: opts.description ?? '',
             tags: opts.tags ?? [],
             categoryId: opts.categoryId ?? '22',
@@ -188,14 +194,14 @@ export class YouTubeService {
     });
 
     if (!uploadRes.ok) {
-      const err = await uploadRes.json().catch(() => ({})) as any;
+      const err = (await uploadRes.json().catch(() => ({}))) as any;
       if (uploadRes.status === 403 && err?.error?.errors?.[0]?.reason === 'quotaExceeded') {
         throw new QuotaRetryTomorrowError(err.error.message);
       }
       throw new Error(`YouTube upload failed (${uploadRes.status}): ${JSON.stringify(err)}`);
     }
 
-    const data = await uploadRes.json() as any;
+    const data = (await uploadRes.json()) as any;
 
     // Deduct quota units
     await this.redis.incrby(dailyKey, 1600);
@@ -205,14 +211,27 @@ export class YouTubeService {
     await this.redis.expireat(dailyKey, Math.floor(tomorrow.getTime() / 1000));
 
     // Update upload progress
-    await this.scheduledPostRepo
-      .update(postId, { upload_progress_pct: 100 })
-      .catch(() => {});
+    await this.scheduledPostRepo.update(postId, { upload_progress_pct: 100 }).catch(() => {});
 
     const videoId: string = data.id;
     return {
       platformPostId: videoId,
       platformUrl: `https://www.youtube.com/watch?v=${videoId}`,
     };
+  }
+
+  /**
+   * YouTube title rules: max 100 chars, no leading/trailing whitespace, no < or > chars.
+   * Strips wrapping quotes, truncates, and falls back to 'My Video' if blank.
+   */
+  private sanitizeYouTubeTitle(raw: string | null | undefined): string {
+    if (!raw) return 'My Video';
+    // Strip curly/straight quotes that wrap the entire title
+    let title = raw.trim().replace(/^["'""]|["'""]$/gu, '').trim();
+    // Remove chars YouTube rejects
+    title = title.replace(/[<>]/g, '');
+    // Truncate to 100 chars (YouTube hard limit)
+    title = title.slice(0, 100).trim();
+    return title || 'My Video';
   }
 }

@@ -32,6 +32,7 @@ import { LipSyncModule } from './lipsync/lipsync.module';
 import { UgcModule } from './ugc/ugc.module';
 import { StoryModule } from './story/story.module';
 import { BrollModule } from './broll/broll.module';
+import { CampaignsModule } from './campaigns/campaigns.module';
 
 @Module({
   imports: [
@@ -79,6 +80,7 @@ import { BrollModule } from './broll/broll.module';
     UgcModule,
     StoryModule,
     BrollModule,
+    CampaignsModule,
   ],
   providers: [
     {

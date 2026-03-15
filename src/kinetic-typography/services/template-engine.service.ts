@@ -57,7 +57,11 @@ export class TemplateEngineService {
       choice = 'stats-card';
     } else if (scene.wordCount === 1 && scene.words[0] && scene.words[0].length <= 10) {
       choice = 'impact-full-bleed';
-    } else if (scene.sceneType === 'cta' && scene.wordCount <= 4 && looksLikeCta(scene.text, scene.wordCount)) {
+    } else if (
+      scene.sceneType === 'cta' &&
+      scene.wordCount <= 4 &&
+      looksLikeCta(scene.text, scene.wordCount)
+    ) {
       // Short CTA with number → countdown-badge
       choice = 'countdown-badge';
     } else if (scene.sceneType === 'cta' && scene.wordCount <= 4) {

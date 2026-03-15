@@ -72,6 +72,10 @@ export class ScheduledPost {
   @Column({ name: 'upload_progress_pct', type: 'int', default: 0 })
   upload_progress_pct: number;
 
+  /** Nullable FK to campaign_posts — set when this post was scheduled via a campaign. ON DELETE SET NULL (migration 1779800000000). */
+  @Column({ name: 'campaign_post_id', type: 'uuid', nullable: true })
+  campaign_post_id: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   created_at: Date;
 

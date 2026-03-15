@@ -26,7 +26,7 @@ async function analyze() {
       .run();
   });
 
-  let segments: any[] = [];
+  const segments: any[] = [];
   let cursor = 0;
   for (const s of silences) {
     if (s.start > cursor) segments.push({ start: cursor, end: s.start });
