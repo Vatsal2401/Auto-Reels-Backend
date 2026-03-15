@@ -33,6 +33,7 @@ import { UgcModule } from './ugc/ugc.module';
 import { StoryModule } from './story/story.module';
 import { BrollModule } from './broll/broll.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
+import { InstagramDownloaderModule } from './tools/instagram-downloader/instagram-downloader.module';
 
 @Module({
   imports: [
@@ -81,6 +82,7 @@ import { CampaignsModule } from './campaigns/campaigns.module';
     StoryModule,
     BrollModule,
     CampaignsModule,
+    InstagramDownloaderModule,
   ],
   providers: [
     {
