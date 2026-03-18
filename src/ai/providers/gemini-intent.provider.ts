@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { IIntentInterpreter, InterpretedIntent } from '../interfaces/intent-interpreter.interface';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getIntentSystemPrompt } from '../prompts/intent-prompts';
+import { sanitizeGeminiJson } from '../utils/sanitize-gemini-json.util';
 
 @Injectable()
 export class GeminiIntentProvider implements IIntentInterpreter {
@@ -26,12 +27,9 @@ export class GeminiIntentProvider implements IIntentInterpreter {
 
     const result = await this.model.generateContent(systemPrompt);
     const response = await result.response;
-    const text = response
-      .text()
-      .replace(/```json/g, '')
-      .replace(/```/g, '')
-      .trim()
-      .replace(/[\u0000-\u001F\u007F]/g, '');
+    const text = sanitizeGeminiJson(
+      response.text().replace(/```json/g, '').replace(/```/g, '').trim(),
+    );
 
     try {
       return JSON.parse(text);
