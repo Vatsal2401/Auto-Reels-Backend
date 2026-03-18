@@ -76,11 +76,24 @@ export class GeminiScriptProvider implements IScriptGenerator {
 
     const result = await this.model.generateContent(prompt);
     const response = await result.response;
-    const text = response
+    const raw = response
       .text()
       .replace(/```json/g, '')
       .replace(/```/g, '')
       .trim();
+
+    // Escape literal control characters inside JSON string values.
+    // Gemini occasionally emits raw \n, \r, \t within strings, which is invalid JSON.
+    const text = raw.replace(
+      /"((?:[^"\\]|\\.)*)"/gs,
+      (_, inner: string) =>
+        `"${inner.replace(/[\u0000-\u001F\u007F]/g, (c) => {
+          if (c === '\n') return '\\n';
+          if (c === '\r') return '\\r';
+          if (c === '\t') return '\\t';
+          return '';
+        })}"`,
+    );
 
     try {
       return JSON.parse(text);
