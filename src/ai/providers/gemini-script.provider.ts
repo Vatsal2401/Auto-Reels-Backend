@@ -6,6 +6,7 @@ import {
 } from '../interfaces/script-generator.interface';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getScriptGenerationPrompt, getSimpleScriptPrompt } from '../prompts/script-prompts';
+import { sanitizeGeminiJson } from '../utils/sanitize-gemini-json.util';
 
 @Injectable()
 export class GeminiScriptProvider implements IScriptGenerator {
@@ -82,10 +83,7 @@ export class GeminiScriptProvider implements IScriptGenerator {
       .replace(/```/g, '')
       .trim();
 
-    // Strip literal control characters. Gemini occasionally emits raw control chars
-    // (e.g. \n inside string values) which are invalid JSON. JSON is whitespace-insensitive
-    // so removing formatting newlines is safe; control chars in strings are just stripped.
-    const text = raw.replace(/[\u0000-\u001F\u007F]/g, '');
+    const text = sanitizeGeminiJson(raw);
 
     try {
       return JSON.parse(text);
