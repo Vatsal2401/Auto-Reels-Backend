@@ -22,6 +22,7 @@ export class UserSettingsController {
       lipsync_enabled: s.lipsync_enabled,
       ugc_enabled: s.ugc_enabled,
       story_reel_enabled: s.story_reel_enabled,
+      broll_enabled: s.broll_enabled,
     };
   }
 
