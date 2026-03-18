@@ -72,7 +72,8 @@ export class ViralCaptionOptimizerService {
       const jsonStr = raw
         .replace(/^```(?:json)?\s*/i, '')
         .replace(/\s*```$/, '')
-        .trim();
+        .trim()
+        .replace(/[\u0000-\u001F\u007F]/g, '');
 
       const parsed = JSON.parse(jsonStr) as ViralCaptionResult;
 

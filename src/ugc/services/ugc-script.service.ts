@@ -58,7 +58,10 @@ export class UgcScriptService {
     const text = result.response.text().trim();
 
     // Strip markdown code fences if present
-    const jsonText = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+    const jsonText = text
+      .replace(/^```(?:json)?\n?/, '')
+      .replace(/\n?```$/, '')
+      .replace(/[\u0000-\u001F\u007F]/g, '');
 
     let script: UgcScriptJSON;
     try {

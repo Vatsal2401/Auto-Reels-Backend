@@ -65,7 +65,8 @@ export class ScenePlannerService {
           const raw = content
             .replace(/```json/g, '')
             .replace(/```/g, '')
-            .trim();
+            .trim()
+            .replace(/[\u0000-\u001F\u007F]/g, '');
           const parsed = JSON.parse(raw) as Record<string, unknown>;
           const scenes = Array.isArray(parsed.scenes)
             ? (parsed.scenes as ScenePlanScene[]).map((s) => ({

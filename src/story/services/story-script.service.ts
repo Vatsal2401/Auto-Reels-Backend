@@ -49,7 +49,10 @@ export class StoryScriptService {
 
     const result = await model.generateContent(userPrompt);
     const text = result.response.text().trim();
-    const jsonText = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+    const jsonText = text
+      .replace(/^```(?:json)?\n?/, '')
+      .replace(/\n?```$/, '')
+      .replace(/[\u0000-\u001F\u007F]/g, '');
 
     let script: StoryScriptJSON;
     try {

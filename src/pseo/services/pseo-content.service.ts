@@ -412,11 +412,12 @@ Requirements: key_features = 6 items${niche ? ` for ${niche}` : ''}. use_cases =
     const response = await result.response;
     const text: string = response.text();
 
-    // Strip any accidental markdown fences
+    // Strip any accidental markdown fences and control characters
     const cleaned = text
       .replace(/^```(?:json)?\n?/m, '')
       .replace(/\n?```$/m, '')
-      .trim();
+      .trim()
+      .replace(/[\u0000-\u001F\u007F]/g, '');
 
     try {
       const parsed = JSON.parse(cleaned);
