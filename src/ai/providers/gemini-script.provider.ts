@@ -82,18 +82,10 @@ export class GeminiScriptProvider implements IScriptGenerator {
       .replace(/```/g, '')
       .trim();
 
-    // Escape literal control characters inside JSON string values.
-    // Gemini occasionally emits raw \n, \r, \t within strings, which is invalid JSON.
-    const text = raw.replace(
-      /"((?:[^"\\]|\\.)*)"/gs,
-      (_, inner: string) =>
-        `"${inner.replace(/[\u0000-\u001F\u007F]/g, (c) => {
-          if (c === '\n') return '\\n';
-          if (c === '\r') return '\\r';
-          if (c === '\t') return '\\t';
-          return '';
-        })}"`,
-    );
+    // Strip literal control characters. Gemini occasionally emits raw control chars
+    // (e.g. \n inside string values) which are invalid JSON. JSON is whitespace-insensitive
+    // so removing formatting newlines is safe; control chars in strings are just stripped.
+    const text = raw.replace(/[\u0000-\u001F\u007F]/g, '');
 
     try {
       return JSON.parse(text);

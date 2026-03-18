@@ -30,7 +30,8 @@ export class GeminiIntentProvider implements IIntentInterpreter {
       .text()
       .replace(/```json/g, '')
       .replace(/```/g, '')
-      .trim();
+      .trim()
+      .replace(/[\u0000-\u001F\u007F]/g, '');
 
     try {
       return JSON.parse(text);
