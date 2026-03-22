@@ -35,6 +35,7 @@ import { BrollModule } from './broll/broll.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
 import { InstagramDownloaderModule } from './tools/instagram-downloader/instagram-downloader.module';
 import { ClipExtractorModule } from './clip-extractor/clip-extractor.module';
+import { LangChainModule } from './langchain/langchain.module';
 
 @Module({
   imports: [
@@ -85,6 +86,7 @@ import { ClipExtractorModule } from './clip-extractor/clip-extractor.module';
     CampaignsModule,
     InstagramDownloaderModule,
     ClipExtractorModule,
+    LangChainModule,
   ],
   providers: [
     {
