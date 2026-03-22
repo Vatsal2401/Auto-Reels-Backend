@@ -5,9 +5,10 @@ import { IImageGenerator, ImageGenerationOptions } from '../interfaces/image-gen
 import { getImageGenerationPrompt } from '../prompts/image-prompts';
 
 // Model constants — change here to update everywhere
+const IMAGEN_4_ULTRA = 'imagen-4.0-ultra-generate-001';
 const IMAGEN_4 = 'imagen-4.0-generate-001';
 const IMAGEN_4_FAST = 'imagen-4.0-fast-generate-001';
-const GEMINI_FLASH_IMAGE = 'gemini-2.0-flash-preview-image-generation';
+const GEMINI_FLASH_IMAGE = 'gemini-2.5-flash-image'; // generateContent + responseModalities: ['IMAGE']
 
 @Injectable()
 export class GeminiImageProvider implements IImageGenerator {
@@ -36,14 +37,21 @@ export class GeminiImageProvider implements IImageGenerator {
 
     this.logger.log(`Generating ${count} image(s) — prompt: "${prompt.substring(0, 60)}..."`);
 
-    // Primary: Imagen 4 (highest quality, dedicated image model)
+    // Primary: Imagen 4 Ultra (highest quality)
+    try {
+      return await this.generateWithImagen(prompt, count, aspectRatio, IMAGEN_4_ULTRA);
+    } catch (err) {
+      this.logger.warn(`Imagen 4 Ultra failed: ${(err as Error).message}. Trying Imagen 4...`);
+    }
+
+    // Secondary: Imagen 4 Standard
     try {
       return await this.generateWithImagen(prompt, count, aspectRatio, IMAGEN_4);
     } catch (err) {
-      this.logger.warn(`Imagen 4 failed: ${(err as Error).message}. Trying Gemini Flash...`);
+      this.logger.warn(`Imagen 4 failed: ${(err as Error).message}. Trying Gemini Flash Image...`);
     }
 
-    // Secondary: Gemini Flash image generation (fast, LangChain-compatible model family)
+    // Tertiary: Gemini Flash image generation (generateContent + responseModalities: ['IMAGE'])
     try {
       return await this.generateWithGeminiFlash(prompt, count);
     } catch (err) {
