@@ -1,4 +1,14 @@
-import { IsUrl, IsOptional, IsInt, Min, Max, IsBoolean, IsUUID, IsEnum, IsIn } from 'class-validator';
+import {
+  IsUrl,
+  IsOptional,
+  IsInt,
+  Min,
+  Max,
+  IsBoolean,
+  IsUUID,
+  IsEnum,
+  IsIn,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { CaptionStyle } from '../entities/clip-extract-job.entity';
 
