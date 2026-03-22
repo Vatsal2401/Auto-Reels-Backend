@@ -4,43 +4,40 @@ import {
   ScriptJSON,
   ScriptGenerationOptions,
 } from '../interfaces/script-generator.interface';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { LangChainRegistry } from '../../langchain/langchain.registry';
+import { ScriptJSONSchema } from '../../langchain/schemas/script.schema';
 import { getScriptGenerationPrompt, getSimpleScriptPrompt } from '../prompts/script-prompts';
-import { sanitizeGeminiJson } from '../utils/sanitize-gemini-json.util';
+import { StringOutputParser } from '@langchain/core/output_parsers';
+import { scriptJsonPromptTemplate, scriptSimplePromptTemplate } from './gemini-script.prompt';
 
 @Injectable()
 export class GeminiScriptProvider implements IScriptGenerator {
   private readonly logger = new Logger(GeminiScriptProvider.name);
-  private genAI: GoogleGenerativeAI;
-  private model: any;
 
-  constructor() {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      this.logger.warn('GEMINI_API_KEY not set');
-    } else {
-      this.genAI = new GoogleGenerativeAI(apiKey);
-      this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  constructor(private readonly registry: LangChainRegistry) {}
+
+  async generateScript(topic: string): Promise<string> {
+    const prompt = getSimpleScriptPrompt(topic);
+    const chain = scriptSimplePromptTemplate
+      .pipe(this.registry.getGemini())
+      .pipe(new StringOutputParser());
+
+    try {
+      return await chain.invoke({ prompt });
+    } catch (err) {
+      this.logger.error(
+        `generateScript.error: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      throw err;
     }
   }
 
-  async generateScript(topic: string): Promise<string> {
-    if (!this.model) throw new Error('Gemini API key missing');
-    const prompt = getSimpleScriptPrompt(topic);
-    const result = await this.model.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
-  }
-
   async generateScriptJSON(optionsOrTopic: ScriptGenerationOptions | string): Promise<ScriptJSON> {
-    if (!this.model) throw new Error('Gemini API key missing');
-
     let topic: string;
     let language = 'English (US)';
     let duration = 30;
     let audioStyle = '';
     let visualStyle = 'Cinematic';
-
     let tone: string | undefined;
     let hookType: string | undefined;
     let cta: string | undefined;
@@ -60,7 +57,7 @@ export class GeminiScriptProvider implements IScriptGenerator {
       cta = optionsOrTopic.cta;
     }
 
-    const prompt = getScriptGenerationPrompt(
+    const systemPrompt = getScriptGenerationPrompt(
       topic,
       duration,
       language,
@@ -71,25 +68,24 @@ export class GeminiScriptProvider implements IScriptGenerator {
       cta,
     );
 
+    const userMessage = `Create a viral reel script for: "${topic}". Apply ${visualStyle} visual style throughout all scene image prompts.`;
+
     this.logger.debug(
       `Generating script with topic: ${topic}, duration: ${duration}, style: ${visualStyle}`,
     );
 
-    const result = await this.model.generateContent(prompt);
-    const response = await result.response;
-    const raw = response
-      .text()
-      .replace(/```json/g, '')
-      .replace(/```/g, '')
-      .trim();
-
-    const text = sanitizeGeminiJson(raw);
+    const chain = scriptJsonPromptTemplate.pipe(
+      this.registry.getStructuredGemini(ScriptJSONSchema),
+    );
 
     try {
-      return JSON.parse(text);
-    } catch (e) {
-      this.logger.error('Failed to parse Gemini JSON', text);
-      throw new Error('Invalid JSON from Gemini: ' + e.message);
+      const result = await chain.invoke({ systemPrompt, userMessage });
+      return result as ScriptJSON;
+    } catch (err) {
+      this.logger.error(
+        `generateScriptJSON.error: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      throw err;
     }
   }
 }

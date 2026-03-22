@@ -1,56 +1,46 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   IScriptGenerator,
   ScriptJSON,
   ScriptGenerationOptions,
 } from '../interfaces/script-generator.interface';
-import OpenAI from 'openai';
+import { LangChainRegistry } from '../../langchain/langchain.registry';
+import { ScriptJSONSchema } from '../../langchain/schemas/script.schema';
 import {
   getOpenAIScriptSystemPrompt,
   getOpenAISimpleScriptPrompt,
 } from '../prompts/script-prompts';
+import { StringOutputParser } from '@langchain/core/output_parsers';
+import { ChatPromptTemplate } from '@langchain/core/prompts';
 
 @Injectable()
 export class OpenAIScriptProvider implements IScriptGenerator {
-  private openai: OpenAI | null = null;
+  private readonly logger = new Logger(OpenAIScriptProvider.name);
 
-  constructor() {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (apiKey && apiKey.trim()) {
-      this.openai = new OpenAI({ apiKey });
-    } else {
-      console.warn('Warning: OPENAI_API_KEY not set. Script generation will fail at runtime.');
-    }
-  }
+  constructor(private readonly registry: LangChainRegistry) {}
 
   async generateScript(topic: string): Promise<string> {
-    if (!this.openai) {
-      throw new Error('OPENAI_API_KEY is not configured. Please set it in your .env file.');
-    }
-    const response = await this.openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are a script writer for short-form video content. Create engaging, high-retention scripts.',
-        },
-        {
-          role: 'user',
-          content: getOpenAISimpleScriptPrompt(topic),
-        },
+    const promptTemplate = ChatPromptTemplate.fromMessages([
+      [
+        'system',
+        'You are a script writer for short-form video content. Create engaging, high-retention scripts.',
       ],
-      temperature: 0.8,
-    });
+      ['human', '{userPrompt}'],
+    ]);
 
-    return response.choices[0].message.content || '';
+    const chain = promptTemplate.pipe(this.registry.getOpenAI()).pipe(new StringOutputParser());
+
+    try {
+      return await chain.invoke({ userPrompt: getOpenAISimpleScriptPrompt(topic) });
+    } catch (err) {
+      this.logger.error(
+        `generateScript.error: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      throw err;
+    }
   }
 
   async generateScriptJSON(optionsOrTopic: ScriptGenerationOptions | string): Promise<ScriptJSON> {
-    if (!this.openai) {
-      throw new Error('OPENAI_API_KEY is not configured. Please set it in your .env file.');
-    }
-
     let topic: string;
     let language = 'English (US)';
     let duration: string | number = '30-60';
@@ -85,30 +75,24 @@ export class OpenAIScriptProvider implements IScriptGenerator {
       cta,
     );
 
-    const response = await this.openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: systemPrompt,
-        },
-        {
-          role: 'user',
-          content: `Create a viral reel script for: "${topic}". Apply ${visualStyle} visual style throughout all scene image prompts.`,
-        },
-      ],
-      temperature: 0.8,
-      response_format: { type: 'json_object' },
-    });
+    const promptTemplate = ChatPromptTemplate.fromMessages([
+      ['system', '{systemPrompt}'],
+      ['human', '{userMessage}'],
+    ]);
 
-    const content = response.choices[0].message.content || '{}';
+    const chain = promptTemplate.pipe(this.registry.getStructuredOpenAI(ScriptJSONSchema));
+
     try {
-      const parsed = JSON.parse(content);
-      return parsed as ScriptJSON;
-    } catch (error) {
-      throw new Error(
-        `Failed to parse script JSON: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      const result = await chain.invoke({
+        systemPrompt,
+        userMessage: `Create a viral reel script for: "${topic}". Apply ${visualStyle} visual style throughout all scene image prompts.`,
+      });
+      return result as ScriptJSON;
+    } catch (err) {
+      this.logger.error(
+        `generateScriptJSON.error: ${err instanceof Error ? err.message : String(err)}`,
       );
+      throw err;
     }
   }
 }
