@@ -1,22 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { JsonOutputParser } from '@langchain/core/output_parsers';
+import { LangChainRegistry } from '../../langchain/langchain.registry';
 import { PseoPage, PseoPlaybook } from '../entities/pseo-page.entity';
 
 @Injectable()
 export class PseoContentService {
   private readonly logger = new Logger(PseoContentService.name);
-  private model: any;
 
-  constructor(private readonly configService: ConfigService) {
-    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
-    if (!apiKey) {
-      this.logger.warn('GEMINI_API_KEY not set — pSEO content generation will fail');
-    } else {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      this.model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    }
-  }
+  private readonly pseoChain = ChatPromptTemplate.fromTemplate('{prompt}')
+    .pipe(this.registry.getGemini())
+    .pipe(new JsonOutputParser());
+
+  constructor(private readonly registry: LangChainRegistry) {}
 
   async generateContent(page: PseoPage): Promise<Record<string, any>> {
     switch (page.playbook) {
@@ -403,32 +399,9 @@ Requirements: key_features = 6 items${niche ? ` for ${niche}` : ''}. use_cases =
   }
 
   // ─── Gemini call ──────────────────────────────────────────────────────────
-  private async callAI(prompt: string, slug: string): Promise<Record<string, any>> {
-    if (!this.model) {
-      throw new Error('Gemini model not initialised — GEMINI_API_KEY missing');
-    }
-
-    const result = await this.model.generateContent(prompt);
-    const response = await result.response;
-    const text: string = response.text();
-
-    // Strip any accidental markdown fences and control characters
-    const cleaned = text
-      .replace(/^```(?:json)?\n?/m, '')
-      .replace(/\n?```$/m, '')
-      .trim()
-      .replace(/[\u0000-\u001F\u007F]/g, '');
-
-    try {
-      const parsed = JSON.parse(cleaned);
-      this.logger.debug(`Generated content for ${slug} (${cleaned.length} chars)`);
-      return parsed;
-    } catch (err) {
-      this.logger.error(
-        `JSON parse failed for ${slug}: ${err.message}\nRaw: ${cleaned.slice(0, 200)}`,
-      );
-      throw new Error(`Gemini returned non-JSON for ${slug}: ${err.message}`);
-    }
+  // JsonOutputParser handles markdown fence stripping internally
+  private async callAI(prompt: string, _slug: string): Promise<Record<string, any>> {
+    return this.pseoChain.invoke({ prompt });
   }
 
   private capitalize(str: string): string {
