@@ -178,51 +178,49 @@ describe('LangChainRegistry', () => {
   });
 
   // -------------------------------------------------------------------------
-  // getStructuredGemini — delegates to getGemini().withStructuredOutput
+  // getStructuredGemini — calls withStructuredOutput on the raw model directly
   // -------------------------------------------------------------------------
   describe('getStructuredGemini()', () => {
-    it('calls withStructuredOutput on the cached gemini model with the provided schema', () => {
+    it('calls withStructuredOutput on the raw gemini model with the provided schema', () => {
       const { ChatGoogleGenerativeAI } = jest.requireMock('@langchain/google-genai');
       const fakeStructured = { invoke: jest.fn() };
 
       const registry = makeRegistry('gemini-key');
       const schema = { parse: jest.fn() } as any;
 
-      // Trigger first-time construction so mock.results is populated
+      // Trigger construction so mock.results is populated
       registry.getGemini();
 
       const instance = ChatGoogleGenerativeAI.mock.results[0].value;
-      const retried = instance.withRetry.mock.results[0].value;
-      retried.withStructuredOutput.mockReturnValue(fakeStructured);
+      instance.withStructuredOutput.mockReturnValue(fakeStructured);
 
       const result = registry.getStructuredGemini(schema);
 
-      expect(retried.withStructuredOutput).toHaveBeenCalledWith(schema);
+      expect(instance.withStructuredOutput).toHaveBeenCalledWith(schema);
       expect(result).toBe(fakeStructured);
     });
   });
 
   // -------------------------------------------------------------------------
-  // getStructuredOpenAI — delegates to getOpenAI().withStructuredOutput
+  // getStructuredOpenAI — calls withStructuredOutput on the raw model directly
   // -------------------------------------------------------------------------
   describe('getStructuredOpenAI()', () => {
-    it('calls withStructuredOutput on the cached openai model with the provided schema', () => {
+    it('calls withStructuredOutput on the raw openai model with the provided schema', () => {
       const { ChatOpenAI } = jest.requireMock('@langchain/openai');
       const fakeStructured = { invoke: jest.fn() };
 
       const registry = makeRegistry(undefined, 'openai-key');
       const schema = { parse: jest.fn() } as any;
 
-      // Trigger first-time construction so mock.results is populated
+      // Trigger construction so mock.results is populated
       registry.getOpenAI();
 
       const instance = ChatOpenAI.mock.results[0].value;
-      const retried = instance.withRetry.mock.results[0].value;
-      retried.withStructuredOutput.mockReturnValue(fakeStructured);
+      instance.withStructuredOutput.mockReturnValue(fakeStructured);
 
       const result = registry.getStructuredOpenAI(schema);
 
-      expect(retried.withStructuredOutput).toHaveBeenCalledWith(schema);
+      expect(instance.withStructuredOutput).toHaveBeenCalledWith(schema);
       expect(result).toBe(fakeStructured);
     });
   });
