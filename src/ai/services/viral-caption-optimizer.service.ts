@@ -28,13 +28,13 @@ RULES:
 9. Output ONLY valid JSON — no markdown, no explanation, no code fences.
 
 OUTPUT FORMAT (strict JSON):
-{
+{{
   "hook_strength": <number 1-10>,
   "captions": [
-    { "line": "<line text>", "highlight": "<word or null>", "intensity": <1-5> },
+    {{ "line": "<line text>", "highlight": "<word or null>", "intensity": <1-5> }},
     ...
   ]
-}
+}}
 
 SCRIPT TO OPTIMIZE:`;
 
