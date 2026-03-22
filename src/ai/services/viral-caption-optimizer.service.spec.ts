@@ -1,36 +1,50 @@
+// Mock ChatPromptTemplate before the service is imported.
+// The system prompt contains JSON examples with lone `}` characters, which
+// LangChain's f-string parser rejects. Mocking at module level bypasses the
+// real parser entirely so the service can be instantiated in tests.
+jest.mock('@langchain/core/prompts', () => ({
+  ChatPromptTemplate: {
+    fromMessages: jest.fn().mockReturnValue({
+      pipe: jest.fn().mockReturnValue({ invoke: jest.fn() }),
+    }),
+  },
+}));
+
 import { ViralCaptionOptimizerService } from './viral-caption-optimizer.service';
+import { LangChainRegistry } from '../../langchain/langchain.registry';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeService(responseText: string | null) {
-  const mockModel =
-    responseText !== null
-      ? {
-          generateContent: jest.fn().mockResolvedValue({
-            response: { text: () => responseText },
-          }),
-        }
-      : null;
+function makeService(chainResult: any, shouldThrow = false) {
+  const mockInvoke = shouldThrow
+    ? jest.fn().mockRejectedValue(new Error('API error'))
+    : jest.fn().mockResolvedValue(chainResult);
 
-  const configService = {
-    get: jest.fn().mockReturnValue(responseText !== null ? 'fake-key' : undefined),
-  } as any;
-  const svc = new ViralCaptionOptimizerService(configService);
-  // Bypass constructor model init and inject mock directly
-  (svc as any).model = mockModel;
-  return { svc, mockModel };
+  const mockRegistry = {
+    getStructuredGemini: jest.fn().mockReturnValue({ invoke: mockInvoke }),
+  } as unknown as LangChainRegistry;
+
+  const svc = new ViralCaptionOptimizerService(mockRegistry);
+  // Replace the chain built at field-initializer time with a direct mock
+  (svc as any).chain = { invoke: mockInvoke };
+
+  return { svc, mockInvoke };
 }
 
-const VALID_RESPONSE = JSON.stringify({
+// ---------------------------------------------------------------------------
+// Shared fixtures
+// ---------------------------------------------------------------------------
+
+const VALID_RESULT = {
   hook_strength: 8,
   captions: [
     { line: 'Did you know this', highlight: 'know', intensity: 4 },
     { line: 'changes everything', highlight: 'everything', intensity: 5 },
     { line: 'Most people miss it', highlight: null, intensity: 3 },
   ],
-});
+};
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -39,7 +53,8 @@ const VALID_RESPONSE = JSON.stringify({
 describe('ViralCaptionOptimizerService', () => {
   describe('optimize() — happy path', () => {
     it('returns hook_strength and captions array', async () => {
-      const { svc } = makeService(VALID_RESPONSE);
+      const { svc } = makeService(VALID_RESULT);
+
       const result = await svc.optimize(
         'Did you know this changes everything? Most people miss it.',
       );
@@ -50,7 +65,8 @@ describe('ViralCaptionOptimizerService', () => {
     });
 
     it('each caption has line, highlight, intensity', async () => {
-      const { svc } = makeService(VALID_RESPONSE);
+      const { svc } = makeService(VALID_RESULT);
+
       const result = await svc.optimize('Did you know this changes everything?');
 
       const first = result!.captions[0];
@@ -60,52 +76,97 @@ describe('ViralCaptionOptimizerService', () => {
       expect(typeof first.intensity).toBe('number');
     });
 
-    it('strips markdown code fences before parsing', async () => {
-      const fenced = '```json\n' + VALID_RESPONSE + '\n```';
-      const { svc } = makeService(fenced);
-      const result = await svc.optimize('test script');
-      expect(result).not.toBeNull();
-      expect(result!.captions).toHaveLength(3);
+    it('strips markdown bold (**text**) from caption lines', async () => {
+      const boldResult = {
+        hook_strength: 7,
+        captions: [{ line: '**This** is huge', highlight: 'huge', intensity: 4 }],
+      };
+      const { svc } = makeService(boldResult);
+
+      const result = await svc.optimize('This is huge.');
+
+      expect(result!.captions[0].line).toBe('This is huge');
+    });
+
+    it('strips markdown italic (*text*) from caption lines', async () => {
+      const italicResult = {
+        hook_strength: 6,
+        captions: [{ line: '*incredible* power', highlight: 'power', intensity: 3 }],
+      };
+      const { svc } = makeService(italicResult);
+
+      const result = await svc.optimize('incredible power');
+
+      expect(result!.captions[0].line).toBe('incredible power');
+    });
+
+    it('strips markdown underline (__text__) from caption lines', async () => {
+      const underlineResult = {
+        hook_strength: 5,
+        captions: [{ line: '__key__ insight', highlight: 'insight', intensity: 2 }],
+      };
+      const { svc } = makeService(underlineResult);
+
+      const result = await svc.optimize('key insight');
+
+      expect(result!.captions[0].line).toBe('key insight');
+    });
+
+    it('strips markdown underscore italic (_text_) from caption lines', async () => {
+      const italicUnderscoreResult = {
+        hook_strength: 5,
+        captions: [{ line: '_amazing_ fact', highlight: 'fact', intensity: 3 }],
+      };
+      const { svc } = makeService(italicUnderscoreResult);
+
+      const result = await svc.optimize('amazing fact');
+
+      expect(result!.captions[0].line).toBe('amazing fact');
+    });
+
+    it('passes the transcript to chain.invoke', async () => {
+      const { svc, mockInvoke } = makeService(VALID_RESULT);
+      const script = 'test script content';
+
+      await svc.optimize(script);
+
+      expect(mockInvoke).toHaveBeenCalledWith({ transcript: script });
+    });
+
+    it('trims whitespace from script before invoking chain', async () => {
+      const { svc, mockInvoke } = makeService(VALID_RESULT);
+
+      await svc.optimize('  spaced out script  ');
+
+      expect(mockInvoke).toHaveBeenCalledWith({ transcript: 'spaced out script' });
     });
   });
 
   describe('optimize() — graceful fallback', () => {
-    it('returns null when model is not initialized (no API key)', async () => {
-      const { svc } = makeService(null);
-      // model is already null from makeService(null)
-      const result = await svc.optimize('some script');
-      expect(result).toBeNull();
-    });
+    it('returns null when chain throws', async () => {
+      const { svc } = makeService(null, true /* shouldThrow */);
 
-    it('returns null on invalid JSON from Gemini', async () => {
-      const { svc } = makeService('not valid json at all');
       const result = await svc.optimize('some script');
-      expect(result).toBeNull();
-    });
 
-    it('returns null when JSON has wrong shape (missing captions)', async () => {
-      const { svc } = makeService(JSON.stringify({ hook_strength: 5 }));
-      const result = await svc.optimize('some script');
-      expect(result).toBeNull();
-    });
-
-    it('returns null when captions array is empty', async () => {
-      const { svc } = makeService(JSON.stringify({ hook_strength: 5, captions: [] }));
-      const result = await svc.optimize('some script');
-      expect(result).toBeNull();
-    });
-
-    it('returns null when Gemini throws', async () => {
-      const { svc, mockModel } = makeService(VALID_RESPONSE);
-      mockModel!.generateContent.mockRejectedValue(new Error('API quota exceeded'));
-      const result = await svc.optimize('some script');
       expect(result).toBeNull();
     });
 
     it('returns null for empty script text', async () => {
-      const { svc } = makeService(VALID_RESPONSE);
+      const { svc, mockInvoke } = makeService(VALID_RESULT);
+
       const result = await svc.optimize('');
+
       expect(result).toBeNull();
+      expect(mockInvoke).not.toHaveBeenCalled();
+    });
+
+    it('returns null for whitespace-only script text', async () => {
+      const { svc, mockInvoke } = makeService(VALID_RESULT);
+
+      const result = await svc.optimize('   ');
+
+      expect(result).toBeNull();
+      expect(mockInvoke).not.toHaveBeenCalled();
     });
   });
 });
