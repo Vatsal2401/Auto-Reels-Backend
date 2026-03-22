@@ -44,6 +44,11 @@ export class UserSettingsService {
     return s.story_reel_enabled;
   }
 
+  async isClipExtractorEnabled(userId: string): Promise<boolean> {
+    const s = await this.getOrCreate(userId);
+    return s.clip_extractor_enabled;
+  }
+
   async markOnboardingCompleted(userId: string): Promise<void> {
     const settings = await this.getOrCreate(userId);
     if (!settings.has_completed_onboarding) {

@@ -34,6 +34,7 @@ import { StoryModule } from './story/story.module';
 import { BrollModule } from './broll/broll.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
 import { InstagramDownloaderModule } from './tools/instagram-downloader/instagram-downloader.module';
+import { ClipExtractorModule } from './clip-extractor/clip-extractor.module';
 
 @Module({
   imports: [
@@ -83,6 +84,7 @@ import { InstagramDownloaderModule } from './tools/instagram-downloader/instagra
     BrollModule,
     CampaignsModule,
     InstagramDownloaderModule,
+    ClipExtractorModule,
   ],
   providers: [
     {

@@ -14,6 +14,8 @@ export enum UserNotificationType {
   VIDEO_FAILED = 'video_failed',
   POST_FAILED = 'post_failed',
   POST_SUCCESS = 'post_success',
+  CLIPS_EXTRACTED = 'clips_extracted',
+  CLIPS_EXTRACTION_FAILED = 'clips_extraction_failed',
 }
 
 @Entity('user_notifications')

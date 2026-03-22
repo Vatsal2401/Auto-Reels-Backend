@@ -44,6 +44,8 @@ import { CampaignAccount } from '../campaigns/entities/campaign-account.entity';
 import { AccountPublishingSettings } from '../campaigns/entities/account-publishing-settings.entity';
 import { CampaignPostMetrics } from '../campaigns/entities/campaign-post-metrics.entity';
 import { CampaignAnalyticsDaily } from '../campaigns/entities/campaign-analytics-daily.entity';
+import { ClipExtractJob } from '../clip-extractor/entities/clip-extract-job.entity';
+import { ExtractedClip } from '../clip-extractor/entities/extracted-clip.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -95,6 +97,8 @@ export const AppDataSource = new DataSource({
     AccountPublishingSettings,
     CampaignPostMetrics,
     CampaignAnalyticsDaily,
+    ClipExtractJob,
+    ExtractedClip,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,
