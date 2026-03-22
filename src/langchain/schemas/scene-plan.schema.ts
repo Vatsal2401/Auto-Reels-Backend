@@ -49,7 +49,8 @@ export const ScenePlanSceneSchema = z.object({
 export const ScenePlanSchema = z.object({
   videoStyle: z.string(),
   globalTone: z.string(),
-  preferredSceneLength: z.union([z.string(), z.number()]).optional(),
+  // union([string, number]) rejected by Gemini — use string, service parses numeric values
+  preferredSceneLength: z.string().optional(),
   scenes: z.array(ScenePlanSceneSchema).min(1),
 });
 

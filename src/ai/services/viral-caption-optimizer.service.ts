@@ -57,8 +57,10 @@ export class ViralCaptionOptimizerService {
     try {
       const result = await this.chain.invoke({ transcript: scriptText.trim() });
 
+      // Post-process: convert "" → null for highlight (Gemini can't return null directly)
       // Safety: strip any markdown formatting from line text that Gemini may have added
       result.captions.forEach((c) => {
+        if (c.highlight === '') c.highlight = null;
         c.line = c.line
           .replace(/\*\*([^*]+)\*\*/g, '$1')
           .replace(/\*([^*]+)\*/g, '$1')

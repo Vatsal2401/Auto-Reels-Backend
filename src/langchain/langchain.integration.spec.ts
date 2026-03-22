@@ -90,10 +90,10 @@ describe('ViralCaptionSchema', () => {
     expect(() => ViralCaptionSchema.parse(valid)).not.toThrow();
   });
 
-  it('accepts null highlight', () => {
+  it('accepts empty string highlight (Gemini-compatible, service converts to null)', () => {
     const valid = {
       hook_strength: 5,
-      captions: [{ line: 'Plain text line', highlight: null, intensity: 3 }],
+      captions: [{ line: 'Plain text line', highlight: "", intensity: 3 }],
     };
     expect(() => ViralCaptionSchema.parse(valid)).not.toThrow();
   });
@@ -101,7 +101,7 @@ describe('ViralCaptionSchema', () => {
   it('accepts minimum valid values (hook_strength=1, intensity=1)', () => {
     const valid = {
       hook_strength: 1,
-      captions: [{ line: 'Low energy line', highlight: null, intensity: 1 }],
+      captions: [{ line: 'Low energy line', highlight: "", intensity: 1 }],
     };
     expect(() => ViralCaptionSchema.parse(valid)).not.toThrow();
   });
@@ -127,7 +127,7 @@ describe('ViralCaptionSchema', () => {
   it('rejects intensity above 5', () => {
     const invalid = {
       hook_strength: 5,
-      captions: [{ line: 'test', highlight: null, intensity: 6 }],
+      captions: [{ line: 'test', highlight: "", intensity: 6 }],
     };
     expect(() => ViralCaptionSchema.parse(invalid)).toThrow();
   });
@@ -135,7 +135,7 @@ describe('ViralCaptionSchema', () => {
   it('rejects intensity below 1', () => {
     const invalid = {
       hook_strength: 5,
-      captions: [{ line: 'test', highlight: null, intensity: 0 }],
+      captions: [{ line: 'test', highlight: "", intensity: 0 }],
     };
     expect(() => ViralCaptionSchema.parse(invalid)).toThrow();
   });
@@ -235,7 +235,7 @@ describe('UgcScriptSchema', () => {
     type: 'selfie_talk' as const,
     duration_seconds: 5,
     actor_script: 'Hi everyone!',
-    broll_query: null,
+    broll_query: "",
     caption_text: 'Check this out',
     emotion: 'excited' as const,
     start_time_seconds: 0,
@@ -279,10 +279,10 @@ describe('UgcScriptSchema', () => {
     }
   });
 
-  it('accepts null actor_script and null broll_query', () => {
+  it('accepts empty string actor_script and broll_query (Gemini-compatible, service converts to null)', () => {
     const input = {
       ...validUgcScript,
-      scenes: [{ ...validScene, actor_script: null, broll_query: null }],
+      scenes: [{ ...validScene, actor_script: "", broll_query: "" }],
     };
     expect(() => UgcScriptSchema.parse(input)).not.toThrow();
   });

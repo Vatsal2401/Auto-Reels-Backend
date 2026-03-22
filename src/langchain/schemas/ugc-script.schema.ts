@@ -1,12 +1,17 @@
 import { z } from 'zod';
 
 // Mirrors UgcScene interface exactly
+// NOTE: Gemini rejects nullable types — actor_script/broll_query use empty string "" for "not applicable"
 export const UgcSceneSchema = z.object({
   scene_number: z.number(),
   type: z.enum(['selfie_talk', 'broll_cutaway', 'product_close', 'reaction', 'text_overlay']),
   duration_seconds: z.number(),
-  actor_script: z.string().nullable(),
-  broll_query: z.string().nullable(),
+  actor_script: z
+    .string()
+    .describe('The spoken script for the actor. Use empty string if not a talking scene.'),
+  broll_query: z
+    .string()
+    .describe('Search query for B-roll footage. Use empty string if not a B-roll scene.'),
   caption_text: z.string(),
   emotion: z.enum(['excited', 'genuine', 'concerned', 'amazed', 'confident']),
   start_time_seconds: z.number(),

@@ -57,6 +57,12 @@ export class UgcScriptService {
       throw new Error(`Failed to generate UGC script from Gemini: ${err?.message ?? err}`);
     }
 
+    // Post-process: convert "" → null for actor_script/broll_query (Gemini can't return null directly)
+    for (const scene of script.scenes) {
+      if (scene.actor_script === '') scene.actor_script = null;
+      if (scene.broll_query === '') scene.broll_query = null;
+    }
+
     // Compute start_time_seconds for each scene
     let elapsed = 0;
     for (const scene of script.scenes) {
