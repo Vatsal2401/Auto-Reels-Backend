@@ -80,6 +80,19 @@ export class ClipExtractorController {
     return { url, expiresAt };
   }
 
+  @ApiOperation({ summary: 'Get a signed CloudFront/S3 URL for a clip thumbnail' })
+  @Get('clips/:clipId/thumb-url')
+  async getClipThumbUrl(@Param('clipId') clipId: string, @Request() req: any) {
+    const clip = await this.clipExtractorService.getClipById(clipId, req.user.userId);
+
+    if (!clip.thumbnail_s3_key) {
+      return { url: null };
+    }
+
+    const url = await this.storage.getSignedUrl(clip.thumbnail_s3_key, CLIP_URL_EXPIRY_SEC);
+    return { url };
+  }
+
   @ApiOperation({ summary: 'Delete a clip extraction job and refund credits if applicable' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete('jobs/:id')
