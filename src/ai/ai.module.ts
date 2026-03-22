@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { StorageModule } from '../storage/storage.module';
 import { OpenAIScriptProvider } from './providers/openai-script.provider';
 import { OpenAITTSProvider } from './providers/openai-tts.provider';
@@ -58,7 +59,7 @@ const getImageToVideoProvider = () => {
 import { ReplicateImageProvider } from './providers/replicate-image.provider';
 
 @Module({
-  imports: [StorageModule],
+  imports: [ConfigModule, StorageModule],
   controllers: [VoicesController, TTSController],
   providers: [
     AiProviderFactory,
