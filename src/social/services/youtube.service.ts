@@ -227,7 +227,10 @@ export class YouTubeService {
   private sanitizeYouTubeTitle(raw: string | null | undefined): string {
     if (!raw) return 'My Video';
     // Strip curly/straight quotes that wrap the entire title
-    let title = raw.trim().replace(/^["'""]|["'""]$/gu, '').trim();
+    let title = raw
+      .trim()
+      .replace(/^["'""]|["'""]$/gu, '')
+      .trim();
     // Remove chars YouTube rejects
     title = title.replace(/[<>]/g, '');
     // Truncate to 100 chars (YouTube hard limit)

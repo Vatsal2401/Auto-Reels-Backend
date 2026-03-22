@@ -93,15 +93,21 @@ export class CampaignAnalyticsService {
     userId: string,
     campaignId: string,
     pipelineStatus?: string,
-  ): Promise<Array<CampaignPost & { scheduled_posts: Array<{
-    id: string;
-    platform: string;
-    status: string;
-    account_name: string | null;
-    platform_account_id: string | null;
-    platform_post_id: string | null;
-    scheduled_at: Date;
-  }> }>> {
+  ): Promise<
+    Array<
+      CampaignPost & {
+        scheduled_posts: Array<{
+          id: string;
+          platform: string;
+          status: string;
+          account_name: string | null;
+          platform_account_id: string | null;
+          platform_post_id: string | null;
+          scheduled_at: Date;
+        }>;
+      }
+    >
+  > {
     await this.assertOwner(userId, campaignId);
 
     const qb = this.postRepo

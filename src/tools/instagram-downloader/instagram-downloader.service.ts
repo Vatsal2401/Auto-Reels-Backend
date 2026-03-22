@@ -70,9 +70,7 @@ export class InstagramDownloaderService {
     const bin = await this.resolveYtDlp();
     if (!bin) {
       this.logger.error('yt-dlp binary not found');
-      throw new BadRequestException(
-        'Video downloader is not configured. Please contact support.',
-      );
+      throw new BadRequestException('Video downloader is not configured. Please contact support.');
     }
 
     const shortcode = this.extractShortcode(instagramUrl);
@@ -101,22 +99,22 @@ export class InstagramDownloaderService {
           !lastError.includes('rate') &&
           !lastError.includes('login')
         ) {
-          throw new BadRequestException(
-            'This video is not available. It may have been deleted.',
-          );
+          throw new BadRequestException('This video is not available. It may have been deleted.');
         }
       }
     }
 
     // All attempts failed
-    if (lastError.includes('private') || lastError.includes('login') || lastError.includes('Private')) {
+    if (
+      lastError.includes('private') ||
+      lastError.includes('login') ||
+      lastError.includes('Private')
+    ) {
       throw new BadRequestException(
         'Could not access this video. Please ensure the post is public.',
       );
     }
-    throw new BadRequestException(
-      'Could not download this video. Please try again later.',
-    );
+    throw new BadRequestException('Could not download this video. Please try again later.');
   }
 
   private async runYtDlp(
@@ -136,20 +134,19 @@ export class InstagramDownloaderService {
       : [];
 
     // Best single-file mp4 (non-DASH, has video stream)
-    const best = formats
-      .filter(
-        (f) =>
-          f['ext'] === 'mp4' &&
-          f['url'] &&
-          typeof f['url'] === 'string' &&
-          f['vcodec'] !== 'none' &&
-          !(f['format_id'] as string | undefined)?.startsWith('dash'),
-      )
-      .sort((a, b) => ((b['height'] as number) || 0) - ((a['height'] as number) || 0))[0]
+    const best =
+      formats
+        .filter(
+          (f) =>
+            f['ext'] === 'mp4' &&
+            f['url'] &&
+            typeof f['url'] === 'string' &&
+            f['vcodec'] !== 'none' &&
+            !(f['format_id'] as string | undefined)?.startsWith('dash'),
+        )
+        .sort((a, b) => ((b['height'] as number) || 0) - ((a['height'] as number) || 0))[0] ??
       // fallback: any format with a video URL
-      ?? formats.find(
-        (f) => f['url'] && typeof f['url'] === 'string' && f['vcodec'] !== 'none',
-      );
+      formats.find((f) => f['url'] && typeof f['url'] === 'string' && f['vcodec'] !== 'none');
 
     if (!best?.['url']) {
       throw new Error('No downloadable video format found');
