@@ -23,6 +23,7 @@ export class UserSettingsController {
       ugc_enabled: s.ugc_enabled,
       story_reel_enabled: s.story_reel_enabled,
       broll_enabled: s.broll_enabled,
+      clip_extractor_enabled: s.clip_extractor_enabled,
     };
   }
 
