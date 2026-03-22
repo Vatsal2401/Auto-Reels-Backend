@@ -1,14 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { LangChainRegistry } from '../../langchain/langchain.registry';
+import { ScenePlanSchema } from '../../langchain/schemas/scene-plan.schema';
 import { ScriptProcessorService } from '../script-processor.service';
-import type {
-  ScenePlan,
-  ScenePlanScene,
-  TemplateType,
-  BackgroundType,
-} from '../interfaces/graphic-motion.interface';
+import type { ScenePlan, ScenePlanScene } from '../interfaces/graphic-motion.interface';
 
-const SCENE_PLANNER_PROMPT = `You are a video scene planner for short-form premium SaaS and promo content that feeds a graphic motion engine (title cards, quote cards, feature highlights, impact words, stats cards, steps cards, countdown badges).
+const SCENE_PLANNER_SYSTEM_PROMPT = `You are a video scene planner for short-form premium SaaS and promo content that feeds a graphic motion engine (title cards, quote cards, feature highlights, impact words, stats cards, steps cards, countdown badges).
 
 Given a script or short prompt, output a JSON object with:
 - videoStyle: string (e.g. "premium-saas", "minimal")
@@ -36,17 +33,19 @@ Respond with only valid JSON, no markdown code fences.`;
 @Injectable()
 export class ScenePlannerService {
   private readonly logger = new Logger(ScenePlannerService.name);
-  private readonly model: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null;
 
-  constructor(private readonly scriptProcessor: ScriptProcessorService) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (apiKey?.trim()) {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      this.model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    } else {
-      this.logger.warn('GEMINI_API_KEY not set; ScenePlanner will use fallback only');
-    }
-  }
+  private readonly chain = ChatPromptTemplate.fromMessages([
+    ['system', SCENE_PLANNER_SYSTEM_PROMPT],
+    [
+      'human',
+      'Create a scene plan for this script or prompt:\n\n{scriptOrPrompt}\n\nRespond with only valid JSON.',
+    ],
+  ]).pipe(this.registry.getStructuredGemini(ScenePlanSchema));
+
+  constructor(
+    private readonly registry: LangChainRegistry,
+    private readonly scriptProcessor: ScriptProcessorService,
+  ) {}
 
   /**
    * Plan scenes from script or prompt using Gemini. On failure or missing key, fallback to script processor.
@@ -55,130 +54,46 @@ export class ScenePlannerService {
     if (!scriptOrPrompt?.trim()) {
       return this.fallbackToScriptProcessor(scriptOrPrompt || '');
     }
-    if (this.model) {
-      try {
-        const userPrompt = `Create a scene plan for this script or prompt:\n\n${scriptOrPrompt.trim()}\n\nRespond with only valid JSON.`;
-        const result = await this.model.generateContent([SCENE_PLANNER_PROMPT, userPrompt]);
-        const response = result.response;
-        const content = response.text();
-        if (content) {
-          const raw = content
-            .replace(/```json/g, '')
-            .replace(/```/g, '')
-            .trim()
-            .replace(/[\u0000-\u001F\u007F]/g, '');
-          const parsed = JSON.parse(raw) as Record<string, unknown>;
-          const scenes = Array.isArray(parsed.scenes)
-            ? (parsed.scenes as ScenePlanScene[]).map((s) => ({
-                text: String(s?.text ?? ''),
-                sceneType: this.normalizeSceneType(s?.sceneType),
-                emphasisLevel: this.clamp01(Number(s?.emphasisLevel ?? 0.5)),
-                importanceScore: this.clamp01(Number(s?.importanceScore ?? 0.5)),
-                visualTreatment: s?.visualTreatment as
-                  | ScenePlanScene['visualTreatment']
-                  | undefined,
-                label: s?.label != null ? String(s.label).trim() || undefined : undefined,
-                subHeadline:
-                  s?.subHeadline != null ? String(s.subHeadline).trim() || undefined : undefined,
-                supportingText:
-                  s?.supportingText != null
-                    ? String(s.supportingText).trim() || undefined
-                    : undefined,
-                authorLine:
-                  s?.authorLine != null ? String(s.authorLine).trim() || undefined : undefined,
-                suggestedTemplateType: this.normalizeTemplateType(s?.suggestedTemplateType),
-                headlineEmphasis: this.normalizeHeadlineEmphasis(s?.headlineEmphasis),
-                backgroundType: this.normalizeBackgroundType(s?.backgroundType),
-                highlightWords: this.normalizeHighlightWords(s?.highlightWords),
-                iconSuggestion:
-                  s?.iconSuggestion != null
-                    ? String(s.iconSuggestion).trim() || undefined
-                    : undefined,
-              }))
-            : [];
-          if (scenes.length > 0) {
-            return {
-              videoStyle: String(parsed.videoStyle ?? 'premium-saas'),
-              globalTone: String(parsed.globalTone ?? 'confident'),
-              preferredSceneLength:
-                typeof parsed.preferredSceneLength === 'string' ||
-                typeof parsed.preferredSceneLength === 'number'
-                  ? parsed.preferredSceneLength
-                  : undefined,
-              scenes,
-            };
-          }
-        }
-      } catch (err) {
-        this.logger.warn(
-          `ScenePlanner Gemini failed for project ${projectId}, using fallback`,
-          err instanceof Error ? err.message : err,
-        );
+
+    try {
+      const result = await this.chain.invoke({ scriptOrPrompt: scriptOrPrompt.trim() });
+
+      const scenes: ScenePlanScene[] = result.scenes.map((s) => ({
+        text: s.text,
+        sceneType: s.sceneType,
+        emphasisLevel: s.emphasisLevel,
+        importanceScore: s.importanceScore,
+        label: s.label,
+        subHeadline: s.subHeadline,
+        supportingText: s.supportingText,
+        authorLine: s.authorLine,
+        suggestedTemplateType: s.suggestedTemplateType,
+        headlineEmphasis: s.headlineEmphasis,
+        backgroundType: s.backgroundType,
+        highlightWords: s.highlightWords,
+        iconSuggestion: s.iconSuggestion,
+      }));
+
+      if (scenes.length > 0) {
+        return {
+          videoStyle: result.videoStyle,
+          globalTone: result.globalTone,
+          preferredSceneLength:
+            typeof result.preferredSceneLength === 'string' ||
+            typeof result.preferredSceneLength === 'number'
+              ? result.preferredSceneLength
+              : undefined,
+          scenes,
+        };
       }
+    } catch (err) {
+      this.logger.warn(
+        `ScenePlanner Gemini failed for project ${projectId}, using fallback`,
+        err instanceof Error ? err.message : err,
+      );
     }
+
     return this.fallbackToScriptProcessor(scriptOrPrompt);
-  }
-
-  private clamp01(n: number): number {
-    return Math.max(0, Math.min(1, Number.isFinite(n) ? n : 0.5));
-  }
-
-  private normalizeSceneType(v: unknown): ScenePlanScene['sceneType'] {
-    const s = String(v).toLowerCase();
-    if (['intro', 'problem', 'feature', 'cta'].includes(s)) return s as ScenePlanScene['sceneType'];
-    return 'feature';
-  }
-
-  private normalizeTemplateType(v: unknown): TemplateType | undefined {
-    const s = String(v).toLowerCase();
-    const valid: TemplateType[] = [
-      'title-card',
-      'quote-card',
-      'feature-highlight',
-      'impact-full-bleed',
-      'stats-card',
-      'steps-card',
-      'split-accent',
-      'countdown-badge',
-    ];
-    if (valid.includes(s as TemplateType)) {
-      return s as TemplateType;
-    }
-    return undefined;
-  }
-
-  private normalizeHeadlineEmphasis(v: unknown): 'high' | 'medium' | undefined {
-    const s = String(v).toLowerCase();
-    if (s === 'high' || s === 'medium') return s;
-    return undefined;
-  }
-
-  private normalizeBackgroundType(v: unknown): BackgroundType | undefined {
-    if (v == null) return undefined;
-    const s = String(v).toLowerCase();
-    const valid: BackgroundType[] = [
-      'flat-light',
-      'flat-dark',
-      'gradient-soft',
-      'animated-gradient',
-      'dot-grid',
-      'geometric-lines',
-      'noise-texture',
-      'radial-glow',
-    ];
-    if (valid.includes(s as BackgroundType)) {
-      return s as BackgroundType;
-    }
-    return undefined;
-  }
-
-  private normalizeHighlightWords(v: unknown): string[] | undefined {
-    if (!Array.isArray(v)) return undefined;
-    const words = v
-      .map((w) => String(w).trim())
-      .filter((w) => w.length > 0)
-      .slice(0, 2);
-    return words.length > 0 ? words : undefined;
   }
 
   private fallbackToScriptProcessor(script: string): ScenePlan {

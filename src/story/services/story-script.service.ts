@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { LangChainRegistry } from '../../langchain/langchain.registry';
+import { StoryScriptSchema } from '../../langchain/schemas/story-script.schema';
 import { buildStoryScriptPrompt } from '../prompts/story-script.prompt';
 import { StoryScriptJSON } from '../interfaces/story-script.interface';
 import { Story } from '../entities/story.entity';
@@ -13,8 +14,13 @@ import { StoryScene } from '../entities/story-scene.entity';
 export class StoryScriptService {
   private readonly logger = new Logger(StoryScriptService.name);
 
+  private readonly chain = ChatPromptTemplate.fromMessages([
+    ['system', '{systemPrompt}'],
+    ['human', '{userPrompt}'],
+  ]).pipe(this.registry.getStructuredGemini(StoryScriptSchema));
+
   constructor(
-    private readonly configService: ConfigService,
+    private readonly registry: LangChainRegistry,
     @InjectRepository(Story)
     private readonly storyRepo: Repository<Story>,
     @InjectRepository(StoryCharacter)
@@ -30,36 +36,20 @@ export class StoryScriptService {
     sceneCount: number;
     userPrompt: string;
   }): Promise<StoryScriptJSON> {
-    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
-    if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
-
     const { systemPrompt, userPrompt } = buildStoryScriptPrompt({
       genre: params.genre,
       sceneCount: params.sceneCount,
       userPrompt: params.userPrompt,
     });
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      systemInstruction: systemPrompt,
-    });
-
     this.logger.log(`Generating story script for media ${params.mediaId} (genre: ${params.genre})`);
-
-    const result = await model.generateContent(userPrompt);
-    const text = result.response.text().trim();
-    const jsonText = text
-      .replace(/^```(?:json)?\n?/, '')
-      .replace(/\n?```$/, '')
-      .replace(/[\u0000-\u001F\u007F]/g, '');
 
     let script: StoryScriptJSON;
     try {
-      script = JSON.parse(jsonText);
-    } catch {
-      this.logger.error(`Failed to parse story script response: ${text.slice(0, 300)}`);
-      throw new Error('Failed to parse story script from Gemini');
+      script = await this.chain.invoke({ systemPrompt, userPrompt });
+    } catch (err) {
+      this.logger.error(`Failed to parse story script response: ${err?.message ?? err}`);
+      throw new Error(`Failed to generate story script from Gemini: ${err?.message ?? err}`);
     }
 
     // Recompute start_time_seconds

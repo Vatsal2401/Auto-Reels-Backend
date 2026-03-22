@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { LangChainRegistry } from '../../langchain/langchain.registry';
+import { ViralCaptionSchema } from '../../langchain/schemas/viral-caption.schema';
 
 export interface ViralCaptionLine {
   line: string;
@@ -13,7 +14,7 @@ export interface ViralCaptionResult {
   captions: ViralCaptionLine[];
 }
 
-const VIRAL_CAPTION_PROMPT = `You are a viral short-form video caption optimizer. Your job is to rewrite a video script into punchy, emotionally charged caption lines that maximize viewer retention and engagement.
+const VIRAL_CAPTION_SYSTEM_PROMPT = `You are a viral short-form video caption optimizer. Your job is to rewrite a video script into punchy, emotionally charged caption lines that maximize viewer retention and engagement.
 
 RULES:
 1. Split the script into short, impactful lines (2–5 words each, occasionally up to 7 for complex ideas).
@@ -35,59 +36,29 @@ OUTPUT FORMAT (strict JSON):
   ]
 }
 
-SCRIPT TO OPTIMIZE:
-{{TRANSCRIPT}}`;
+SCRIPT TO OPTIMIZE:`;
 
 @Injectable()
 export class ViralCaptionOptimizerService {
   private readonly logger = new Logger(ViralCaptionOptimizerService.name);
-  private model: any;
 
-  constructor(private readonly configService: ConfigService) {
-    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
-    if (!apiKey) {
-      this.logger.warn('GEMINI_API_KEY not set — viral caption optimizer will be disabled');
-    } else {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      this.model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    }
-  }
+  private readonly chain = ChatPromptTemplate.fromMessages([
+    ['system', VIRAL_CAPTION_SYSTEM_PROMPT],
+    ['human', '{transcript}'],
+  ]).pipe(this.registry.getStructuredGemini(ViralCaptionSchema));
+
+  constructor(private readonly registry: LangChainRegistry) {}
 
   async optimize(scriptText: string): Promise<ViralCaptionResult | null> {
-    if (!this.model) {
-      this.logger.warn('Viral caption optimizer: model not initialized (missing API key)');
-      return null;
-    }
-
     if (!scriptText || !scriptText.trim()) {
       return null;
     }
 
     try {
-      const prompt = VIRAL_CAPTION_PROMPT.replace('{{TRANSCRIPT}}', scriptText.trim());
-      const result = await this.model.generateContent(prompt);
-      const raw = result.response.text().trim();
-
-      // Strip markdown code fences if present
-      const jsonStr = raw
-        .replace(/^```(?:json)?\s*/i, '')
-        .replace(/\s*```$/, '')
-        .trim()
-        .replace(/[\u0000-\u001F\u007F]/g, '');
-
-      const parsed = JSON.parse(jsonStr) as ViralCaptionResult;
-
-      if (
-        typeof parsed.hook_strength !== 'number' ||
-        !Array.isArray(parsed.captions) ||
-        parsed.captions.length === 0
-      ) {
-        this.logger.warn('Viral optimizer: unexpected response shape, falling back');
-        return null;
-      }
+      const result = await this.chain.invoke({ transcript: scriptText.trim() });
 
       // Safety: strip any markdown formatting from line text that Gemini may have added
-      parsed.captions.forEach((c) => {
+      result.captions.forEach((c) => {
         c.line = c.line
           .replace(/\*\*([^*]+)\*\*/g, '$1')
           .replace(/\*([^*]+)\*/g, '$1')
@@ -97,9 +68,9 @@ export class ViralCaptionOptimizerService {
       });
 
       this.logger.log(
-        `Viral optimizer: hook_strength=${parsed.hook_strength}, captions=${parsed.captions.length}`,
+        `Viral optimizer: hook_strength=${result.hook_strength}, captions=${result.captions.length}`,
       );
-      return parsed;
+      return result;
     } catch (err) {
       this.logger.warn(
         `Viral optimizer failed: ${err?.message ?? err} — falling back to heuristic splitting`,
