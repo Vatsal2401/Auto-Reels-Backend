@@ -1,4 +1,4 @@
-import { IsUrl, IsOptional, IsInt, Min, Max, IsBoolean, IsUUID, IsEnum } from 'class-validator';
+import { IsUrl, IsOptional, IsInt, Min, Max, IsBoolean, IsUUID, IsEnum, IsIn } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { CaptionStyle } from '../entities/clip-extract-job.entity';
 
@@ -48,4 +48,9 @@ export class CreateClipExtractJobDto {
   @IsOptional()
   @IsUUID()
   brollLibraryId?: string;
+
+  @ApiPropertyOptional({ enum: ['portrait_9x16', 'original'], default: 'portrait_9x16' })
+  @IsOptional()
+  @IsIn(['portrait_9x16', 'original'])
+  outputFormat?: 'portrait_9x16' | 'original';
 }
