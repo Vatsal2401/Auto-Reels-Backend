@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsNotEmpty, IsOptional, Matches } from 'class-validator';
 
 export class SignUpDto {
   @IsEmail()
@@ -16,4 +16,11 @@ export class SignUpDto {
   @IsString()
   @IsOptional()
   country?: string;
+
+  @IsString()
+  @IsOptional()
+  @Matches(/^\+[1-9]\d{6,14}$/, {
+    message: 'phoneNumber must be a valid E.164 format (e.g. +919876543210)',
+  })
+  phoneNumber?: string;
 }

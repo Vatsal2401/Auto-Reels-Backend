@@ -66,6 +66,9 @@ export class User {
   @Column({ type: 'varchar', length: 2, nullable: true })
   country: string | null;
 
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  phone_number: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 

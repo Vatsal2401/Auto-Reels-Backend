@@ -57,6 +57,7 @@ export class AuthService {
         verification_token: verificationToken,
         last_verification_sent_at: new Date(),
         country: dto.country,
+        phone_number: dto.phoneNumber ?? null,
       });
 
       const savedUser = await manager.save(user);
