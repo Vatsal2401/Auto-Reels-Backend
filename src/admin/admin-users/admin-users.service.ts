@@ -47,6 +47,7 @@ export class AdminUsersService {
     const [results, countResult] = await Promise.all([
       this.dataSource.query(
         `SELECT u.id, u.email, u.name, u.credits_balance as "creditsBalance", u.is_premium as "isPremium",
+                u.email_verified as "emailVerified", u.phone_number as "phoneNumber",
                 u.created_at as "createdAt", COUNT(p.id)::int as "totalProjects"
          FROM users u
          LEFT JOIN projects p ON p.user_id = u.id
@@ -86,6 +87,8 @@ export class AdminUsersService {
       email: user.email,
       credits: user.credits_balance,
       isPremium: user.is_premium,
+      emailVerified: user.email_verified,
+      phoneNumber: user.phone_number,
       createdAt: user.created_at,
       totalProjects,
       completedProjects,
