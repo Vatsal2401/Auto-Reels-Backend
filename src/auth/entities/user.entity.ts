@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  DeleteDateColumn,
   OneToMany,
 } from 'typeorm';
 import { Media } from '../../media/entities/media.entity';
@@ -74,6 +75,9 @@ export class User {
 
   @UpdateDateColumn()
   updated_at: Date;
+
+  @DeleteDateColumn({ nullable: true })
+  deleted_at: Date | null;
 
   @OneToMany(() => Media, (media) => media.user)
   media: Relation<Media[]>;

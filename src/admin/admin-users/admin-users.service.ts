@@ -249,17 +249,8 @@ export class AdminUsersService {
       throw new NotFoundException('User not found');
     }
 
-    try {
-      await this.userRepository.delete(userId);
-      return { deleted: true };
-    } catch (error) {
-      if (error.code === '23503') {
-        throw new ConflictException(
-          'Cannot delete user: they have associated records. Contact engineering to cascade-delete.',
-        );
-      }
-      throw error;
-    }
+    await this.userRepository.softDelete(userId);
+    return { deleted: true };
   }
 
   async impersonateUser(userId: string, adminId: string, ipAddress: string | null) {
