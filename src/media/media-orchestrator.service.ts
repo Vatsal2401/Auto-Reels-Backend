@@ -338,7 +338,7 @@ export class MediaOrchestratorService {
     }
 
     // Mad Scientist - Energetic is an ElevenLabs-exclusive voice.
-    // All other voices use Sarvam (if key available) → ElevenLabs → OpenAI.
+    // Priority: ElevenLabs → Sarvam → OpenAI (ElevenLabs first since voiceIds are ElevenLabs voices).
     const MAD_SCIENTIST_ELEVENLABS_ID = 'yjJ45q8TVCrtMhEKurxY';
     const voiceLabel = media.input_config?.voiceLabel || '';
     const isMadScientist = voiceLabel === 'Mad Scientist - Energetic';
@@ -349,10 +349,10 @@ export class MediaOrchestratorService {
     if (isMadScientist && process.env.ELEVENLABS_API_KEY) {
       providerKey = 'elevenlabs';
       resolvedVoiceId = MAD_SCIENTIST_ELEVENLABS_ID;
-    } else if (process.env.SARVAM_API_KEY) {
-      providerKey = 'sarvam';
     } else if (process.env.ELEVENLABS_API_KEY) {
       providerKey = 'elevenlabs';
+    } else if (process.env.SARVAM_API_KEY) {
+      providerKey = 'sarvam';
     } else {
       providerKey = 'openai';
     }
@@ -361,7 +361,7 @@ export class MediaOrchestratorService {
     const primaryProviderName =
       providerKey === 'elevenlabs' ? 'ElevenLabs' : providerKey === 'sarvam' ? 'Sarvam' : 'OpenAI';
 
-    // Primary: Mad Scientist → ElevenLabs | Others → Sarvam > ElevenLabs > OpenAI
+    // Primary: Mad Scientist → ElevenLabs | Others → ElevenLabs > Sarvam > OpenAI
     this.logger.log(
       `Generating audio for media ${media.id} via ${primaryProviderName} (voice: ${voiceLabel || resolvedVoiceId})...`,
     );

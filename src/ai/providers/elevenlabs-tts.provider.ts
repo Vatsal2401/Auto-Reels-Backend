@@ -6,8 +6,19 @@ import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
 export class ElevenLabsTTSProvider implements ITextToSpeech {
   private readonly logger = new Logger(ElevenLabsTTSProvider.name);
   private readonly client: ElevenLabsClient | null = null;
-  // Default Voice ID (Rachel)
+  // Default Voice ID (Rachel) — used when voiceId is not a valid ElevenLabs ID
   private readonly defaultVoiceId = '21m00Tcm4TlvDq8ikWAM';
+
+  // Internal voice label → ElevenLabs voice ID
+  private readonly voiceMap: Record<string, string> = {
+    amelia: 'Xb7hH8MSUJpSbSDYk0k2', // Alice - Clear, Engaging Educator
+    rachel: '21m00Tcm4TlvDq8ikWAM',
+    george: 'JBFqnCBsd6RMkjVDRZzb',
+    charlie: 'IKne3meq5aSn9XLyUdCD',
+    eric: 'cjVigY5qzO86Huf0OWal',
+    brian: 'nPczCjzI2devNBz1zQrb',
+    liam: 'TX3LPaxmHKxFdv7VOQHJ',
+  };
 
   constructor() {
     const apiKey = process.env.ELEVENLABS_API_KEY;
@@ -31,7 +42,8 @@ export class ElevenLabsTTSProvider implements ITextToSpeech {
     } else {
       text = optionsOrText.text;
       if (optionsOrText.voiceId) {
-        voiceId = optionsOrText.voiceId;
+        const raw = optionsOrText.voiceId;
+        voiceId = this.voiceMap[raw] ?? (this.isElevenLabsId(raw) ? raw : this.defaultVoiceId);
       }
     }
 
@@ -39,23 +51,14 @@ export class ElevenLabsTTSProvider implements ITextToSpeech {
       `Generating audio with ElevenLabs SDK... Text length: ${text.length}, Voice: ${voiceId}`,
     );
 
-    // Heuristic: Adjust voice settings based on prompt keywords
     let stability = 0.5;
     const similarityBoost = 0.8;
     const prompt = (typeof optionsOrText !== 'string' ? optionsOrText.prompt : '').toLowerCase();
 
-    if (
-      prompt.includes('excited') ||
-      prompt.includes('energetic') ||
-      prompt.includes('expressive')
-    ) {
-      stability = 0.35; // More expressive
-    } else if (
-      prompt.includes('calm') ||
-      prompt.includes('steady') ||
-      prompt.includes('professional')
-    ) {
-      stability = 0.7; // More stable
+    if (prompt.includes('excited') || prompt.includes('energetic') || prompt.includes('expressive')) {
+      stability = 0.35;
+    } else if (prompt.includes('calm') || prompt.includes('steady') || prompt.includes('professional')) {
+      stability = 0.7;
     }
 
     try {
@@ -69,7 +72,6 @@ export class ElevenLabsTTSProvider implements ITextToSpeech {
         },
       });
 
-      // Convert ReadStream to Buffer
       const chunks: Buffer[] = [];
       for await (const chunk of audioStream) {
         chunks.push(Buffer.from(chunk));
@@ -82,5 +84,9 @@ export class ElevenLabsTTSProvider implements ITextToSpeech {
       this.logger.error('ElevenLabs TTS Failed', error);
       throw new Error(`ElevenLabs TTS Failed: ${error.message}`);
     }
+  }
+
+  private isElevenLabsId(id: string): boolean {
+    return /^[A-Za-z0-9]{15,}$/.test(id);
   }
 }

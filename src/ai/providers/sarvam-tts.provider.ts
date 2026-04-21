@@ -11,7 +11,7 @@ export class SarvamTTSProvider implements ITextToSpeech {
 
   async textToSpeech(optionsOrText: AudioOptions | string): Promise<Buffer> {
     let text: string;
-    let voiceId = 'amelia';
+    let voiceId = 'anushka';
     let language = 'English (US)';
     let prompt = '';
 
