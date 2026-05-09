@@ -244,6 +244,10 @@ export class AuthService {
     await this.userRepository.update(userId, { country });
   }
 
+  async updateUserPhone(userId: string, phoneNumber: string): Promise<void> {
+    await this.userRepository.update(userId, { phone_number: phoneNumber });
+  }
+
   async verifyEmail(token: string, email?: string) {
     const user = await this.userRepository.findOne({
       where: { verification_token: token },

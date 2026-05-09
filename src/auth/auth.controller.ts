@@ -90,6 +90,7 @@ export class AuthController {
       is_premium: userEntity?.is_premium || false,
       email_verified: userEntity?.email_verified || false,
       country: userEntity?.country || null,
+      phone_number: userEntity?.phone_number || null,
     };
   }
 
@@ -122,8 +123,10 @@ export class AuthController {
       }
     }
 
+    const needsPhone = !user.phone_number;
+
     const base = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/auth/callback`;
-    const redirectUrl = `${base}?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}${needsCountry ? '&needs_country=true' : ''}`;
+    const redirectUrl = `${base}?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}${needsCountry ? '&needs_country=true' : ''}${needsPhone ? '&needs_phone=true' : ''}`;
     res.redirect(redirectUrl);
   }
 
@@ -134,6 +137,15 @@ export class AuthController {
   async updateCountry(@CurrentUser() user: any, @Body('country') country: string) {
     await this.authService.updateUserCountry(user.userId, country);
     return { country };
+  }
+
+  @Patch('me/phone')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: "Update the current user's phone number" })
+  async updatePhone(@CurrentUser() user: any, @Body('phoneNumber') phoneNumber: string) {
+    await this.authService.updateUserPhone(user.userId, phoneNumber);
+    return { phoneNumber };
   }
 
   @Get('microsoft')
