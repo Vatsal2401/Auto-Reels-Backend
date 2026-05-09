@@ -4,6 +4,7 @@ import { VideoStatus } from './entities/video.entity';
 import { ScriptJSON } from '../ai/interfaces/script-generator.interface';
 import { IStorageService } from '../storage/interfaces/storage.interface';
 import { IVideoRenderer } from '../render/interfaces/video-renderer.interface';
+import { HyperFramesRendererProvider } from '../render/providers/hyperframes-renderer.provider';
 import { AiProviderFactory } from '../ai/ai-provider.factory';
 import { join } from 'path';
 import { existsSync, mkdirSync, writeFileSync, rmSync } from 'fs';
@@ -21,6 +22,7 @@ export class VideoGenerationService {
     private readonly aiFactory: AiProviderFactory,
     @Inject('IStorageService') private readonly storageService: IStorageService,
     @Inject('IVideoRenderer') private readonly videoRenderer: IVideoRenderer,
+    private readonly hyperFramesRenderer: HyperFramesRendererProvider,
     private readonly musicService: MusicService,
   ) {}
 
@@ -146,7 +148,7 @@ export class VideoGenerationService {
     await this.videoService.updateStatus(videoId, VideoStatus.PROCESSING);
 
     // Get Provider from Factory
-    const imageProviderName = video.metadata?.imageProvider || 'gemini';
+    const imageProviderName = video.metadata?.imageProvider || 'replicate';
     const imageProvider = this.aiFactory.getImageGenerator(imageProviderName as any);
 
     // CREATE ONE MASTER PROMPT FOR ALL IMAGES
@@ -405,17 +407,22 @@ export class VideoGenerationService {
       }
     }
 
+    const useHyperFrames = video.metadata?.renderer === 'hyperframes';
+    const renderer = useHyperFrames ? this.hyperFramesRenderer : this.videoRenderer;
+
     this.logger.log(
-      `Rendering with Local Paths: Audio=${audioPath}, Assets=${assetPaths.length}, Music=${musicPath || 'None'}`,
+      `Rendering with ${useHyperFrames ? 'HyperFrames' : 'FFmpeg'} — Audio=${audioPath}, Assets=${assetPaths.length}, Music=${musicPath || 'None'}`,
     );
 
-    const videoStream = await this.videoRenderer.compose({
+    const videoStream = await renderer.compose({
       audioPath,
       captionPath,
       assetPaths,
       captions: video.metadata?.captions,
       musicPath,
       musicVolume: musicConfig?.volume,
+      scenes: scriptJson?.scenes?.map((s) => ({ audio_text: s.audio_text, duration: s.duration })),
+      hyperframesTemplate: video.metadata?.hyperframesTemplate || 'cinematic',
     });
 
     // Upload using Stream to save memory

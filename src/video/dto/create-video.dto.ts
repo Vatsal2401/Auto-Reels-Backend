@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, MaxLength, IsOptional, IsIn } from 'class-validator';
 
 export class CreateVideoDto {
   @IsString()
@@ -29,4 +29,12 @@ export class CreateVideoDto {
 
   @IsString()
   music: any;
+
+  @IsOptional()
+  @IsIn(['ffmpeg', 'hyperframes'])
+  renderer?: string;
+
+  @IsOptional()
+  @IsIn(['cinematic', 'bold', 'minimal', 'neon'])
+  hyperframesTemplate?: string;
 }

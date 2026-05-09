@@ -1,5 +1,10 @@
 import { Readable } from 'stream';
 
+export interface SceneData {
+  audio_text: string;
+  duration: number;
+}
+
 export interface ComposeOptions {
   audioPath: string;
   captionPath: string;
@@ -13,6 +18,8 @@ export interface ComposeOptions {
   };
   musicPath?: string;
   musicVolume?: number;
+  scenes?: SceneData[];
+  hyperframesTemplate?: 'cinematic' | 'bold' | 'minimal' | 'neon';
 }
 
 export interface IVideoRenderer {

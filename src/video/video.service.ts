@@ -53,6 +53,8 @@ export class VideoService {
         imageProvider: dto.imageProvider || 'replicate',
         captions: dto.captions,
         music: dto.music,
+        renderer: dto.renderer || 'ffmpeg',
+        hyperframesTemplate: dto.hyperframesTemplate || 'cinematic',
       },
     });
     return await this.videoRepository.save(video);

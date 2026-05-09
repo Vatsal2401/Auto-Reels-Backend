@@ -23,7 +23,12 @@ export class LangChainRegistry {
       }
       this.geminiRaw.set(
         key,
-        new ChatGoogleGenerativeAI({ model: modelName, apiKey: apiKey ?? '', temperature, maxOutputTokens: 8192 }),
+        new ChatGoogleGenerativeAI({
+          model: modelName,
+          apiKey: apiKey ?? '',
+          temperature,
+          maxOutputTokens: 16384,
+        }),
       );
     }
     return this.geminiRaw.get(key)!;
