@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { IVideoRenderer, ComposeOptions, SceneData } from '../interfaces/video-renderer.interface';
 import { Readable } from 'stream';
-import { createRenderJob, executeRenderJob } from '@hyperframes/producer';
 import { writeFileSync, createReadStream, mkdirSync, symlinkSync, existsSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -67,10 +66,12 @@ export class HyperFramesRendererProvider implements IVideoRenderer {
       writeFileSync(join(workDir, 'index.html'), html, 'utf-8');
 
       const outputPath = join(workDir, 'output.mp4');
+      // Dynamic import required: @hyperframes/producer is ESM-only and cannot be require()'d
+      const { createRenderJob, executeRenderJob } = await import('@hyperframes/producer' as string) as any;
       const job = createRenderJob({ fps: 30, quality: 'standard', format: 'mp4' });
 
       this.logger.log(`Starting HyperFrames render (${totalDuration.toFixed(1)}s, ${sceneCount} scenes)`);
-      await executeRenderJob(job, workDir, outputPath, (j, msg) => {
+      await executeRenderJob(job, workDir, outputPath, (j: any, msg: string) => {
         this.logger.log(`HyperFrames [${j.status}] ${msg}`);
       });
 
