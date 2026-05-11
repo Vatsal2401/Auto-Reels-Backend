@@ -12,51 +12,53 @@ import { tmpdir } from 'os';
 import { Readable } from 'stream';
 import { MusicService } from '../media/music.service';
 
+// VideoGenerationService — reel generation pipeline ચલાવે છે
+// Steps: Script → Images → Audio → Captions → Final Video Render
 @Injectable()
 export class VideoGenerationService {
   private readonly logger = new Logger(VideoGenerationService.name);
-  private static isJobActive = false; // Simple lock for single-job concurrency
+
+  // Simple lock: RAM બચાવવા એક સમયે ફક્ત 1 job run થાય
+  private static isJobActive = false;
 
   constructor(
     private readonly videoService: VideoService,
     private readonly aiFactory: AiProviderFactory,
     @Inject('IStorageService') private readonly storageService: IStorageService,
-    @Inject('IVideoRenderer') private readonly videoRenderer: IVideoRenderer,
-    private readonly hyperFramesRenderer: HyperFramesRendererProvider,
+    @Inject('IVideoRenderer') private readonly videoRenderer: IVideoRenderer, // FFmpeg renderer
+    private readonly hyperFramesRenderer: HyperFramesRendererProvider,         // HyperFrames renderer
     private readonly musicService: MusicService,
   ) {}
 
-  /**
-   * Starts the video generation process for a given video ID.
-   * This method is async but "fire-and-forget" - it runs in the background.
-   */
+  // Main entry point: video generation start કરે છે (background task)
   async startGeneration(videoId: string): Promise<void> {
+    // બીજી job ચાલતી હોય તો skip — 512MB RAM limit ના કારણે
     if (VideoGenerationService.isJobActive) {
       this.logger.warn(`Another job is already active. Skipping or queuing for ${videoId}.`);
-      // In a real prod env, we'd use a queue (BullMQ), but for 512MB RAM stability, we enforce 1 at a time.
       return;
     }
 
     VideoGenerationService.isJobActive = true;
     this.logger.log(`Starting generation for video ${videoId}`);
 
+    // temporary folder બનાવો — audio, images, captions cache થશે
     const sessionDir = this.getSessionDir(videoId);
     if (!existsSync(sessionDir)) mkdirSync(sessionDir, { recursive: true });
 
     try {
-      // 1. Script Generation
+      // Step 1: Gemini/OpenAI વડે script JSON generate કરો
       await this.generateScriptStep(videoId);
 
-      // 2. Image Generation
+      // Step 2: Replicate/Gemini વડે scene images generate કરો
       await this.generateImagesStep(videoId, sessionDir);
 
-      // 3. Audio Generation
+      // Step 3: Sarvam/ElevenLabs/OpenAI વડે audio generate કરો
       const audioBuffer = await this.generateAudioStep(videoId, sessionDir);
 
-      // 4. Caption Generation (Needs Audio)
+      // Step 4: audio ના based captions (subtitles) generate કરો
       await this.generateCaptionsStep(videoId, audioBuffer, sessionDir);
 
-      // 5. Final Rendering
+      // Step 5: FFmpeg અથવા HyperFrames વડે final video render કરો
       await this.renderFinalVideoStep(videoId, sessionDir);
 
       this.logger.log(`Video generation COMPLETED for ${videoId}`);
@@ -68,14 +70,16 @@ export class VideoGenerationService {
       );
     } finally {
       VideoGenerationService.isJobActive = false;
-      this.cleanupSession(sessionDir);
+      this.cleanupSession(sessionDir); // temporary files delete કરો
     }
   }
 
+  // session directory path return કરે (tmp folder)
   private getSessionDir(videoId: string): string {
     return join(tmpdir(), `reels-session-${videoId}`);
   }
 
+  // generation પૂરી થાય ત્યારે temporary folder delete કરે
   private cleanupSession(dir: string): void {
     try {
       if (existsSync(dir)) {
@@ -87,8 +91,11 @@ export class VideoGenerationService {
     }
   }
 
+  // Step 1: Topic લઈને JSON script generate કરે (scenes, image prompts, audio text)
   private async generateScriptStep(videoId: string): Promise<void> {
     const video = await this.videoService.getVideoRaw(videoId);
+
+    // script already exist કરે તો skip
     if (video.script && video.script_json) {
       this.logger.log(`Script already exists for ${videoId}, skipping.`);
       return;
@@ -97,14 +104,14 @@ export class VideoGenerationService {
     this.logger.log(`Generating script for ${videoId}...`);
     await this.videoService.updateStatus(videoId, VideoStatus.SCRIPT_GENERATING);
 
-    // Determine Provider based on available keys
+    // available API key ના based provider choose: gemini > openai > mock
     let provider = 'mock';
     if (process.env.GEMINI_API_KEY) provider = 'gemini';
     else if (process.env.OPENAI_API_KEY) provider = 'openai';
 
     const scriptProvider = this.aiFactory.getScriptGenerator(provider);
 
-    // Generate JSON first (structured data is reliable)
+    // duration string ને seconds માં convert: "30-60" → 45 seconds
     const durationMap: Record<string, number> = {
       '30-60': 45,
       '60-90': 75,
@@ -115,6 +122,7 @@ export class VideoGenerationService {
     const visualStyle = video.metadata?.imageStyle || 'Cinematic';
     const audioPrompt = video.metadata?.audioStyle || '';
 
+    // Gemini/OpenAI ને structured JSON script generate કરવા call કરો
     const scriptJSON = await scriptProvider.generateScriptJSON({
       topic: video.topic,
       language,
@@ -123,16 +131,19 @@ export class VideoGenerationService {
       audioPrompt,
     });
 
-    // Construct clean script text from JSON scenes (stateless/pure)
-    // This avoids the raw output from 'generateScript' which often contains instructions/markdown.
+    // JSON scenes ના audio_text join કરીને plain script text બનાવો
+    // (raw AI output avoid — markdown/instructions ન આવે)
     const scriptText = scriptJSON.scenes.map((s) => s.audio_text).join(' ');
 
     await this.videoService.updateScriptJSON(videoId, scriptJSON);
     await this.videoService.updateScript(videoId, scriptText);
   }
 
+  // Step 2: Script ના image_prompts વડે scene images generate કરે
   private async generateImagesStep(videoId: string, sessionDir: string): Promise<void> {
     const video = await this.videoService.getVideoRaw(videoId);
+
+    // images already exist કરે તો skip
     if (video.image_urls && video.image_urls.length > 0) {
       this.logger.log(`Images already exist for ${videoId}, skipping.`);
       return;
@@ -147,19 +158,18 @@ export class VideoGenerationService {
     this.logger.log(`Generating images for ${sceneCount} scenes...`);
     await this.videoService.updateStatus(videoId, VideoStatus.PROCESSING);
 
-    // Get Provider from Factory
+    // imageProvider metadata ના based choose: default = replicate (Gemini Imagen paid-only)
     const imageProviderName = video.metadata?.imageProvider || 'replicate';
     const imageProvider = this.aiFactory.getImageGenerator(imageProviderName as any);
 
-    // CREATE ONE MASTER PROMPT FOR ALL IMAGES
-    // We combine the topic and all scene descriptions to give the AI context for consistency
+    // topic + scene descriptions combine કરીને master prompt બનાવો
     const masterPrompt =
       `Cinematic video about ${video.topic}. ` +
       scriptJson.scenes.map((s) => s.image_prompt).join('. ');
 
     this.logger.log(`Using single-prompt batch generation for ${imageProviderName}`);
 
-    // Generate images in batches (Gemini/Replicate usually max 4 per call)
+    // 4 images ની batch માં generate કરો (API limit)
     const batchSize = 4;
     const totalImagesNeeded = sceneCount;
     const imageUrls: string[] = [];
@@ -175,14 +185,11 @@ export class VideoGenerationService {
         count: currentBatchCount,
       });
 
-      // Upload this batch AND Cache Locally
+      // images upload કરો (S3/storage) અને locally cache કરો
       const uploadPromises = buffers.map(async (buffer, idx) => {
         const globalIdx = i + idx;
         const fileName = `image-${globalIdx}.jpg`;
-
-        // Cache locally for renderer
-        writeFileSync(join(sessionDir, fileName), buffer);
-
+        writeFileSync(join(sessionDir, fileName), buffer); // local cache
         return this.storageService.upload({
           userId: video.user_id || 'system',
           mediaId: videoId,
@@ -195,8 +202,6 @@ export class VideoGenerationService {
       imageUrls.push(...urls);
     }
 
-    // If we got fewer images than scenes (shouldn't happen with the loop above, but safety first),
-    // we might need to pad or log warning.
     if (imageUrls.length < sceneCount) {
       this.logger.warn(`Only generated ${imageUrls.length} images for ${sceneCount} scenes.`);
     }
@@ -204,6 +209,7 @@ export class VideoGenerationService {
     await this.videoService.updateImageUrls(videoId, imageUrls);
   }
 
+  // (legacy) image-to-video step — Veo/Gemini text-to-video (paid feature)
   private async generateVideoSegmentsStep(videoId: string): Promise<void> {
     const video = await this.videoService.getVideoRaw(videoId);
     if (video.generated_video_url) {
@@ -218,7 +224,6 @@ export class VideoGenerationService {
 
     this.logger.log(`Generating SINGLE video from full script (Text-to-Video)...`);
 
-    // Get Provider from Factory
     const videoProviderName = process.env.GEMINI_API_KEY
       ? 'gemini'
       : process.env.REPLICATE_API_TOKEN
@@ -226,24 +231,15 @@ export class VideoGenerationService {
         : 'free';
     const videoProvider = this.aiFactory.getImageToVideo(videoProviderName);
 
-    // Construct a single master prompt from the script
-    // We combine the topic and key visual details to get a cohesive video
     const masterPrompt =
       `Cinematic video about ${video.topic}. ` +
       scriptJson.scenes.map((s) => s.image_prompt).join('. ');
 
-    // Truncate to avoid context limits if necessary (Veo 3 has reasonable limits)
-    const safePrompt = masterPrompt.substring(0, 1000); // Safe limit
-
+    const safePrompt = masterPrompt.substring(0, 1000);
     this.logger.log(`Video Prompt: "${safePrompt.substring(0, 100)}..."`);
 
-    // Duration: Sum of all scenes
-    // Note: Veo preview might be limited to 5-10s regardless.
     const totalDuration = scriptJson.scenes.reduce((acc, s) => acc + (s.duration || 5), 0);
-
-    // Pass empty buffer for Text-to-Video
     const emptyBuffer = Buffer.from([]);
-
     const videoBuffer = await videoProvider.generateVideo(emptyBuffer, safePrompt, totalDuration);
 
     const videoUrl = await this.storageService.upload({
@@ -256,10 +252,12 @@ export class VideoGenerationService {
     await this.videoService.updateGeneratedVideoUrl(videoId, videoUrl);
   }
 
+  // Step 3: Script text ને audio (mp3) માં convert કરે
   private async generateAudioStep(videoId: string, sessionDir: string): Promise<Buffer> {
     const video = await this.videoService.getVideoRaw(videoId);
     const audioFile = join(sessionDir, 'audio.mp3');
 
+    // audio already exist કરે તો cache download કરો
     if (video.audio_url) {
       this.logger.log(`Audio already exists for ${videoId}, downloading to cache.`);
       const buffer = await this.storageService.download(video.audio_url);
@@ -275,10 +273,9 @@ export class VideoGenerationService {
     }
 
     const scriptText = video.script.trim();
-
     this.logger.log(`Generating audio for ${videoId}...`);
 
-    // Get Provider from Factory (priority: sarvam > elevenlabs > openai > mock)
+    // TTS provider priority: sarvam > elevenlabs > openai > mock
     const audioProviderName = process.env.SARVAM_API_KEY
       ? 'sarvam'
       : process.env.ELEVENLABS_API_KEY
@@ -294,9 +291,8 @@ export class VideoGenerationService {
       language: video.metadata?.language,
     });
 
-    // Cache Locally
+    // locally cache અને S3 upload
     writeFileSync(audioFile, audioBuffer);
-
     const audioUrl = await this.storageService.upload({
       userId: video.user_id || 'system',
       mediaId: videoId,
@@ -309,6 +305,7 @@ export class VideoGenerationService {
     return audioBuffer;
   }
 
+  // Step 4: Audio ના based captions (.ass format) generate કરે
   private async generateCaptionsStep(
     videoId: string,
     audioBuffer: Buffer,
@@ -317,6 +314,7 @@ export class VideoGenerationService {
     const video = await this.videoService.getVideoRaw(videoId);
     const captionFile = join(sessionDir, 'captions.srt');
 
+    // captions already exist કરે તો download
     if (video.caption_url) {
       this.logger.log(`Captions already exist for ${videoId}, downloading to cache.`);
       const buffer = await this.storageService.download(video.caption_url);
@@ -328,10 +326,8 @@ export class VideoGenerationService {
 
     this.logger.log(`Generating captions for ${videoId}...`);
 
-    // Get Provider from Factory (default: replicate)
+    // Replicate Whisper વડે audio transcribe કરીને captions generate
     const captionProvider = this.aiFactory.getCaptionGenerator('replicate');
-
-    // Pass actual audio buffer to provider with metadata configs
     const captionBuffer = await captionProvider.generateCaptions(
       audioBuffer,
       video.script,
@@ -343,7 +339,7 @@ export class VideoGenerationService {
       },
     );
 
-    // Cache Locally as .ass (SubStation Alpha) for rich styling
+    // .ass format (SubStation Alpha) — rich styling support
     const captionFileAss = join(sessionDir, 'captions.ass');
     writeFileSync(captionFileAss, captionBuffer);
 
@@ -358,8 +354,10 @@ export class VideoGenerationService {
     await this.videoService.updateCaptionUrl(videoId, captionUrl);
   }
 
+  // Step 5: Audio + Images + Captions + Music combine કરીને final MP4 render
   private async renderFinalVideoStep(videoId: string, sessionDir: string): Promise<void> {
     const video = await this.videoService.getVideoRaw(videoId);
+
     if (video.final_video_url) {
       this.logger.log(`Final video already exists for ${videoId}, skipping.`);
       return;
@@ -368,7 +366,7 @@ export class VideoGenerationService {
     this.logger.log(`Rendering final video (720p Optimized) for ${videoId}...`);
     await this.videoService.updateStatus(videoId, VideoStatus.RENDERING);
 
-    // Prepare File Paths
+    // session directory ના file paths prepare
     const audioPath = join(sessionDir, 'audio.mp3');
     const captionPath = join(sessionDir, 'captions.ass');
     const scriptJson = video.script_json as unknown as ScriptJSON;
@@ -377,7 +375,7 @@ export class VideoGenerationService {
       join(sessionDir, `image-${i}.jpg`),
     );
 
-    // Verify assets exist in session, if not download them (consistency fallback)
+    // locally cached ન હોય તો S3 storage થી download કરો
     if (!existsSync(audioPath))
       await this.storageService.downloadToFile(video.audio_url, audioPath);
     if (!existsSync(captionPath))
@@ -388,17 +386,15 @@ export class VideoGenerationService {
       }
     }
 
-    // Prepare Background Music
+    // background music prepare (optional)
     let musicPath: string | undefined;
     const musicConfig = video.metadata?.music;
     if (musicConfig?.id) {
       this.logger.log(`Preparing background music: ${musicConfig.id}`);
       const musicEntity = await this.musicService.findById(musicConfig.id);
-
       if (musicEntity) {
         musicPath = join(sessionDir, 'music.mp3');
         if (!existsSync(musicPath)) {
-          // Download using blob_storage_id
           const musicBuffer = await this.storageService.download(musicEntity.blob_storage_id);
           writeFileSync(musicPath, musicBuffer);
         }
@@ -407,6 +403,7 @@ export class VideoGenerationService {
       }
     }
 
+    // renderer choose: HyperFrames (HTML-based) અથવા FFmpeg (default)
     const useHyperFrames = video.metadata?.renderer === 'hyperframes';
     const renderer = useHyperFrames ? this.hyperFramesRenderer : this.videoRenderer;
 
@@ -414,6 +411,7 @@ export class VideoGenerationService {
       `Rendering with ${useHyperFrames ? 'HyperFrames' : 'FFmpeg'} — Audio=${audioPath}, Assets=${assetPaths.length}, Music=${musicPath || 'None'}`,
     );
 
+    // renderer ને compose call કરો — readable stream return
     const videoStream = await renderer.compose({
       audioPath,
       captionPath,
@@ -425,7 +423,7 @@ export class VideoGenerationService {
       hyperframesTemplate: video.metadata?.hyperframesTemplate || 'cinematic',
     });
 
-    // Upload using Stream to save memory
+    // stream directly upload — memory efficient (buffer ન બનાવો)
     const finalUrl = await this.storageService.upload({
       userId: video.user_id || 'system',
       mediaId: videoId,

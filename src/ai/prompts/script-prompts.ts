@@ -118,6 +118,7 @@ Each image_prompt = ONE single cinematic frame. Must specify ALL of these:
 
 Good: "Extreme close-up of weathered hands gripping a compass, golden hour backlight, ${visualStyle} color grade, shallow depth of field, warm amber tones"
 Bad:  "Person thinking about success with motivational text overlay"
+LENGTH: Keep each image_prompt under 120 characters. Concise but specific.
 
 Vary composition across scenes (e.g. close-up → wide establishing → medium portrait → overhead):
 - Use: close-up, extreme close-up, wide shot, medium shot, low-angle, overhead, silhouette

@@ -502,7 +502,7 @@ export class MediaOrchestratorService {
     const intentData = intentAsset ? (intentAsset.metadata as any) : null;
 
     const imageProvider = this.aiFactory.getImageGenerator(
-      media.input_config?.imageProvider || 'gemini',
+      media.input_config?.imageProvider || 'replicate',
     );
 
     // Use interpreted image prompt if available
@@ -903,7 +903,7 @@ export class MediaOrchestratorService {
       (await this.storageService.download(scriptAsset.blob_storage_id)).toString(),
     );
 
-    const imageProvider = this.aiFactory.getImageGenerator('gemini');
+    const imageProvider = this.aiFactory.getImageGenerator('replicate');
     const story = await this.storyScriptService.findStoryByMediaId(media.id);
 
     const imageStyle: string =
