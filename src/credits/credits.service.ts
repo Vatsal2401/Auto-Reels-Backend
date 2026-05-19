@@ -149,17 +149,8 @@ export class CreditsService {
     });
   }
 
-  async initializeUserCredits(userId: string, manager?: EntityManager): Promise<void> {
-    const FREE_CREDITS = 3;
-    await this.addCredits(
-      userId,
-      FREE_CREDITS,
-      TransactionType.BONUS,
-      'Welcome bonus - 3 free credits',
-      null,
-      { source: 'signup_bonus' },
-      manager,
-    );
+  async initializeUserCredits(_userId: string, _manager?: EntityManager): Promise<void> {
+    // No-op: signup welcome bonus removed. Users must purchase credits to generate.
   }
 
   async cleanupUserTransactions(userId: string): Promise<void> {
