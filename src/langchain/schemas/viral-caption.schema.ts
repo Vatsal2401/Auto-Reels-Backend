@@ -7,7 +7,9 @@ export const ViralCaptionLineSchema = z.object({
   line: z.string(),
   highlight: z
     .string()
-    .describe('The most emotionally charged word to highlight. Use empty string if no word stands out.'),
+    .describe(
+      'The most emotionally charged word to highlight. Use empty string if no word stands out.',
+    ),
   intensity: z.number().int().min(1).max(5),
 });
 

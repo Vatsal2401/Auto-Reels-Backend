@@ -60,8 +60,52 @@ export class GeminiImageProvider implements IImageGenerator {
       );
     }
 
-    // Final fallback: Imagen 4 Fast
-    return this.generateWithImagen(prompt, count, aspectRatio, IMAGEN_4_FAST);
+    // Quaternary: Imagen 4 Fast
+    try {
+      return await this.generateWithImagen(prompt, count, aspectRatio, IMAGEN_4_FAST);
+    } catch (err) {
+      this.logger.warn(
+        `Imagen 4 Fast failed: ${(err as Error).message}. Falling back to Pollinations.ai...`,
+      );
+    }
+
+    // Final fallback: Pollinations.ai (free, no key, unlimited)
+    return this.generateWithPollinations(prompt, count, aspectRatio);
+  }
+
+  // --- Pollinations.ai fallback (free, no auth) ---
+  private async generateWithPollinations(
+    prompt: string,
+    count: number,
+    aspectRatio: string,
+  ): Promise<Buffer[]> {
+    const { width, height } = this.aspectRatioToDimensions(aspectRatio);
+    const results: Buffer[] = [];
+
+    for (let i = 0; i < count; i++) {
+      const seed = Math.floor(Math.random() * 1_000_000);
+      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&model=flux&nologo=true&seed=${seed}`;
+      const response = await fetch(url, { signal: AbortSignal.timeout(60_000) });
+      if (!response.ok) {
+        throw new Error(`Pollinations returned ${response.status} (call ${i + 1}/${count})`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      results.push(Buffer.from(arrayBuffer));
+    }
+
+    this.logger.log(`Pollinations: generated ${results.length} image(s)`);
+    return results;
+  }
+
+  private aspectRatioToDimensions(aspectRatio: string): { width: number; height: number } {
+    const map: Record<string, { width: number; height: number }> = {
+      '9:16': { width: 1024, height: 1820 },
+      '16:9': { width: 1820, height: 1024 },
+      '1:1': { width: 1024, height: 1024 },
+      '4:3': { width: 1280, height: 960 },
+      '3:4': { width: 960, height: 1280 },
+    };
+    return map[aspectRatio] ?? map['9:16'];
   }
 
   // --- Imagen 4 path (dedicated image model via @google/genai) ---

@@ -55,9 +55,17 @@ export class ElevenLabsTTSProvider implements ITextToSpeech {
     const similarityBoost = 0.8;
     const prompt = (typeof optionsOrText !== 'string' ? optionsOrText.prompt : '').toLowerCase();
 
-    if (prompt.includes('excited') || prompt.includes('energetic') || prompt.includes('expressive')) {
+    if (
+      prompt.includes('excited') ||
+      prompt.includes('energetic') ||
+      prompt.includes('expressive')
+    ) {
       stability = 0.35;
-    } else if (prompt.includes('calm') || prompt.includes('steady') || prompt.includes('professional')) {
+    } else if (
+      prompt.includes('calm') ||
+      prompt.includes('steady') ||
+      prompt.includes('professional')
+    ) {
       stability = 0.7;
     }
 

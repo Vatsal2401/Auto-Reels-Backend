@@ -161,9 +161,7 @@ describe('LangChainRegistry', () => {
 
       registry.getOpenAI();
 
-      expect(ChatOpenAI).toHaveBeenCalledWith(
-        expect.objectContaining({ model: GPT_4O }),
-      );
+      expect(ChatOpenAI).toHaveBeenCalledWith(expect.objectContaining({ model: GPT_4O }));
     });
 
     it('calls withRetry on the created model', () => {

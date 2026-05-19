@@ -52,15 +52,11 @@ describe('ScriptJSONSchema', () => {
   });
 
   it('rejects missing total_duration', () => {
-    expect(() =>
-      ScriptJSONSchema.parse({ scenes: [validScene], topic: 'test' }),
-    ).toThrow();
+    expect(() => ScriptJSONSchema.parse({ scenes: [validScene], topic: 'test' })).toThrow();
   });
 
   it('rejects missing topic', () => {
-    expect(() =>
-      ScriptJSONSchema.parse({ scenes: [validScene], total_duration: 30 }),
-    ).toThrow();
+    expect(() => ScriptJSONSchema.parse({ scenes: [validScene], total_duration: 30 })).toThrow();
   });
 
   it('rejects a scene missing scene_number', () => {
@@ -93,7 +89,7 @@ describe('ViralCaptionSchema', () => {
   it('accepts empty string highlight (Gemini-compatible, service converts to null)', () => {
     const valid = {
       hook_strength: 5,
-      captions: [{ line: 'Plain text line', highlight: "", intensity: 3 }],
+      captions: [{ line: 'Plain text line', highlight: '', intensity: 3 }],
     };
     expect(() => ViralCaptionSchema.parse(valid)).not.toThrow();
   });
@@ -101,7 +97,7 @@ describe('ViralCaptionSchema', () => {
   it('accepts minimum valid values (hook_strength=1, intensity=1)', () => {
     const valid = {
       hook_strength: 1,
-      captions: [{ line: 'Low energy line', highlight: "", intensity: 1 }],
+      captions: [{ line: 'Low energy line', highlight: '', intensity: 1 }],
     };
     expect(() => ViralCaptionSchema.parse(valid)).not.toThrow();
   });
@@ -127,7 +123,7 @@ describe('ViralCaptionSchema', () => {
   it('rejects intensity above 5', () => {
     const invalid = {
       hook_strength: 5,
-      captions: [{ line: 'test', highlight: "", intensity: 6 }],
+      captions: [{ line: 'test', highlight: '', intensity: 6 }],
     };
     expect(() => ViralCaptionSchema.parse(invalid)).toThrow();
   });
@@ -135,7 +131,7 @@ describe('ViralCaptionSchema', () => {
   it('rejects intensity below 1', () => {
     const invalid = {
       hook_strength: 5,
-      captions: [{ line: 'test', highlight: "", intensity: 0 }],
+      captions: [{ line: 'test', highlight: '', intensity: 0 }],
     };
     expect(() => ViralCaptionSchema.parse(invalid)).toThrow();
   });
@@ -235,7 +231,7 @@ describe('UgcScriptSchema', () => {
     type: 'selfie_talk' as const,
     duration_seconds: 5,
     actor_script: 'Hi everyone!',
-    broll_query: "",
+    broll_query: '',
     caption_text: 'Check this out',
     emotion: 'excited' as const,
     start_time_seconds: 0,
@@ -257,7 +253,13 @@ describe('UgcScriptSchema', () => {
   });
 
   it('accepts all valid scene types', () => {
-    const types = ['selfie_talk', 'broll_cutaway', 'product_close', 'reaction', 'text_overlay'] as const;
+    const types = [
+      'selfie_talk',
+      'broll_cutaway',
+      'product_close',
+      'reaction',
+      'text_overlay',
+    ] as const;
     for (const type of types) {
       const input = { ...validUgcScript, scenes: [{ ...validScene, type }] };
       expect(() => UgcScriptSchema.parse(input)).not.toThrow();
@@ -282,7 +284,7 @@ describe('UgcScriptSchema', () => {
   it('accepts empty string actor_script and broll_query (Gemini-compatible, service converts to null)', () => {
     const input = {
       ...validUgcScript,
-      scenes: [{ ...validScene, actor_script: "", broll_query: "" }],
+      scenes: [{ ...validScene, actor_script: '', broll_query: '' }],
     };
     expect(() => UgcScriptSchema.parse(input)).not.toThrow();
   });
@@ -343,8 +345,17 @@ describe('StoryScriptSchema', () => {
 
   it('accepts all valid genre values', () => {
     const genres = [
-      'horror', 'motivational', 'crime', 'urban_legend', 'comedy',
-      'sci_fi', 'romance', 'thriller', 'historical', 'documentary', 'mystery',
+      'horror',
+      'motivational',
+      'crime',
+      'urban_legend',
+      'comedy',
+      'sci_fi',
+      'romance',
+      'thriller',
+      'historical',
+      'documentary',
+      'mystery',
     ] as const;
     for (const genre of genres) {
       expect(() => StoryScriptSchema.parse({ ...validStoryScript, genre })).not.toThrow();
@@ -360,9 +371,7 @@ describe('StoryScriptSchema', () => {
   });
 
   it('rejects invalid genre', () => {
-    expect(() =>
-      StoryScriptSchema.parse({ ...validStoryScript, genre: 'action' }),
-    ).toThrow();
+    expect(() => StoryScriptSchema.parse({ ...validStoryScript, genre: 'action' })).toThrow();
   });
 
   it('rejects invalid camera_motion', () => {
@@ -432,8 +441,14 @@ describe('ScenePlanSchema', () => {
 
   it('accepts all valid templateType values', () => {
     const templates = [
-      'title-card', 'quote-card', 'feature-highlight', 'impact-full-bleed',
-      'stats-card', 'steps-card', 'split-accent', 'countdown-badge',
+      'title-card',
+      'quote-card',
+      'feature-highlight',
+      'impact-full-bleed',
+      'stats-card',
+      'steps-card',
+      'split-accent',
+      'countdown-badge',
     ] as const;
     for (const suggestedTemplateType of templates) {
       const input = {
