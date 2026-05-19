@@ -91,6 +91,7 @@ export class AuthController {
       is_premium: userEntity?.is_premium || false,
       email_verified: userEntity?.email_verified || false,
       country: userEntity?.country || null,
+      phone_number: userEntity?.phone_number || null,
     };
   }
 
