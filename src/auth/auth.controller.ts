@@ -18,6 +18,7 @@ import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/signup.dto';
 import { SignInDto } from './dto/signin.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { CreditsService } from '../credits/credits.service';
@@ -134,6 +135,15 @@ export class AuthController {
   async updateCountry(@CurrentUser() user: any, @Body('country') country: string) {
     await this.authService.updateUserCountry(user.userId, country);
     return { country };
+  }
+
+  @Patch('me/profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: "Update the current user's country and phone number" })
+  async updateProfile(@CurrentUser() user: any, @Body() dto: UpdateProfileDto) {
+    await this.authService.updateUserProfile(user.userId, dto);
+    return { country: dto.country, phoneNumber: dto.phoneNumber };
   }
 
   @Get('microsoft')

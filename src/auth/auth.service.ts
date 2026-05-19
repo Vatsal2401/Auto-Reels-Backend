@@ -244,6 +244,17 @@ export class AuthService {
     await this.userRepository.update(userId, { country });
   }
 
+  async updateUserProfile(
+    userId: string,
+    data: { country?: string; phoneNumber?: string },
+  ): Promise<void> {
+    const update: Partial<{ country: string; phone_number: string }> = {};
+    if (data.country) update.country = data.country;
+    if (data.phoneNumber) update.phone_number = data.phoneNumber;
+    if (Object.keys(update).length === 0) return;
+    await this.userRepository.update(userId, update);
+  }
+
   async verifyEmail(token: string, email?: string) {
     const user = await this.userRepository.findOne({
       where: { verification_token: token },
