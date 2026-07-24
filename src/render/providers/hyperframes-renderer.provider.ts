@@ -16,11 +16,11 @@ export class HyperFramesRendererProvider implements IVideoRenderer {
   // મુખ્ય method: audio, images અને scenes લઈને final video stream return કરે છે
   async compose(options: ComposeOptions): Promise<Readable> {
     const {
-      audioPath,       // audio file નો path
-      assetPaths,      // images ના paths
-      scenes,          // દરેક scene ની info (caption, duration)
-      musicPath,       // background music નો path (optional)
-      musicVolume = 0.1,             // music નો volume (default 10%)
+      audioPath, // audio file નો path
+      assetPaths, // images ના paths
+      scenes, // દરેક scene ની info (caption, duration)
+      musicPath, // background music નો path (optional)
+      musicVolume = 0.1, // music નો volume (default 10%)
       hyperframesTemplate = 'cinematic', // visual style template
     } = options;
 
@@ -77,12 +77,16 @@ export class HyperFramesRendererProvider implements IVideoRenderer {
 
       const outputPath = join(workDir, 'output.mp4');
       // Dynamic import: @hyperframes/producer ESM-only package છે, require() થી load ન થાય
-      const { createRenderJob, executeRenderJob } = await import('@hyperframes/producer' as string) as any;
+      const { createRenderJob, executeRenderJob } = (await import(
+        '@hyperframes/producer' as string
+      )) as any;
 
       // render job create કરો: 30fps, standard quality, mp4 format
       const job = createRenderJob({ fps: 30, quality: 'standard', format: 'mp4' });
 
-      this.logger.log(`Starting HyperFrames render (${totalDuration.toFixed(1)}s, ${sceneCount} scenes)`);
+      this.logger.log(
+        `Starting HyperFrames render (${totalDuration.toFixed(1)}s, ${sceneCount} scenes)`,
+      );
 
       // Puppeteer Chrome વડે HTML render કરીને video બનાવો
       await executeRenderJob(job, workDir, outputPath, (j: any, msg: string) => {
@@ -142,12 +146,12 @@ export class HyperFramesRendererProvider implements IVideoRenderer {
   ): string {
     const elements: object[] = [
       {
-        elementId: 'voice',  // narration audio
+        elementId: 'voice', // narration audio
         src: audioName,
         startTime: 0,
         endTime: audioDuration,
         hasAudio: true,
-        volume: 1,  // full volume
+        volume: 1, // full volume
       },
     ];
 
@@ -172,7 +176,7 @@ export class HyperFramesRendererProvider implements IVideoRenderer {
     scenes: Array<{ start: number; end: number; caption: string }>,
     imageNames: string[],
     totalDuration: number,
-    template: string,  // cinematic | bold | minimal | neon
+    template: string, // cinematic | bold | minimal | neon
     mediaElementsJson: string,
   ): string {
     // દરેક scene ના HTML div બનાવો (image + caption)
@@ -310,7 +314,8 @@ ${hasMusic ? '<audio id="music" src="music.mp3" preload="auto"></audio>' : ''}
   private getAudioDuration(path: string): Promise<number> {
     return new Promise((resolve) => {
       ffmpeg.ffprobe(path, (err, metadata) => {
-        if (err || !metadata) resolve(30); // error આવે તો default 30 seconds
+        if (err || !metadata)
+          resolve(30); // error આવે તો default 30 seconds
         else resolve(metadata.format.duration || 30);
       });
     });

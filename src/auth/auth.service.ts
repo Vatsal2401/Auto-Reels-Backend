@@ -143,7 +143,12 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user);
     return {
-      user: { id: user.id, email: user.email, name: user.name, email_verified: user.email_verified },
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        email_verified: user.email_verified,
+      },
       ...tokens,
     };
   }
@@ -181,7 +186,7 @@ export class AuthService {
         name: name || null,
         avatar_url: avatarUrl || null,
         email_verified: true, // Google email trusted
-        password_hash: null,  // OAuth user ને password નથી
+        password_hash: null, // OAuth user ને password નથી
       });
       user = await this.userRepository.save(user);
 
@@ -211,7 +216,9 @@ export class AuthService {
 
       return { access_token: accessToken, refresh_token: refreshToken };
     } catch (error) {
-      this.logger.error(`generateTokens.error.${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `generateTokens.error.${error instanceof Error ? error.message : String(error)}`,
+      );
       throw new InternalServerErrorException('Unable to complete authentication');
     }
   }

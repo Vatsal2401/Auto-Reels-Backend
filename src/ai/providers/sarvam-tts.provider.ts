@@ -47,9 +47,9 @@ export class SarvamTTSProvider implements ITextToSpeech {
 
   // audio mood ના based speaking speed (pace) return કરે છે
   private getPace(prompt: string): number {
-    if (/excited|energetic|viral/.test(prompt)) return 1.15;  // fast
-    if (/calm|soft|lofi|aesthetic/.test(prompt)) return 0.9;  // slow
-    if (/sad|romantic|emotional/.test(prompt)) return 0.85;   // slowest
+    if (/excited|energetic|viral/.test(prompt)) return 1.15; // fast
+    if (/calm|soft|lofi|aesthetic/.test(prompt)) return 0.9; // slow
+    if (/sad|romantic|emotional/.test(prompt)) return 0.85; // slowest
     if (/professional|authority|podcast/.test(prompt)) return 0.95;
     return 1.0; // default normal speed
   }

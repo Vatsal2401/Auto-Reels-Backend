@@ -26,7 +26,7 @@ export class VideoGenerationService {
     private readonly aiFactory: AiProviderFactory,
     @Inject('IStorageService') private readonly storageService: IStorageService,
     @Inject('IVideoRenderer') private readonly videoRenderer: IVideoRenderer, // FFmpeg renderer
-    private readonly hyperFramesRenderer: HyperFramesRendererProvider,         // HyperFrames renderer
+    private readonly hyperFramesRenderer: HyperFramesRendererProvider, // HyperFrames renderer
     private readonly musicService: MusicService,
   ) {}
 
