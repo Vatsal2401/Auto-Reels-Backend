@@ -1,8 +1,10 @@
 import {
   Injectable,
+  Logger,
   UnauthorizedException,
   ConflictException,
   BadRequestException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -19,6 +21,8 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 // AuthService — user registration, login, OAuth, JWT tokens manage કરે છે
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
@@ -129,7 +133,12 @@ export class AuthService {
     }
 
     // bcrypt વડે password compare
-    const isPasswordValid = await bcrypt.compare(dto.password, user.password_hash);
+    let isPasswordValid = false;
+    try {
+      isPasswordValid = await bcrypt.compare(dto.password, user.password_hash);
+    } catch {
+      throw new UnauthorizedException('Invalid credentials');
+    }
     if (!isPasswordValid) throw new UnauthorizedException('Invalid credentials');
 
     const tokens = await this.generateTokens(user);
@@ -190,15 +199,21 @@ export class AuthService {
 
   // access token (15min) + refresh token (7days) generate કરે
   async generateTokens(user: User) {
-    const payload = { sub: user.id, email: user.email };
+    try {
+      const payload = { sub: user.id, email: user.email };
 
-    const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+      const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
+      const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+      const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
 
-    // refresh token DB માં save (validate refresh time)
-    await this.userRepository.update(user.id, { refresh_token: refreshToken });
+      // refresh token DB માં hashed save (validate refresh time)
+      await this.userRepository.update(user.id, { refresh_token: hashedRefreshToken });
 
-    return { access_token: accessToken, refresh_token: refreshToken };
+      return { access_token: accessToken, refresh_token: refreshToken };
+    } catch (error) {
+      this.logger.error(`generateTokens.error.${error instanceof Error ? error.message : String(error)}`);
+      throw new InternalServerErrorException('Unable to complete authentication');
+    }
   }
 
   // refresh token verify કરીને નવા tokens issue
@@ -206,13 +221,21 @@ export class AuthService {
     try {
       const payload = this.jwtService.verify(refreshToken);
       const user = await this.userRepository.findOne({
-        where: { id: payload.sub, refresh_token: refreshToken },
+        where: { id: payload.sub },
       });
 
-      if (!user) throw new UnauthorizedException('Invalid refresh token');
+      if (!user || !user.refresh_token) throw new UnauthorizedException('Invalid refresh token');
+
+      const storedToken = user.refresh_token;
+      const isHashedToken = storedToken.startsWith('$2a$') || storedToken.startsWith('$2b$');
+      const isRefreshTokenValid = isHashedToken
+        ? await bcrypt.compare(refreshToken, storedToken)
+        : storedToken === refreshToken;
+
+      if (!isRefreshTokenValid) throw new UnauthorizedException('Invalid refresh token');
 
       return await this.generateTokens(user);
-    } catch (error) {
+    } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
