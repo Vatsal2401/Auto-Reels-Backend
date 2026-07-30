@@ -12,8 +12,89 @@ const LANGUAGE_CODE_MAP: Record<string, string> = {
   Odia: 'od-IN',
 };
 
+/**
+ * Extra aliases that must resolve to a Sarvam language code: ISO codes with or
+ * without a region suffix, native-script language names, and common spellings.
+ * These are merged with the display names above so that variants like "gu",
+ * "gu-IN", "Gujarati (India)" or "ગુજરાતી" all map to the correct `*-IN` code
+ * instead of silently falling back to English.
+ */
+const LANGUAGE_ALIAS_ENTRIES: ReadonlyArray<readonly [readonly string[], string]> = [
+  [['hi', 'hi-in', 'hindi', 'हिन्दी', 'हिंदी'], 'hi-IN'],
+  [['en', 'en-in', 'en-us', 'english'], 'en-IN'],
+  [['bn', 'bn-in', 'bengali', 'বাংলা'], 'bn-IN'],
+  [['ta', 'ta-in', 'tamil', 'தமிழ்'], 'ta-IN'],
+  [['te', 'te-in', 'telugu', 'తెలుగు'], 'te-IN'],
+  [['gu', 'gu-in', 'gujarati', 'ગુજરાતી'], 'gu-IN'],
+  [['kn', 'kn-in', 'kannada', 'ಕನ್ನಡ'], 'kn-IN'],
+  [['ml', 'ml-in', 'malayalam', 'മലയാളം'], 'ml-IN'],
+  [['mr', 'mr-in', 'marathi', 'मराठी'], 'mr-IN'],
+  [['pa', 'pa-in', 'punjabi', 'ਪੰਜਾਬੀ'], 'pa-IN'],
+  [['od', 'or', 'od-in', 'or-in', 'odia', 'oriya', 'ଓଡ଼ିଆ'], 'od-IN'],
+];
+
+function normalizeLanguageKey(language: string): string {
+  return language.trim().toLowerCase();
+}
+
+/** Normalized (trimmed + lowercased) alias -> Sarvam `*-IN` code lookup. */
+const NORMALIZED_LANGUAGE_ALIASES: Record<string, string> = (() => {
+  const map: Record<string, string> = {};
+  const add = (key: string, code: string): void => {
+    const norm = normalizeLanguageKey(key);
+    if (norm) map[norm] = code;
+  };
+  // Display names plus their region-suffixed form (e.g. "Gujarati (India)").
+  for (const [display, code] of Object.entries(LANGUAGE_CODE_MAP)) {
+    add(display, code);
+    add(`${display} (India)`, code);
+  }
+  // ISO codes, native-script names, and common spelling variants.
+  for (const [aliases, code] of LANGUAGE_ALIAS_ENTRIES) {
+    for (const alias of aliases) add(alias, code);
+  }
+  return map;
+})();
+
+/**
+ * Resolve any reasonable language identifier to a Sarvam `*-IN` language code.
+ * Accepts display names ("Gujarati"), region-suffixed names ("Gujarati (India)"),
+ * ISO codes with/without region ("gu", "gu-IN") and native-script names ("ગુજરાતી").
+ * Falls back to `en-IN` only when the language is genuinely unknown.
+ */
 export function toSarvamLanguageCode(language: string): string {
-  return LANGUAGE_CODE_MAP[language] ?? 'en-IN';
+  if (!language) return 'en-IN';
+  const norm = normalizeLanguageKey(language);
+  return (
+    NORMALIZED_LANGUAGE_ALIASES[norm] ??
+    // Tolerate "_"/whitespace separators, e.g. "gu_in" or "gu in".
+    NORMALIZED_LANGUAGE_ALIASES[norm.replace(/[_\s]+/g, '-')] ??
+    'en-IN'
+  );
+}
+
+/**
+ * Sarvam language codes that are well-supported by the bulbul:v2 model, which
+ * accepts `enable_preprocessing` (normalizes embedded English words + numbers so
+ * they are spoken in a natural Indic accent). English (en-IN) is intentionally
+ * excluded — it uses the higher-quality bulbul:v3 without preprocessing.
+ */
+export const SARVAM_INDIC_LANGUAGE_CODES: ReadonlySet<string> = new Set([
+  'hi-IN',
+  'mr-IN',
+  'gu-IN',
+  'bn-IN',
+  'ta-IN',
+  'te-IN',
+  'kn-IN',
+  'ml-IN',
+  'pa-IN',
+  'od-IN',
+]);
+
+/** True for Indic languages that should use bulbul:v2 + enable_preprocessing. */
+export function isSupportedIndicLanguage(langCode: string): boolean {
+  return SARVAM_INDIC_LANGUAGE_CODES.has(langCode);
 }
 
 export function isHindi(language: string): boolean {

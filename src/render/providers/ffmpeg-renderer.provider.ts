@@ -137,7 +137,10 @@ export class FFmpegRendererProvider implements IVideoRenderer {
                 : 100;
 
           complexFilters.push(
-            `[v_merged]subtitles='${captionPath}':force_style='FontName=DejaVu Sans,FontSize=60,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,BorderStyle=1,Outline=2,Shadow=0,Bold=1,Alignment=${alignment},MarginV=${marginV}'[v_final]`,
+            // FontName uses the broad "Noto Sans" family so libass + fontconfig
+            // substitute the script-specific face (e.g. Noto Sans Gujarati) for
+            // Indic glyphs instead of rendering tofu/blank boxes.
+            `[v_merged]subtitles='${captionPath}':force_style='FontName=Noto Sans,FontSize=60,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,BorderStyle=1,Outline=2,Shadow=0,Bold=1,Alignment=${alignment},MarginV=${marginV}'[v_final]`,
           );
         }
 

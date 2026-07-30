@@ -51,6 +51,17 @@ RUN apt-get update \
  && chmod +x /usr/local/bin/yt-dlp \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Install fontconfig + Noto fonts so libass can render Indic captions
+# (fonts-noto-core includes Noto Sans Gujarati and other Indic scripts).
+# Without these, Gujarati/Hindi captions render as tofu/blank boxes.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      fontconfig \
+      fonts-noto-core \
+      fonts-noto-cjk \
+ && fc-cache -f \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # Create non-root user (Debian Syntax)
 RUN groupadd -g 1001 nodejs \
  && useradd -u 1001 -g nodejs -m -s /bin/bash nestjs

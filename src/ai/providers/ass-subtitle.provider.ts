@@ -59,13 +59,13 @@ ScaledBorderAndShadow: yes`;
 
     const styles: Record<string, string> = {
       // Name, Font, Size, Color1, Color2, Color3, Color4, ...common, Outline, Shadow, Align, ...margins
-      BoldStroke: `BoldStroke,DejaVu Sans,70,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,${common},4,0,${alignment},${margins}`,
-      RedHighlight: `RedHighlight,DejaVu Sans,70,&H00FFFFFF,&H000000FF,&H000000FF,&H000000FF,${common},4,1,${alignment},${margins}`,
-      Sleek: `Sleek,DejaVu Sans,70,&H00FFFFFF,&H000000FF,&H00000000,&H00FFFFFF,${common},0,3,${alignment},${margins}`,
-      KaraokeCard: `KaraokeCard,DejaVu Sans,60,&H0000FFFF,&H00FFFFFF,&H00000000,&H00800080,-1,0,0,0,100,100,0,0,3,0,0,${alignment},${margins}`,
-      Majestic: `Majestic,DejaVu Sans,80,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,${common},1,4,${alignment},${margins}`,
-      Beast: `Beast,DejaVu Sans,85,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,1,1,0,100,100,0,0,1,5,0,${alignment},${margins}`,
-      Elegant: `Elegant,DejaVu Serif,55,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1,1,${alignment},${margins}`,
+      BoldStroke: `BoldStroke,Noto Sans,70,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,${common},4,0,${alignment},${margins}`,
+      RedHighlight: `RedHighlight,Noto Sans,70,&H00FFFFFF,&H000000FF,&H000000FF,&H000000FF,${common},4,1,${alignment},${margins}`,
+      Sleek: `Sleek,Noto Sans,70,&H00FFFFFF,&H000000FF,&H00000000,&H00FFFFFF,${common},0,3,${alignment},${margins}`,
+      KaraokeCard: `KaraokeCard,Noto Sans,60,&H0000FFFF,&H00FFFFFF,&H00000000,&H00800080,-1,0,0,0,100,100,0,0,3,0,0,${alignment},${margins}`,
+      Majestic: `Majestic,Noto Sans,80,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,${common},1,4,${alignment},${margins}`,
+      Beast: `Beast,Noto Sans,85,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,1,1,0,100,100,0,0,1,5,0,${alignment},${margins}`,
+      Elegant: `Elegant,Noto Serif,55,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1,1,${alignment},${margins}`,
     };
 
     const selectedStyleLine = styles[this.capitalizePreset(config.preset)] || styles['BoldStroke'];

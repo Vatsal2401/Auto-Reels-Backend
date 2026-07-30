@@ -2,7 +2,12 @@ import { Injectable, Logger, Inject } from '@nestjs/common';
 import { IStorageService } from '../storage/interfaces/storage.interface';
 import { NormalizedVoice } from './elevenlabs.service';
 import { IVoiceManagementService } from './interfaces/voice-management.interface';
-import { isHindi, toSarvamLanguageCode, preprocessTextForSarvam } from './utils/language.util';
+import {
+  isHindi,
+  toSarvamLanguageCode,
+  preprocessTextForSarvam,
+  isSupportedIndicLanguage,
+} from './utils/language.util';
 
 // bulbul:v2 (Hindi/Marathi) speakers: anushka, abhilash, manisha, vidya, arya, karun, hitesh
 // bulbul:v3 (English + others) speakers: kabir, rahul, priya, aditya, varun, manan, soham, advait, suhani, kavya, amelia, ratan
@@ -93,13 +98,17 @@ export class SarvamService implements IVoiceManagementService {
     const apiKey = process.env.SARVAM_API_KEY;
     if (!apiKey) throw new Error('SARVAM_API_KEY is not set');
 
+    // preprocessTextForSarvam only spells out numbers for Devanagari languages
+    // (hi-IN/mr-IN); for other Indic languages (e.g. gu-IN) it returns the text
+    // unchanged so Sarvam's own enable_preprocessing handles number normalization.
     const processedText = preprocessTextForSarvam(text, langCode);
 
     // bulbul:v2 supports enable_preprocessing which normalizes English words/slang
-    // inside Indic-script text so they are pronounced in Hindi accent, not English.
-    // bulbul:v3 is higher-quality but does NOT support enable_preprocessing.
-    const isHindiScript = langCode === 'hi-IN' || langCode === 'mr-IN';
-    const model = isHindiScript ? 'bulbul:v2' : 'bulbul:v3';
+    // and numbers inside Indic-script text so they are pronounced in the native
+    // accent, not English. bulbul:v3 is higher-quality but does NOT support
+    // enable_preprocessing, so it is reserved for English (en-IN).
+    const useIndicModel = isSupportedIndicLanguage(langCode);
+    const model = useIndicModel ? 'bulbul:v2' : 'bulbul:v3';
 
     // Sarvam TTS has a ~500-char limit per request. Split long scripts into
     // sentence-boundary chunks and make one API call per chunk, then concatenate.
@@ -108,7 +117,7 @@ export class SarvamService implements IVoiceManagementService {
 
     const chunkBuffers = await Promise.all(
       chunks.map((chunk) =>
-        this.callSarvamAPISingle(chunk, voiceId, langCode, model, pace, isHindiScript, apiKey),
+        this.callSarvamAPISingle(chunk, voiceId, langCode, model, pace, useIndicModel, apiKey),
       ),
     );
 
@@ -122,7 +131,7 @@ export class SarvamService implements IVoiceManagementService {
     langCode: string,
     model: string,
     pace: number,
-    isHindiScript: boolean,
+    useIndicModel: boolean,
     apiKey: string,
   ): Promise<Buffer> {
     const requestBody: Record<string, any> = {
@@ -134,7 +143,7 @@ export class SarvamService implements IVoiceManagementService {
       pace,
     };
 
-    if (isHindiScript) {
+    if (useIndicModel) {
       requestBody.enable_preprocessing = true;
     }
 

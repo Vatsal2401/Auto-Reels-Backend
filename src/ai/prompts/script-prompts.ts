@@ -13,13 +13,18 @@ SCRIPT WRITING (for Hindi only):
 /** Instruction for any language: single language only, no transliteration. */
 function getSingleLanguageInstruction(language: string): string {
   if (/hindi|hi|हिंदी/i.test(language)) return ''; // covered by getHindiScriptInstruction
-  const numberRule = /bengali|tamil|telugu|gujarati|kannada|malayalam|marathi|punjabi|odia/i.test(
-    language,
-  )
-    ? ` Write ALL numbers as words in ${language} — never use Arabic numerals (0–9) since TTS reads them as English digits.`
-    : '';
+  // English is Latin-script — keep the lighter, existing instruction (no
+  // native-script / numbers-as-words enforcement, which only helps non-Latin TTS).
+  if (/english|^en(-|_|$)/i.test(language.trim())) {
+    return `
+- Output script in the chosen language ONLY. Do NOT add transliteration in parentheses. Do NOT mix two scripts (e.g. native script + Roman/English in brackets). One language only.`;
+  }
   return `
-- Output script in the chosen language ONLY. Do NOT add transliteration in parentheses. Do NOT mix two scripts (e.g. native script + Roman/English in brackets). One language only.${numberRule}`;
+SCRIPT WRITING (for ${language} only):
+- Write the ENTIRE script in ${language} using ONLY that language's native script. NO Latin/Roman letters, NO English words, NO transliteration.
+- Do NOT add transliteration in parentheses (e.g. wrong: "native words (romanized words)"). Write ONLY the ${language} line.
+- Do NOT mix two scripts (native script + Roman/English in brackets). One language only, 100% native script — so captions and TTS display and speak proper ${language}.
+- NUMBERS: Write ALL numbers as words in ${language} — NEVER use Arabic numerals (0–9). A TTS engine reads digits like "2026" as "two zero two six" in English, so always spell them out in ${language}.`;
 }
 
 const toneInstructions: Record<string, string> = {
